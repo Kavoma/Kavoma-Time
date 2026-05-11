@@ -16,11 +16,15 @@ interface Props {
 
 export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
   const { state } = useAppState();
-  const [name, setName]       = useState('');
-  const [color, setColor]     = useState(PALETTE[0]);
-  const [rate, setRate]       = useState<string>('');
-  const [address, setAddress] = useState('');
-  const [email, setEmail]     = useState('');
+  const [name, setName] = useState('');
+  const [color, setColor] = useState(PALETTE[0]);
+  const [rate, setRate] = useState<string>('');
+  const [street, setStreet]     = useState('');
+  const [address2, setAddress2] = useState('');
+  const [zip, setZip]           = useState('');
+  const [city, setCity]         = useState('');
+  const [email, setEmail]       = useState('');
+  const [debtorNumber, setDebtorNumber] = useState('');
   const [eInvoiceAccepted, setEInvoiceAccepted] = useState(false);
 
   useEffect(() => {
@@ -28,15 +32,23 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
       setName(customer.name);
       setColor(customer.color);
       setRate(customer.hourlyRate ? String(customer.hourlyRate) : '');
-      setAddress(customer.address ?? '');
+      setStreet(customer.street ?? '');
+      setAddress2(customer.address2 ?? '');
+      setZip(customer.zip ?? '');
+      setCity(customer.city ?? '');
       setEmail(customer.email ?? '');
+      setDebtorNumber(customer.debtorNumber ?? '');
       setEInvoiceAccepted(customer.eInvoiceAccepted ?? false);
     } else {
       setName('');
       setColor(PALETTE[Math.floor(Math.random() * PALETTE.length)]);
       setRate('');
-      setAddress('');
+      setStreet('');
+      setAddress2('');
+      setZip('');
+      setCity('');
       setEmail('');
+      setDebtorNumber(state ? String(state.nextDebtorNumber) : '');
       setEInvoiceAccepted(false);
     }
   }, [customer, open]);
@@ -49,8 +61,12 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
       name: name.trim(),
       color,
       hourlyRate: !isNaN(parsedRate) && parsedRate > 0 ? parsedRate : undefined,
-      address: address.trim() || undefined,
+      street: street.trim() || undefined,
+      address2: address2.trim() || undefined,
+      zip: zip.trim() || undefined,
+      city: city.trim() || undefined,
       email: email.trim() || undefined,
+      debtorNumber: debtorNumber.trim() || undefined,
       eInvoiceAccepted,
     });
   };
@@ -90,7 +106,7 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
               </h3>
             </div>
 
-            <div className="flex flex-col gap-4 px-6 py-5">
+            <div className="flex flex-col gap-4 px-6 py-5 overflow-y-auto max-h-[70vh]">
               <div className="flex flex-col">
                 <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Name</label>
                 <input
@@ -105,14 +121,60 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
               </div>
 
               <div className="flex flex-col">
-                <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Adresse (für Rechnungen)</label>
-                <textarea
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  rows={3}
-                  placeholder="Firma GmbH&#10;Musterstraße 1&#10;12345 Musterstadt"
-                  className="resize-none rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-muted outline-none focus:border-accent"
+                <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Debitoren-Nr. (z.B. 10001)</label>
+                <input
+                  type="text"
+                  value={debtorNumber}
+                  onChange={(e) => setDebtorNumber(e.target.value)}
+                  placeholder="10001"
+                  className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col">
+                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Straße & Hausnummer</label>
+                  <input
+                    type="text"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    placeholder="Musterstraße 12"
+                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Adresszusatz (optional)</label>
+                  <input
+                    type="text"
+                    value={address2}
+                    onChange={(e) => setAddress2(e.target.value)}
+                    placeholder="z.B. 2. OG / c/o"
+                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[100px_1fr] gap-3">
+                <div className="flex flex-col">
+                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">PLZ</label>
+                  <input
+                    type="text"
+                    value={zip}
+                    onChange={(e) => setZip(e.target.value)}
+                    placeholder="12345"
+                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm tabular-nums text-ink outline-none focus:border-accent"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Stadt</label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Musterstadt"
+                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -140,19 +202,18 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
                 </div>
               </div>
 
+
               <div className="flex flex-col">
                 <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">E-Rechnung Status</label>
                 <div className="flex items-center gap-2">
-                  <div 
+                  <div
                     onClick={() => setEInvoiceAccepted(!eInvoiceAccepted)}
-                    className={`flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 transition-all ${
-                      eInvoiceAccepted ? 'border-green-500/30 bg-green-500/5' : 'border-divider bg-paper hover:border-accent/50'
-                    }`}
+                    className={`flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 transition-all ${eInvoiceAccepted ? 'border-green-500/30 bg-green-500/5' : 'border-divider bg-paper hover:border-accent/50'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                        eInvoiceAccepted ? 'bg-green-500/20 text-green-500' : 'bg-muted/10 text-muted'
-                      }`}>
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${eInvoiceAccepted ? 'bg-green-500/20 text-green-500' : 'bg-muted/10 text-muted'
+                        }`}>
                         <ShieldCheck size={16} />
                       </div>
                       <div>
@@ -160,10 +221,10 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
                         <div className="text-[10px] text-muted">Gesetzliche PDF-Rechnungserlaubnis</div>
                       </div>
                     </div>
-                    
+
                     {/* Custom Toggle Switch */}
                     <div className={`relative h-5 w-9 rounded-full transition-colors duration-200 ${eInvoiceAccepted ? 'bg-green-500' : 'bg-muted/30'}`}>
-                      <motion.div 
+                      <motion.div
                         animate={{ x: eInvoiceAccepted ? 18 : 2 }}
                         initial={false}
                         transition={{ type: 'spring', stiffness: 500, damping: 30 }}

@@ -91,8 +91,10 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
 
   const save = () => {
     if (!customer) { setError('Kunde wählen'); return; }
-    if (!customer.address) { setError('Kunde hat keine Adresse — Rechnung wäre nicht vollständig.'); return; }
-    if (!issuer.name || !issuer.address) { setError('Absenderdaten in Einstellungen fehlen.'); return; }
+    const hasCustAddr = customer.street || customer.address;
+    const hasIssuAddr = issuer.street && issuer.city;
+    if (!hasCustAddr) { setError('Kunde hat keine Adresse — Rechnung wäre nicht vollständig.'); return; }
+    if (!issuer.name || !hasIssuAddr) { setError('Absenderdaten in Einstellungen (Name, Straße, Stadt) fehlen.'); return; }
 
     let items: InvoiceItem[] = [];
 

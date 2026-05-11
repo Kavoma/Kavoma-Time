@@ -6,12 +6,35 @@ const { app, BrowserWindow, nativeTheme, ipcMain, Tray, Menu, globalShortcut, na
 const path = require('node:path');
 const Store = require('electron-store').default || require('electron-store');
 
-const store = new Store({ name: 'kavoma-time-data' });
+// === APP IDENTIFICATION & PATHS ===
+app.name = 'Kavoma Time';
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.kavoma.time');
+}
+// Setzen des Pfads auf Roaming/Kavoma/KavomaTime (Professional Organization)
+const customUserDataPath = path.join(app.getPath('appData'), 'Kavoma', 'KavomaTime');
+app.setPath('userData', customUserDataPath);
 
+// === SINGLE INSTANCE LOCK ===
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
+const store = new Store({ name: 'kavoma-time-data' });
 ipcMain.handle('store-get', (_event, key) => store.get(key));
 ipcMain.handle('store-set', (_event, key, data) => store.set(key, data));
 
 nativeTheme.themeSource = 'dark';
+Menu.setApplicationMenu(null); // Entfernt das Standard-Electron-Menu komplett
 
 const DEV_URL = 'http://localhost:5173';
 const TRAY_ICON_PATH = path.join(__dirname, 'tray-icon.png');
@@ -134,6 +157,20 @@ app.whenReady().then(() => {
   createMainWindow();
   createTray();
   registerHotkeys();
+
+  // JumpList Task für Windows (Rechtsklick Taskleiste)
+  if (process.platform === 'win32') {
+    app.setUserTasks([
+      {
+        program: process.execPath,
+        arguments: '.',
+        iconPath: process.execPath,
+        iconIndex: 0,
+        title: 'Kavoma Time öffnen',
+        description: 'Öffnet die Zeiterfassung'
+      }
+    ]);
+  }
 });
 
 app.on('window-all-closed', (event) => {

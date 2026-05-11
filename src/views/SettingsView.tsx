@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
 import { Issuer } from '../types';
 import { isValidIban, getBankName, isValidBic, formatIban, formatBic, formatPhone, formatTaxId } from '../utils/iban';
@@ -80,6 +80,41 @@ export function SettingsView() {
   const { state, setState } = useAppState();
   const [listening, setListening] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const exportData = () => {
+    if (!state) return;
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kavoma-time-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (!data.customers || !data.entries) throw new Error('Ungültiges Format');
+        
+        if (confirm('Möchtest du wirklich alle aktuellen Daten mit diesem Backup überschreiben?')) {
+          setState(data);
+          alert('Daten erfolgreich importiert!');
+        }
+      } catch (err) {
+        alert('Fehler beim Importieren der Datei. Bitte stelle sicher, dass es eine gültige Backup-Datei ist.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Lokaler State für die Issuer-Felder, um Fokus-Verlust bei globalen Re-Renders zu vermeiden
   const [localIssuer, setLocalIssuer] = useState<Issuer | null>(null);
@@ -226,9 +261,12 @@ export function SettingsView() {
         <div className="grid grid-cols-2 gap-3 p-4">
           <FieldInput label="Name / Firma" value={localIssuer.name} onChange={v => updateIssuer('name', v)} placeholder="Max Mustermann" />
           <FieldInput label="E-Mail" value={localIssuer.email} onChange={v => updateIssuer('email', v)} placeholder="max@beispiel.de" type="email" />
-          <div className="col-span-2">
-            <FieldTextarea label="Adresse" value={localIssuer.address} onChange={v => updateIssuer('address', v)} placeholder="Musterstraße 1&#10;12345 Musterstadt" />
+          <div className="grid grid-cols-2 gap-3 col-span-2">
+            <FieldInput label="Straße & Hausnummer" value={localIssuer.street ?? ''} onChange={v => updateIssuer('street', v)} placeholder="Musterstraße 1" />
+            <FieldInput label="Adresszusatz (opt.)" value={localIssuer.address2 ?? ''} onChange={v => updateIssuer('address2', v)} placeholder="2. OG / c/o" />
           </div>
+          <FieldInput label="PLZ" value={localIssuer.zip ?? ''} onChange={v => updateIssuer('zip', v)} placeholder="12345" />
+          <FieldInput label="Stadt" value={localIssuer.city ?? ''} onChange={v => updateIssuer('city', v)} placeholder="Musterstadt" />
           <FieldInput label="Telefon" value={localIssuer.phone} onChange={v => updateIssuer('phone', v)} placeholder="+49 …" />
           <FieldInput label="Steuer-Nr. / USt-IdNr." value={localIssuer.taxId} onChange={v => updateIssuer('taxId', v)} placeholder="DE123456789" />
           <FieldInput label="IBAN" value={localIssuer.iban} onChange={v => updateIssuer('iban', v)} placeholder="DE89 …" isValid={isValidIban(localIssuer.iban)} />
@@ -270,7 +308,7 @@ export function SettingsView() {
       </div>
 
       {/* Shortcut */}
-      <div className="rounded-lg border border-divider bg-surface">
+      <div className="mb-6 rounded-lg border border-divider bg-surface">
         <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
           <Keyboard size={14} className="text-muted" />
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Tastenkürzel</span>
@@ -294,6 +332,41 @@ export function SettingsView() {
           </div>
           <p className="mt-3 text-[11px] text-muted">
             Esc bricht die Aufnahme ab.
+          </p>
+        </div>
+      </div>
+
+      {/* Datenverwaltung */}
+      <div className="rounded-lg border border-divider bg-surface">
+        <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
+          <Database size={14} className="text-muted" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Datenverwaltung & Backup</span>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={exportData}
+              className="flex items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95"
+            >
+              <Download size={14} /> Backup exportieren
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95"
+            >
+              <Upload size={14} /> Backup einspielen
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={importData}
+              accept=".json"
+              className="hidden"
+            />
+          </div>
+          <p className="mt-3 text-[10px] text-muted">
+            Exportiere deine gesamte Datenbank (Kunden, Projekte, Zeiten, Rechnungen) als JSON-Datei. 
+            Diese Datei kann jederzeit wieder eingespielt werden.
           </p>
         </div>
       </div>

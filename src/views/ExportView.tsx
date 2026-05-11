@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Download, Plus, FileText, Trash2, Check, Files, Search, ChevronDown, ShieldCheck, ClipboardList } from 'lucide-react';
+import { Download, Plus, FileText, Trash2, Check, Files, Search, ChevronDown, ShieldCheck, ClipboardList, FileSpreadsheet } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
 import { Invoice } from '../types';
 import { InvoiceCreateModal } from '../components/InvoiceCreateModal';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { ContextMenu } from '../components/ContextMenu';
 import { downloadInvoicePdf, downloadServiceReportPdf, downloadContractPdf } from '../utils/invoicePdf';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 
 export function ExportView() {
   const { state, setState } = useAppState();
@@ -18,6 +19,40 @@ export function ExportView() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   if (!state) return null;
+
+  const exportCSV = () => {
+    if (filteredInvoices.length === 0) return;
+
+    const headers = ['Nummer', 'Datum', 'Debitor-Nr.', 'Kunde', 'Leistungsdatum', 'Netto', 'USt-Satz', 'USt', 'Gesamt', 'Status'];
+    const rows = filteredInvoices.map(inv => {
+      const customer = state.customers.find(c => c.id === inv.customerId);
+      return [
+        inv.number,
+        fmtDate(inv.createdAt),
+        customer?.debtorNumber || customer?.id || '',
+        customer?.name || 'Unbekannt',
+        fmtDate(inv.periodTo),
+        inv.subtotal.toFixed(2).replace('.', ','),
+        `${inv.vatRate} %`.replace('.', ','),
+        inv.vatAmount.toFixed(2).replace('.', ','),
+        inv.total.toFixed(2).replace('.', ','),
+        inv.paid ? 'Bezahlt' : 'Offen'
+      ];
+    });
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(';'))
+      .join('\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `kavoma-time-export-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const bulkDownload = async () => {
     if (isExporting || filteredInvoices.length === 0) return;
@@ -129,7 +164,9 @@ export function ExportView() {
           }`}
         >
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Bezahlt</div>
-          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-green-500">{fmtEuro(paidRevenue)}</div>
+          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-green-500">
+            <AnimatedNumber value={paidRevenue} />
+          </div>
         </div>
         <div
           onClick={() => setFilterStatus(filterStatus === 'open' ? 'all' : 'open')}
@@ -138,7 +175,9 @@ export function ExportView() {
           }`}
         >
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Offen</div>
-          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-amber-400">{fmtEuro(openRevenue)}</div>
+          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-amber-400">
+            <AnimatedNumber value={openRevenue} />
+          </div>
         </div>
         <div
           onClick={() => setFilterStatus('all')}
@@ -147,7 +186,9 @@ export function ExportView() {
           }`}
         >
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Gesamt</div>
-          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-ink">{fmtEuro(totalRevenue)}</div>
+          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-ink">
+            <AnimatedNumber value={totalRevenue} />
+          </div>
         </div>
       </div>
 
@@ -177,6 +218,14 @@ export function ExportView() {
         </div>
         
         <div className="flex items-center gap-2">
+          <button
+            onClick={exportCSV}
+            disabled={filteredInvoices.length === 0}
+            className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-divider bg-surface px-4 text-xs font-bold uppercase tracking-widest transition-all hover:border-ink disabled:opacity-30"
+            title="Export für Steuerberater (CSV)"
+          >
+            <FileSpreadsheet size={14} /> CSV
+          </button>
           <button
             onClick={bulkDownload}
             disabled={isExporting || filteredInvoices.length === 0}

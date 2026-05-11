@@ -24,11 +24,17 @@ export function CustomersView() {
       setEditingId(null);
     } else {
       // Create
+      const newDebtorNumber = data.debtorNumber || String(state.nextDebtorNumber);
       const newCustomer: Customer = {
         ...data,
         id: Date.now(),
+        debtorNumber: newDebtorNumber,
       };
-      setState(s => s ? { ...s, customers: [...s.customers, newCustomer] } : null);
+      setState(s => s ? { 
+        ...s, 
+        customers: [...s.customers, newCustomer],
+        nextDebtorNumber: data.debtorNumber ? s.nextDebtorNumber : s.nextDebtorNumber + 1 
+      } : null);
       setIsCreateOpen(false);
     }
   };

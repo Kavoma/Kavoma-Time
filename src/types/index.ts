@@ -1,9 +1,14 @@
 export interface Customer {
   id: number;
   name: string;
+  debtorNumber?: string;
   color: string;
   hourlyRate?: number;
-  address?: string;     // Mehrzeilig
+  street?: string;
+  address2?: string;   // Adresszusatz
+  zip?: string;
+  city?: string;
+  address?: string;     // Legacy / Fallback
   email?: string;
   eInvoiceAccepted?: boolean;
 }
@@ -26,7 +31,10 @@ export interface TimeEntry {
 
 export interface Issuer {
   name: string;
-  address: string;        // Mehrzeilig
+  street: string;
+  address2?: string;      // Adresszusatz
+  zip: string;
+  city: string;
   email: string;
   phone: string;
   iban: string;
@@ -83,6 +91,7 @@ export interface AppState {
   invoices: Invoice[];
   nextInvoiceCounter: number;   // für laufende Nummer
   invoicePrefix?: string;       // Präfix für Rechnungen (Standard: Jahr-)
+  nextDebtorNumber: number;     // für Kunden/Debitoren (DATEV konform)
 }
 
 declare global {

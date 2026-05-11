@@ -7,7 +7,10 @@ const DEFAULT_SHORTCUT = 'CommandOrControl+Shift+Space';
 
 const DEFAULT_ISSUER = {
   name: '',
-  address: '',
+  street: '',
+  address2: '',
+  zip: '',
+  city: '',
   email: '',
   phone: '',
   iban: '',
@@ -35,6 +38,7 @@ const SEED_STATE: AppState = {
   invoices: [],
   nextInvoiceCounter: 1,
   invoicePrefix: 'YYYY-',
+  nextDebtorNumber: 10001,
 };
 
 interface ContextValue {
@@ -69,6 +73,25 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         if (!Array.isArray(data.invoices)) data.invoices = [];
         if (typeof data.nextInvoiceCounter !== 'number') data.nextInvoiceCounter = 1;
         if (typeof data.invoicePrefix !== 'string') data.invoicePrefix = SEED_STATE.invoicePrefix;
+        if (typeof data.nextDebtorNumber !== 'number') data.nextDebtorNumber = SEED_STATE.nextDebtorNumber;
+
+        // Migration: Strukturierte Adressen
+        if (data.issuer && (data.issuer as any).address && !data.issuer.street) {
+          const lines = (data.issuer as any).address.split('\n');
+          data.issuer.street = lines[0]?.trim() || '';
+          data.issuer.city   = lines.slice(1).join(', ').trim() || '';
+        }
+        data.customers?.forEach((c: any) => {
+          if (c.address && !c.street) {
+            const lines = c.address.split('\n');
+            c.street = lines[0]?.trim() || '';
+            c.city   = lines.slice(1).join(', ').trim() || '';
+          }
+          if (!c.debtorNumber) {
+            c.debtorNumber = String(data!.nextDebtorNumber);
+            data!.nextDebtorNumber++;
+          }
+        });
 
         // Crash Recovery — Timer lief beim Schließen → verstrichene Zeit retten
         if (data.isRunning && data.startedAt) {

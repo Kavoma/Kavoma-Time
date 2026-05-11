@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { useAppState } from '../state/AppStateContext';
 import { TimeEntry } from '../types';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 
 type Period = 'week' | 'month' | 'year';
 
@@ -53,7 +54,7 @@ function ymd(d: Date): string {
 }
 
 // === Card Wrapper ================================================
-function Card({ icon: Icon, label, value, sub, diff }: { icon: any; label: string; value: string; sub?: string; diff?: number | null }) {
+function Card({ icon: Icon, label, value, rawValue, format = 'number', sub, diff }: { icon: any; label: string; value?: string; rawValue?: number; format?: 'currency' | 'number' | 'time'; sub?: string; diff?: number | null }) {
   return (
     <div className="rounded-lg border border-divider bg-surface p-5">
       <div className="mb-3 flex items-center justify-between">
@@ -67,7 +68,9 @@ function Card({ icon: Icon, label, value, sub, diff }: { icon: any; label: strin
           <Icon size={14} className="text-muted" />
         </div>
       </div>
-      <div className="font-display text-3xl font-bold tabular-nums leading-none text-ink">{value}</div>
+      <div className="font-display text-3xl font-bold tabular-nums leading-none text-ink">
+        {rawValue !== undefined ? <AnimatedNumber value={rawValue} format={format} /> : value}
+      </div>
       {sub && <div className="mt-2 text-[11px] text-muted">{sub}</div>}
     </div>
   );
@@ -96,7 +99,7 @@ export function StatisticsView() {
   if (!state) return null;
 
   const start = periodStart(period);
-  const entriesInPeriod = state.entries.filter(e => e.startedAt >= start);
+  const entriesInPeriod = state.entries.filter((e: TimeEntry) => e.startedAt >= start);
   
   // === Vergleichszeitraum berechnen ===
   const prevStart = useMemo(() => {
@@ -107,20 +110,20 @@ export function StatisticsView() {
     return d.getTime();
   }, [start, period]);
   
-  const entriesInPrevPeriod = state.entries.filter(e => e.startedAt >= prevStart && e.startedAt < start);
-  const prevTotalSeconds = entriesInPrevPeriod.reduce((sum, e) => sum + e.durationSeconds, 0);
+  const entriesInPrevPeriod = state.entries.filter((e: TimeEntry) => e.startedAt >= prevStart && e.startedAt < start);
+  const prevTotalSeconds = entriesInPrevPeriod.reduce((sum: number, e: TimeEntry) => sum + e.durationSeconds, 0);
   
-  const totalSeconds  = entriesInPeriod.reduce((sum, e) => sum + e.durationSeconds, 0);
+  const totalSeconds  = entriesInPeriod.reduce((sum: number, e: TimeEntry) => sum + e.durationSeconds, 0);
   const diffPercent = prevTotalSeconds > 0 ? ((totalSeconds - prevTotalSeconds) / prevTotalSeconds) * 100 : null;
 
   // Umsatz (geschätzt) — nur Kunden mit hourlyRate
-  const revenue = entriesInPeriod.reduce((sum, e) => {
+  const revenue = entriesInPeriod.reduce((sum: number, e: TimeEntry) => {
     const customer = state.customers.find(c => c.id === e.customerId);
     if (!customer?.hourlyRate) return sum;
     return sum + (e.durationSeconds / 3600) * customer.hourlyRate;
   }, 0);
 
-  const prevRevenue = entriesInPrevPeriod.reduce((sum, e) => {
+  const prevRevenue = entriesInPrevPeriod.reduce((sum: number, e: TimeEntry) => {
     const customer = state.customers.find(c => c.id === e.customerId);
     if (!customer?.hourlyRate) return sum;
     return sum + (e.durationSeconds / 3600) * customer.hourlyRate;
@@ -132,14 +135,14 @@ export function StatisticsView() {
   const avgSession    = sessionsCount > 0 ? totalSeconds / sessionsCount : 0;
 
   // Anzahl tatsächlicher Arbeitstage (Tage mit ≥1 Eintrag)
-  const workDays = new Set(entriesInPeriod.map(e => ymd(new Date(e.startedAt)))).size;
+  const workDays = new Set(entriesInPeriod.map((e: TimeEntry) => ymd(new Date(e.startedAt)))).size;
   const avgPerWorkDay = workDays > 0 ? totalSeconds / workDays : 0;
 
   // Wochenziel-Fortschritt (immer aktuelle Woche)
   const weekStart = startOfWeek().getTime();
   const weekSeconds = state.entries
-    .filter(e => e.startedAt >= weekStart)
-    .reduce((s, e) => s + e.durationSeconds, 0);
+    .filter((e: TimeEntry) => e.startedAt >= weekStart)
+    .reduce((s: number, e: TimeEntry) => s + e.durationSeconds, 0);
   const weekHours    = weekSeconds / 3600;
   const target       = state.weeklyTargetHours;
   const weekProgress = Math.min(100, (weekHours / target) * 100);
@@ -155,7 +158,7 @@ export function StatisticsView() {
       map.set(key, { date: key, hours: 0, ts: cursor.getTime() });
       cursor.setDate(cursor.getDate() + 1);
     }
-    entriesInPeriod.forEach(e => {
+    entriesInPeriod.forEach((e: TimeEntry) => {
       const key = ymd(new Date(e.startedAt));
       const item = map.get(key);
       if (item) item.hours += e.durationSeconds / 3600;
@@ -172,12 +175,12 @@ export function StatisticsView() {
   // === Donut: Stunden pro Kunde =================================
   const customerData = useMemo(() => {
     const acc = new Map<number, number>();
-    entriesInPeriod.forEach(e => {
+    entriesInPeriod.forEach((e: TimeEntry) => {
       acc.set(e.customerId, (acc.get(e.customerId) || 0) + e.durationSeconds);
     });
     return Array.from(acc.entries())
       .map(([customerId, seconds]) => {
-        const c = state.customers.find(cc => cc.id === customerId);
+        const c = state.customers.find((cc: any) => cc.id === customerId);
         return {
           name: c?.name ?? 'Unbekannt',
           hours: seconds / 3600,
@@ -185,20 +188,20 @@ export function StatisticsView() {
           revenue: c?.hourlyRate ? (seconds / 3600) * c.hourlyRate : 0,
         };
       })
-      .filter(c => c.hours > 0)
-      .sort((a, b) => b.hours - a.hours);
+      .filter((c: any) => c.hours > 0)
+      .sort((a: any, b: any) => b.hours - a.hours);
   }, [entriesInPeriod, state.customers]);
 
   // === Top-Projekte =============================================
   const projectData = useMemo(() => {
     const acc = new Map<number, number>();
-    entriesInPeriod.forEach(e => {
+    entriesInPeriod.forEach((e: TimeEntry) => {
       acc.set(e.projectId, (acc.get(e.projectId) || 0) + e.durationSeconds);
     });
     return Array.from(acc.entries())
       .map(([projectId, seconds]) => {
-        const p = state.projects.find(pp => pp.id === projectId);
-        const c = state.customers.find(cc => cc.id === p?.customerId);
+        const p = state.projects.find((pp: any) => pp.id === projectId);
+        const c = state.customers.find((cc: any) => cc.id === p?.customerId);
         return {
           name:    p?.name ?? 'Unbekannt',
           customer: c?.name ?? '—',
@@ -209,7 +212,7 @@ export function StatisticsView() {
           share:   totalSeconds > 0 ? (seconds / totalSeconds) * 100 : 0,
         };
       })
-      .sort((a, b) => b.hours - a.hours)
+      .sort((a: any, b: any) => b.hours - a.hours)
       .slice(0, 5);
   }, [entriesInPeriod, state.projects, state.customers, totalSeconds]);
 
@@ -217,7 +220,7 @@ export function StatisticsView() {
   const weekdayData = useMemo(() => {
     const labels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
     const totals = [0, 0, 0, 0, 0, 0, 0];
-    entriesInPeriod.forEach(e => {
+    entriesInPeriod.forEach((e: TimeEntry) => {
       const dow = (new Date(e.startedAt).getDay() + 6) % 7;
       totals[dow] += e.durationSeconds;
     });
@@ -225,7 +228,7 @@ export function StatisticsView() {
   }, [entriesInPeriod]);
 
   // === Best Day Insight ========================================
-  const bestDay = weekdayData.reduce((max, d) => d.hours > max.hours ? d : max, weekdayData[0]);
+  const bestDay = weekdayData.reduce((max: any, d: any) => d.hours > max.hours ? d : max, weekdayData[0]);
   const topCustomer = customerData[0];
 
   // === Render ===================================================
@@ -257,14 +260,16 @@ export function StatisticsView() {
         <Card
           icon={Clock}
           label="Stunden gesamt"
-          value={formatHM(totalSeconds)}
+          rawValue={totalSeconds}
+          format="time"
           sub={`${workDays} ${workDays === 1 ? 'Arbeitstag' : 'Arbeitstage'}`}
           diff={diffPercent}
         />
         <Card
           icon={Euro}
           label="Umsatz"
-          value={formatEuro(revenue)}
+          rawValue={revenue}
+          format="currency"
           sub={revenue > 0 ? 'aus Stundensätzen geschätzt' : 'kein Stundensatz hinterlegt'}
           diff={revenueDiffPercent}
         />
@@ -277,13 +282,15 @@ export function StatisticsView() {
         <Card
           icon={Activity}
           label="Sessions"
-          value={String(sessionsCount)}
+          rawValue={sessionsCount}
+          format="number"
           sub={sessionsCount > 0 ? `Ø ${formatHM(avgSession)} pro Session` : '—'}
         />
         <Card
           icon={TrendingUp}
           label="Ø pro Arbeitstag"
-          value={formatHM(avgPerWorkDay)}
+          rawValue={avgPerWorkDay}
+          format="time"
           sub={workDays > 0 ? `auf ${workDays} ${workDays === 1 ? 'Tag' : 'Tagen'}` : '—'}
         />
         <Card
