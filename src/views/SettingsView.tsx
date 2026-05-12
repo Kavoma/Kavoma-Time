@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload } from 'lucide-react';
+import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload, Info } from 'lucide-react';
+import { ConfirmRestoreModal } from '../components/ConfirmRestoreModal';
 import { useAppState } from '../state/AppStateContext';
 import { Issuer } from '../types';
 import { isValidIban, getBankName, isValidBic, formatIban, formatBic, formatPhone, formatTaxId } from '../utils/iban';
@@ -37,7 +38,7 @@ function prettyAccelerator(acc: string): string {
     .replace(/\+/g, ' + ');
 }
 
-function FieldInput({ label, value, onChange, placeholder, type = 'text', isValid, error }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; isValid?: boolean; error?: string }) {
+function FieldInput({ label, value, onChange, placeholder, type = 'text', isValid, error: _error }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; isValid?: boolean; error?: string }) {
   return (
     <div className="flex flex-col">
       <div className="mb-2 flex items-center justify-between">
@@ -61,35 +62,45 @@ function FieldInput({ label, value, onChange, placeholder, type = 'text', isVali
   );
 }
 
-function FieldTextarea({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return (
-    <div className="flex flex-col">
-      <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</label>
-      <textarea
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={3}
-        className="resize-none rounded-md border border-divider bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted outline-none focus:border-accent"
-      />
-    </div>
-  );
-}
-
 export function SettingsView() {
-  const { state, setState } = useAppState();
+  const { state, setState, restoreBackup } = useAppState();
   const [listening, setListening] = useState(false);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [pendingBackupData, setPendingBackupData] = useState<any>(null);
+  const [appInfo, setAppInfo] = useState<{ os: string; arch: string; version: string } | null>(null);
+
   const buttonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const exportData = () => {
+  const exportData = async () => {
     if (!state) return;
-    const data = JSON.stringify(state, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
+    const plaintext = JSON.stringify(state);
+
+    // Versuche zu verschlüsseln, falls Electron mit Key verfügbar; sonst Plain-Fallback
+    let output: string;
+    let extension = 'json';
+    try {
+      if (window.api?.encryptBackup) {
+        const payload = await window.api.encryptBackup(plaintext);
+        if (payload?.encrypted) {
+          output = JSON.stringify({ kavoma: 'backup', ...payload }, null, 2);
+          extension = 'kvbak';
+        } else {
+          output = JSON.stringify(state, null, 2);
+        }
+      } else {
+        output = JSON.stringify(state, null, 2);
+      }
+    } catch (err) {
+      console.warn('Verschlüsselung fehlgeschlagen, exportiere Klartext:', err);
+      output = JSON.stringify(state, null, 2);
+    }
+
+    const blob = new Blob([output], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `kavoma-time-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `kavoma-time-backup-${new Date().toISOString().split('T')[0]}.${extension}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -99,17 +110,28 @@ export function SettingsView() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
-        const data = JSON.parse(event.target?.result as string);
-        if (!data.customers || !data.entries) throw new Error('Ungültiges Format');
-        
-        if (confirm('Möchtest du wirklich alle aktuellen Daten mit diesem Backup überschreiben?')) {
-          setState(data);
-          alert('Daten erfolgreich importiert!');
+        const raw = event.target?.result as string;
+        const parsed = JSON.parse(raw);
+
+        let data: any;
+        if (parsed?.encrypted && parsed?.data && window.api?.decryptBackup) {
+          // Verschlüsseltes Backup → mit App-Schlüssel entschlüsseln
+          const decrypted = await window.api.decryptBackup(parsed);
+          data = JSON.parse(decrypted);
+        } else {
+          // Klartext-Backup (Legacy)
+          data = parsed;
         }
+
+        if (!data.customers || !data.entries) throw new Error('Ungültiges Format');
+
+        setPendingBackupData(data);
+        setIsRestoreModalOpen(true);
       } catch (err) {
-        alert('Fehler beim Importieren der Datei. Bitte stelle sicher, dass es eine gültige Backup-Datei ist.');
+        console.error(err);
+        alert('Fehler beim Importieren. Stelle sicher, dass die Datei von dieser Installation stammt (verschlüsselte Backups lassen sich nur am gleichen PC öffnen).');
       }
     };
     reader.readAsText(file);
@@ -118,6 +140,10 @@ export function SettingsView() {
 
   // Lokaler State für die Issuer-Felder, um Fokus-Verlust bei globalen Re-Renders zu vermeiden
   const [localIssuer, setLocalIssuer] = useState<Issuer | null>(null);
+
+  useEffect(() => {
+    window.api?.getAppInfo().then(setAppInfo);
+  }, []);
 
   useEffect(() => {
     if (state && !localIssuer) {
@@ -167,7 +193,7 @@ export function SettingsView() {
     if (field === 'phone') formattedValue = formatPhone(value);
     if (field === 'taxId') formattedValue = formatTaxId(value);
 
-    let next = { ...localIssuer, [field]: formattedValue };
+    const next = { ...localIssuer, [field]: formattedValue };
 
     // Auto-Bank-Erkennung (basiert auf dem neuen Wert)
     if (field === 'iban') {
@@ -323,8 +349,8 @@ export function SettingsView() {
               ref={buttonRef}
               onClick={() => setListening(l => !l)}
               className={`min-w-44 cursor-pointer rounded-md border px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors ${listening
-                  ? 'border-accent bg-paper text-accent animate-pulse'
-                  : 'border-divider bg-paper text-ink hover:border-ink'
+                ? 'border-accent bg-paper text-accent animate-pulse'
+                : 'border-divider bg-paper text-ink hover:border-ink'
                 }`}
             >
               {listening ? 'Taste drücken…' : prettyAccelerator(state.shortcuts.startPause)}
@@ -360,14 +386,53 @@ export function SettingsView() {
               type="file"
               ref={fileInputRef}
               onChange={importData}
-              accept=".json"
+              accept=".json,.kvbak"
               className="hidden"
             />
           </div>
           <p className="mt-3 text-[10px] text-muted">
-            Exportiere deine gesamte Datenbank (Kunden, Projekte, Zeiten, Rechnungen) als JSON-Datei. 
+            Exportiere deine gesamte Datenbank (Kunden, Projekte, Zeiten, Rechnungen) als verschlüsselte KVBAK-Datei.
             Diese Datei kann jederzeit wieder eingespielt werden.
           </p>
+        </div>
+      </div>
+
+      <ConfirmRestoreModal
+        open={isRestoreModalOpen}
+        onCancel={() => {
+          setIsRestoreModalOpen(false);
+          setPendingBackupData(null);
+        }}
+        onConfirm={async () => {
+          if (pendingBackupData) {
+            setIsRestoreModalOpen(false);
+            await restoreBackup(pendingBackupData);
+            setPendingBackupData(null);
+          }
+        }}
+      />
+
+      {/* System Information */}
+      <div className="mt-8 rounded-lg border border-divider bg-surface overflow-hidden">
+        <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
+          <Info size={14} className="text-muted" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">System-Informationen</span>
+        </div>
+        <div className="p-4 bg-paper/30">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="flex flex-col gap-1">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted">App Version</div>
+              <div className="text-sm font-bold text-accent">{appInfo?.version || '...'}</div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted">Betriebssystem</div>
+              <div className="text-sm font-bold text-ink">{appInfo?.os || '...'}</div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted">Architektur</div>
+              <div className="text-sm font-bold text-muted uppercase">{appInfo?.arch || '...'} Bit</div>
+            </div>
+          </div>
         </div>
       </div>
     </>

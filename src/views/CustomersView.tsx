@@ -6,7 +6,6 @@ import { ContextMenu } from '../components/ContextMenu';
 import { CustomerEditModal } from '../components/CustomerEditModal';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 
-const PALETTE = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#06b6d4', '#84cc16'];
 
 export function CustomersView() {
   const { state, setState } = useAppState();

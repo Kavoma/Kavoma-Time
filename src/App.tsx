@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Clock, BarChart3, Users, FolderKanban, Download } from 'lucide-react';
+import { Settings, Clock, BarChart3, Users, FolderKanban, Download, Database } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TrackerView } from './views/TrackerView';
 import { CustomersView } from './views/CustomersView';
@@ -38,7 +38,7 @@ function formatHM(seconds: number) {
 
 export function App() {
   const [activeView, setActiveView] = useState('tracker');
-  const { state } = useAppState();
+  const { state, isRestoring } = useAppState();
 
   const navItems = [
     { id: 'tracker', label: 'Tracker', icon: Clock },
@@ -122,6 +122,46 @@ export function App() {
           </AnimatePresence>
         </div>
       </main>
+      
+      <AnimatePresence>
+        {isRestoring && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-2xl"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", damping: 20, stiffness: 100 }}
+              className="flex flex-col items-center gap-8"
+            >
+              <div className="relative flex h-20 w-20 items-center justify-center">
+                {/* Single Clean Ring */}
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 rounded-full border-2 border-divider border-t-accent"
+                />
+                {/* Icon */}
+                <div className="relative z-10 text-accent">
+                  <Database size={28} strokeWidth={1.5} />
+                </div>
+              </div>
+
+              <div className="text-center">
+                <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-ink">
+                  Daten werden wiederhergestellt
+                </h2>
+                <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                  Einen Moment bitte…
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

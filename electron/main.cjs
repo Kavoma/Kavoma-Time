@@ -2,8 +2,10 @@
 // Electron Main-Process
 // ============================================================
 
-const { app, BrowserWindow, nativeTheme, ipcMain, Tray, Menu, globalShortcut, nativeImage } = require('electron');
+const { app, BrowserWindow, nativeTheme, ipcMain, Tray, Menu, globalShortcut, nativeImage, safeStorage } = require('electron');
 const path = require('node:path');
+const fs   = require('node:fs');
+const crypto = require('node:crypto');
 const Store = require('electron-store').default || require('electron-store');
 
 // === APP IDENTIFICATION & PATHS ===
@@ -29,9 +31,91 @@ if (!gotTheLock) {
   });
 }
 
-const store = new Store({ name: 'kavoma-time-data' });
-ipcMain.handle('store-get', (_event, key) => store.get(key));
-ipcMain.handle('store-set', (_event, key, data) => store.set(key, data));
+// === Encryption Key ===
+// AES-256-Schlüssel wird in einer Datei abgelegt, die mit safeStorage
+// (OS-Keychain / DPAPI auf Windows) verschlüsselt ist. So lässt sich der
+// Klartext-Store nicht einfach auslesen, wenn jemand die Daten kopiert.
+function getOrCreateEncryptionKey() {
+  const keyFile = path.join(app.getPath('userData'), 'kavoma.key');
+  try {
+    if (fs.existsSync(keyFile) && safeStorage.isEncryptionAvailable()) {
+      const encrypted = fs.readFileSync(keyFile);
+      return safeStorage.decryptString(encrypted);
+    }
+  } catch (e) {
+    console.warn('Konnte Schlüssel nicht entschlüsseln, generiere neu:', e.message);
+  }
+  // Neuen Schlüssel erzeugen
+  const key = crypto.randomBytes(32).toString('hex');
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      fs.mkdirSync(path.dirname(keyFile), { recursive: true });
+      const encrypted = safeStorage.encryptString(key);
+      fs.writeFileSync(keyFile, encrypted);
+    }
+  } catch (e) {
+    console.warn('Konnte Schlüssel nicht speichern (Daten werden unverschlüsselt gespeichert):', e.message);
+    return undefined;
+  }
+  return key;
+}
+
+// Store wird erst nach app.whenReady() initialisiert, damit safeStorage verfügbar ist
+let store = null;
+let currentEncryptionKey = null;
+
+ipcMain.handle('store-get', (_event, key) => store?.get(key));
+ipcMain.handle('store-set', (_event, key, data) => store?.set(key, data));
+
+// === Backup-Verschlüsselung (AES-256-GCM mit dem App-Schlüssel) ===
+ipcMain.handle('backup-encrypt', (_event, plaintext) => {
+  if (!currentEncryptionKey) return { encrypted: false, data: plaintext };
+  const keyBuf = Buffer.from(currentEncryptionKey, 'hex');
+  const iv     = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', keyBuf, iv);
+  const enc    = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const tag    = cipher.getAuthTag();
+  return {
+    version:   1,
+    encrypted: true,
+    algorithm: 'aes-256-gcm',
+    iv:        iv.toString('base64'),
+    authTag:   tag.toString('base64'),
+    data:      enc.toString('base64'),
+  };
+});
+
+ipcMain.handle('backup-decrypt', (_event, payload) => {
+  if (!currentEncryptionKey) throw new Error('Kein Schlüssel verfügbar');
+  if (!payload || !payload.encrypted) throw new Error('Backup ist nicht verschlüsselt');
+  if (payload.algorithm !== 'aes-256-gcm') throw new Error('Unbekanntes Verschlüsselungs-Verfahren');
+  const keyBuf = Buffer.from(currentEncryptionKey, 'hex');
+  const iv     = Buffer.from(payload.iv,      'base64');
+  const tag    = Buffer.from(payload.authTag, 'base64');
+  const enc    = Buffer.from(payload.data,    'base64');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuf, iv);
+  decipher.setAuthTag(tag);
+  const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
+  return dec.toString('utf8');
+});
+
+ipcMain.handle('get-app-info', () => {
+  const release = require('os').release();
+  const major = parseInt(release.split('.')[0]);
+  const build = parseInt(release.split('.')[2]);
+  
+  let osName = `Windows ${release}`;
+  if (major === 10) {
+    if (build >= 22000) osName = `Windows 11 (${build})`;
+    else osName = `Windows 10 (${build})`;
+  }
+  
+  return {
+    os: osName,
+    arch: process.arch,
+    version: app.getVersion(),
+  };
+});
 
 nativeTheme.themeSource = 'dark';
 Menu.setApplicationMenu(null); // Entfernt das Standard-Electron-Menu komplett
@@ -140,7 +224,7 @@ function registerStartPauseShortcut(accelerator) {
 
 function registerHotkeys() {
   // Beim Start: aus dem Store gespeicherten Shortcut lesen, sonst Default
-  const saved = store.get('kavoma_time');
+  const saved = store?.get('kavoma_time');
   const accelerator = saved?.shortcuts?.startPause || 'CommandOrControl+Shift+Space';
   registerStartPauseShortcut(accelerator);
 }
@@ -154,6 +238,14 @@ ipcMain.handle('set-start-pause-shortcut', (_event, accelerator) => {
 // ============================================================
 
 app.whenReady().then(() => {
+  // Verschlüsselter Store — Key aus safeStorage
+  const encryptionKey = getOrCreateEncryptionKey();
+  currentEncryptionKey = encryptionKey;
+  store = new Store({
+    name: 'kavoma-time-data',
+    ...(encryptionKey ? { encryptionKey } : {}),
+  });
+
   createMainWindow();
   createTray();
   registerHotkeys();

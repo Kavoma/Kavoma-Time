@@ -111,7 +111,7 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
     margin: { left: 20, right: 20 },
   });
 
-  // @ts-ignore — autotable hängt sich an doc
+  // @ts-expect-error — autotable hängt sich an doc
   y = (doc as any).lastAutoTable.finalY + 8;
 
   // === Summen ===
@@ -244,8 +244,7 @@ export function generateServiceReportPdf(invoice: Invoice, issuer: Issuer, custo
  */
 export function generateContractPdf(issuer: Issuer, customer: Customer): Blob {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const W = 210;
-  
+
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text('Einverständniserklärung zum elektronischen Rechnungserhalt', 20, 30);

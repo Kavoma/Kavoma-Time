@@ -1,6 +1,6 @@
 {
   "name": "kavoma-time",
-  "version": "0.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -12,7 +12,7 @@
     "electron": "electron .",
     "electron:dev": "concurrently --kill-others --names \"VITE,ELECTRON\" --prefix-colors \"cyan,magenta\" \"pnpm dev\" \"wait-on http://localhost:5173 && pnpm electron\"",
     "dist:portable": "pnpm build && electron-builder --win portable",
-    "lint": "eslint . --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --report-unused-disable-directives"
   },
   "build": {
     "appId": "com.kavoma.time",

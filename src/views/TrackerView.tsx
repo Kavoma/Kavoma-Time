@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pencil, Trash2, Plus, ChevronRight } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
@@ -21,6 +21,38 @@ export function TrackerView() {
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [entryView, setEntryView] = useState<'date' | 'project'>('date');
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
+
+  // === Helpers ===
+  const formatHMS = (totalSeconds: number) => {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  // === Actions ===
+  const handleStart = () => {
+    if (state?.isRunning) return;
+    const now = Date.now();
+    setState(s => s ? {
+      ...s,
+      isRunning: true,
+      startedAt: now,
+      sessionStartedAt: s.sessionStartedAt || now
+    } : null);
+  };
+
+  const handlePause = () => {
+    if (!state?.isRunning || !state.startedAt) return;
+    const now = Date.now();
+    const liveSeconds = Math.floor((now - state.startedAt) / 1000);
+    setState(s => s ? {
+      ...s,
+      isRunning: false,
+      startedAt: null,
+      elapsedBefore: s.elapsedBefore + liveSeconds
+    } : null);
+  };
 
   useEffect(() => {
     const closeMenu = () => setContextMenu(null);
@@ -88,35 +120,6 @@ export function TrackerView() {
   if (!state) {
     return <div className="text-center text-sm text-muted mt-12">Lade Daten...</div>;
   }
-
-  const handleStart = () => {
-    if (state.isRunning) return;
-    const now = Date.now();
-    setState(s => {
-      if (!s) return null;
-      return {
-        ...s,
-        isRunning: true,
-        startedAt: now,
-        sessionStartedAt: s.sessionStartedAt || now
-      };
-    });
-  };
-
-  const handlePause = () => {
-    if (!state.isRunning) return;
-    const now = Date.now();
-    const liveSeconds = Math.floor((now - state.startedAt!) / 1000);
-    setState(s => {
-      if (!s) return null;
-      return {
-        ...s,
-        isRunning: false,
-        startedAt: null,
-        elapsedBefore: s.elapsedBefore + liveSeconds
-      };
-    });
-  };
 
   const handleStop = () => {
     if (!state.isRunning && state.elapsedBefore === 0) return;
@@ -198,13 +201,6 @@ export function TrackerView() {
       };
     });
     setEditModalEntryId(null);
-  };
-
-  const formatHMS = (totalSeconds: number) => {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
   const availableProjects = projects.filter(p => p.customerId === state.currentCustomerId);
@@ -347,7 +343,8 @@ export function TrackerView() {
         const toggleProject = (id: number) => {
           setExpandedProjects(prev => {
             const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
             return next;
           });
         };

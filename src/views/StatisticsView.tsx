@@ -7,6 +7,7 @@ import {
 import { useAppState } from '../state/AppStateContext';
 import { TimeEntry } from '../types';
 import { AnimatedNumber } from '../components/AnimatedNumber';
+import { profitabilityByCustomer, profitabilityByProject, forecastYear } from '../utils/analytics';
 
 type Period = 'week' | 'month' | 'year';
 
@@ -96,10 +97,14 @@ export function StatisticsView() {
   const { state } = useAppState();
   const [period, setPeriod] = useState<Period>('month');
 
-  if (!state) return null;
+  // Sichere Zugriffe (state kann null sein während Loading)
+  const entries   = state?.entries   ?? [];
+  const customers = state?.customers ?? [];
+  const projects  = state?.projects  ?? [];
+  const weeklyTargetHours = state?.weeklyTargetHours ?? 40;
 
   const start = periodStart(period);
-  const entriesInPeriod = state.entries.filter((e: TimeEntry) => e.startedAt >= start);
+  const entriesInPeriod = entries.filter((e: TimeEntry) => e.startedAt >= start);
   
   // === Vergleichszeitraum berechnen ===
   const prevStart = useMemo(() => {
@@ -110,7 +115,7 @@ export function StatisticsView() {
     return d.getTime();
   }, [start, period]);
   
-  const entriesInPrevPeriod = state.entries.filter((e: TimeEntry) => e.startedAt >= prevStart && e.startedAt < start);
+  const entriesInPrevPeriod = entries.filter((e: TimeEntry) => e.startedAt >= prevStart && e.startedAt < start);
   const prevTotalSeconds = entriesInPrevPeriod.reduce((sum: number, e: TimeEntry) => sum + e.durationSeconds, 0);
   
   const totalSeconds  = entriesInPeriod.reduce((sum: number, e: TimeEntry) => sum + e.durationSeconds, 0);
@@ -118,13 +123,13 @@ export function StatisticsView() {
 
   // Umsatz (geschätzt) — nur Kunden mit hourlyRate
   const revenue = entriesInPeriod.reduce((sum: number, e: TimeEntry) => {
-    const customer = state.customers.find(c => c.id === e.customerId);
+    const customer = customers.find(c => c.id === e.customerId);
     if (!customer?.hourlyRate) return sum;
     return sum + (e.durationSeconds / 3600) * customer.hourlyRate;
   }, 0);
 
   const prevRevenue = entriesInPrevPeriod.reduce((sum: number, e: TimeEntry) => {
-    const customer = state.customers.find(c => c.id === e.customerId);
+    const customer = customers.find(c => c.id === e.customerId);
     if (!customer?.hourlyRate) return sum;
     return sum + (e.durationSeconds / 3600) * customer.hourlyRate;
   }, 0);
@@ -138,20 +143,43 @@ export function StatisticsView() {
   const workDays = new Set(entriesInPeriod.map((e: TimeEntry) => ymd(new Date(e.startedAt)))).size;
   const avgPerWorkDay = workDays > 0 ? totalSeconds / workDays : 0;
 
+  // === Vorperioden-Aggregate für weitere Vergleiche ===
+  const prevSessionsCount = entriesInPrevPeriod.length;
+  const prevAvgSession    = prevSessionsCount > 0 ? prevTotalSeconds / prevSessionsCount : 0;
+  const prevWorkDays      = new Set(entriesInPrevPeriod.map((e: TimeEntry) => ymd(new Date(e.startedAt)))).size;
+  const prevAvgPerWorkDay = prevWorkDays > 0 ? prevTotalSeconds / prevWorkDays : 0;
+
+  const diffP = (curr: number, prev: number): number | null =>
+    prev > 0 ? ((curr - prev) / prev) * 100 : null;
+
+  const sessionsDiff      = diffP(sessionsCount, prevSessionsCount);
+  const avgSessionDiff    = diffP(avgSession,    prevAvgSession);
+  const workDaysDiff      = diffP(workDays,      prevWorkDays);
+  const avgPerWorkDayDiff = diffP(avgPerWorkDay, prevAvgPerWorkDay);
+
+  // Per-Kunde Vorperioden-Sekunden für Top-Customer Vergleich
+  const prevCustomerSeconds = useMemo(() => {
+    const m = new Map<number, number>();
+    entriesInPrevPeriod.forEach((e: TimeEntry) => {
+      m.set(e.customerId, (m.get(e.customerId) || 0) + e.durationSeconds);
+    });
+    return m;
+  }, [entriesInPrevPeriod]);
+
   // Wochenziel-Fortschritt (immer aktuelle Woche)
   const weekStart = startOfWeek().getTime();
-  const weekSeconds = state.entries
+  const weekSeconds = entries
     .filter((e: TimeEntry) => e.startedAt >= weekStart)
     .reduce((s: number, e: TimeEntry) => s + e.durationSeconds, 0);
   const weekHours    = weekSeconds / 3600;
-  const target       = state.weeklyTargetHours;
+  const target       = weeklyTargetHours;
   const weekProgress = Math.min(100, (weekHours / target) * 100);
 
   // === Daily Bar-Chart (Tage in der Periode) ====================
   const dailyData = useMemo(() => {
     const map = new Map<string, { date: string; hours: number; ts: number }>();
     const now = new Date();
-    let cursor = new Date(start);
+    const cursor = new Date(start);
 
     while (cursor.getTime() <= now.getTime()) {
       const key = ymd(cursor);
@@ -180,7 +208,7 @@ export function StatisticsView() {
     });
     return Array.from(acc.entries())
       .map(([customerId, seconds]) => {
-        const c = state.customers.find((cc: any) => cc.id === customerId);
+        const c = customers.find((cc: any) => cc.id === customerId);
         return {
           name: c?.name ?? 'Unbekannt',
           hours: seconds / 3600,
@@ -190,7 +218,7 @@ export function StatisticsView() {
       })
       .filter((c: any) => c.hours > 0)
       .sort((a: any, b: any) => b.hours - a.hours);
-  }, [entriesInPeriod, state.customers]);
+  }, [entriesInPeriod, customers]);
 
   // === Top-Projekte =============================================
   const projectData = useMemo(() => {
@@ -198,11 +226,18 @@ export function StatisticsView() {
     entriesInPeriod.forEach((e: TimeEntry) => {
       acc.set(e.projectId, (acc.get(e.projectId) || 0) + e.durationSeconds);
     });
+    // Vorperiode pro Projekt
+    const prevAcc = new Map<number, number>();
+    entriesInPrevPeriod.forEach((e: TimeEntry) => {
+      prevAcc.set(e.projectId, (prevAcc.get(e.projectId) || 0) + e.durationSeconds);
+    });
     return Array.from(acc.entries())
       .map(([projectId, seconds]) => {
-        const p = state.projects.find((pp: any) => pp.id === projectId);
-        const c = state.customers.find((cc: any) => cc.id === p?.customerId);
+        const p = projects.find((pp: any) => pp.id === projectId);
+        const c = customers.find((cc: any) => cc.id === p?.customerId);
+        const prevSeconds = prevAcc.get(projectId) || 0;
         return {
+          projectId,
           name:    p?.name ?? 'Unbekannt',
           customer: c?.name ?? '—',
           color:   c?.color ?? '#525252',
@@ -210,11 +245,12 @@ export function StatisticsView() {
           hours:   seconds / 3600,
           revenue: c?.hourlyRate ? (seconds / 3600) * c.hourlyRate : 0,
           share:   totalSeconds > 0 ? (seconds / totalSeconds) * 100 : 0,
+          diff:    diffP(seconds, prevSeconds),
         };
       })
       .sort((a: any, b: any) => b.hours - a.hours)
       .slice(0, 5);
-  }, [entriesInPeriod, state.projects, state.customers, totalSeconds]);
+  }, [entriesInPeriod, entriesInPrevPeriod, projects, customers, totalSeconds]);
 
   // === Wochentag-Verteilung =====================================
   const weekdayData = useMemo(() => {
@@ -230,6 +266,33 @@ export function StatisticsView() {
   // === Best Day Insight ========================================
   const bestDay = weekdayData.reduce((max: any, d: any) => d.hours > max.hours ? d : max, weekdayData[0]);
   const topCustomer = customerData[0];
+
+  // === Profitabilität + Forecast ===============================
+  const profitabilityCustomers = useMemo(() => {
+    if (!state) return [];
+    const map = profitabilityByCustomer(state);
+    return Array.from(map.values())
+      .map(p => ({ ...p, customer: customers.find(c => c.id === p.customerId) }))
+      .filter(p => p.totalHours > 0 || p.invoicedRevenue > 0)
+      .sort((a, b) => b.invoicedRevenue - a.invoicedRevenue);
+  }, [state, customers]);
+
+  const profitabilityProjects = useMemo(() => {
+    if (!state) return [];
+    const map = profitabilityByProject(state);
+    return Array.from(map.values())
+      .map(p => {
+        const project = projects.find(pp => pp.id === p.projectId);
+        const customer = project ? customers.find(c => c.id === project.customerId) : undefined;
+        return { ...p, project, customer };
+      })
+      .filter(p => p.totalHours > 0 || p.fixedPrice)
+      .sort((a, b) => b.totalHours - a.totalHours);
+  }, [state, projects, customers]);
+
+  const yearForecast = useMemo(() => state ? forecastYear(state) : null, [state]);
+
+  if (!state) return null;
 
   // === Render ===================================================
   return (
@@ -285,6 +348,7 @@ export function StatisticsView() {
           rawValue={sessionsCount}
           format="number"
           sub={sessionsCount > 0 ? `Ø ${formatHM(avgSession)} pro Session` : '—'}
+          diff={sessionsDiff}
         />
         <Card
           icon={TrendingUp}
@@ -292,33 +356,49 @@ export function StatisticsView() {
           rawValue={avgPerWorkDay}
           format="time"
           sub={workDays > 0 ? `auf ${workDays} ${workDays === 1 ? 'Tag' : 'Tagen'}` : '—'}
+          diff={avgPerWorkDayDiff}
         />
         <Card
           icon={Calendar}
-          label="Bester Wochentag"
-          value={bestDay && bestDay.hours > 0 ? bestDay.label : '—'}
-          sub={bestDay && bestDay.hours > 0 ? `${bestDay.hours.toFixed(1)} Std. gesamt` : 'noch keine Daten'}
+          label="Arbeitstage"
+          rawValue={workDays}
+          format="number"
+          sub={workDays > 0 ? `Bester: ${bestDay?.label ?? '—'}` : 'noch keine Daten'}
+          diff={workDaysDiff}
         />
       </div>
 
       {/* Top-Kunde + Insight-Zeilen */}
-      {topCustomer && (
-        <div className="mb-6 rounded-lg border border-divider bg-surface p-4">
-          <div className="flex items-center gap-3">
-            <span className="size-3.5 shrink-0 rounded-full" style={{ background: topCustomer.color }} />
-            <div className="flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Top-Kunde der Periode</div>
-              <div className="mt-0.5 text-sm font-bold text-ink">{topCustomer.name}</div>
-            </div>
-            <div className="text-right tabular-nums">
-              <div className="text-sm font-bold text-ink">{topCustomer.hours.toFixed(1)} Std.</div>
-              {topCustomer.revenue > 0 && (
-                <div className="text-[11px] text-accent">{formatEuro(topCustomer.revenue)}</div>
-              )}
+      {topCustomer && (() => {
+        const cust = customers.find(c => c.name === topCustomer.name);
+        const prevSec = cust ? prevCustomerSeconds.get(cust.id) ?? 0 : 0;
+        const currSec = topCustomer.hours * 3600;
+        const topDiff = diffP(currSec, prevSec);
+        const arrow = topDiff === null ? '' : topDiff > 0 ? '↑' : topDiff < 0 ? '↓' : '→';
+        const arrowColor = topDiff === null ? 'text-muted' : topDiff > 0 ? 'text-green-400' : topDiff < 0 ? 'text-red-400' : 'text-muted';
+        return (
+          <div className="mb-6 rounded-lg border border-divider bg-surface p-4">
+            <div className="flex items-center gap-3">
+              <span className="size-3.5 shrink-0 rounded-full" style={{ background: topCustomer.color }} />
+              <div className="flex-1">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Top-Kunde der Periode</div>
+                <div className="mt-0.5 text-sm font-bold text-ink">{topCustomer.name}</div>
+              </div>
+              <div className="text-right tabular-nums">
+                <div className="flex items-center justify-end gap-2 text-sm font-bold text-ink">
+                  {topCustomer.hours.toFixed(1)} Std.
+                  {topDiff !== null && (
+                    <span className={`text-[11px] ${arrowColor}`}>{arrow} {Math.abs(topDiff).toFixed(0)}%</span>
+                  )}
+                </div>
+                {topCustomer.revenue > 0 && (
+                  <div className="text-[11px] text-accent">{formatEuro(topCustomer.revenue)}</div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Bar Chart: Stunden pro Tag */}
       <div className="mb-6 rounded-lg border border-divider bg-surface p-5">
@@ -365,13 +445,23 @@ export function StatisticsView() {
                 </ResponsiveContainer>
               </div>
               <ul className="mt-2 flex flex-col gap-1.5">
-                {customerData.slice(0, 4).map((c, i) => (
-                  <li key={i} className="flex items-center gap-2 text-xs">
-                    <span className="size-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
-                    <span className="flex-1 truncate text-ink">{c.name}</span>
-                    <span className="tabular-nums text-muted">{c.hours.toFixed(1)}h</span>
-                  </li>
-                ))}
+                {customerData.slice(0, 4).map((c, i) => {
+                  const cust = customers.find(cc => cc.name === c.name);
+                  const prev = cust ? (prevCustomerSeconds.get(cust.id) ?? 0) / 3600 : 0;
+                  const d = diffP(c.hours, prev);
+                  return (
+                    <li key={i} className="flex items-center gap-2 text-xs">
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
+                      <span className="flex-1 truncate text-ink">{c.name}</span>
+                      {d !== null && (
+                        <span className={`text-[10px] tabular-nums ${d > 0 ? 'text-green-400' : d < 0 ? 'text-red-400' : 'text-muted'}`}>
+                          {d > 0 ? '↑' : d < 0 ? '↓' : '→'} {Math.abs(d).toFixed(0)}%
+                        </span>
+                      )}
+                      <span className="tabular-nums text-muted">{c.hours.toFixed(1)}h</span>
+                    </li>
+                  );
+                })}
               </ul>
             </>
           )}
@@ -414,7 +504,14 @@ export function StatisticsView() {
                   <div className="text-[11px] text-muted">{p.customer}</div>
                 </div>
                 <div className="text-right tabular-nums">
-                  <div className="text-sm font-bold text-ink">{p.hours.toFixed(1)} h</div>
+                  <div className="flex items-center justify-end gap-2 text-sm font-bold text-ink">
+                    {p.hours.toFixed(1)} h
+                    {p.diff !== null && (
+                      <span className={`text-[10px] ${p.diff > 0 ? 'text-green-400' : p.diff < 0 ? 'text-red-400' : 'text-muted'}`}>
+                        {p.diff > 0 ? '↑' : p.diff < 0 ? '↓' : '→'} {Math.abs(p.diff).toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[11px] text-muted">
                     {p.share.toFixed(0)}%{p.revenue > 0 ? ` · ${formatEuro(p.revenue)}` : ''}
                   </div>
@@ -424,6 +521,98 @@ export function StatisticsView() {
           </ul>
         )}
       </div>
+
+      {/* === Forecast === */}
+      {yearForecast && yearForecast.yearToDateRevenue > 0 && (
+        <div className="mt-6 rounded-lg border border-divider bg-surface p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <TrendingUp size={14} className="text-muted" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Jahres-Hochrechnung</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <div className="text-[10px] text-muted">Bisher in {new Date().getFullYear()}</div>
+              <div className="mt-1 font-display text-xl font-bold tabular-nums text-ink">{formatEuro(yearForecast.yearToDateRevenue)}</div>
+              <div className="text-[10px] text-muted">{yearForecast.yearToDateDays} Arbeitstage</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-muted">Ø pro Tag</div>
+              <div className="mt-1 font-display text-xl font-bold tabular-nums text-ink">{formatEuro(yearForecast.averageDailyRevenue)}</div>
+              <div className="text-[10px] text-muted">{yearForecast.daysRemaining} Tage Restjahr</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-muted">Prognose Jahresende</div>
+              <div className="mt-1 font-display text-xl font-bold tabular-nums text-accent">{formatEuro(yearForecast.forecastEnd)}</div>
+              <div className="text-[10px] text-muted">+{formatEuro(yearForecast.forecastRemaining)} erwartet</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === Profitabilität pro Kunde === */}
+      {profitabilityCustomers.length > 0 && (
+        <div className="mt-6 rounded-lg border border-divider bg-surface">
+          <div className="border-b border-divider px-4 py-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Profitabilität pro Kunde</span>
+          </div>
+          <ul className="divide-y divide-divider">
+            {profitabilityCustomers.map(p => (
+              <li key={p.customerId} className="flex items-center gap-3 px-4 py-3">
+                <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.customer?.color ?? '#525252' }} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold text-ink">{p.customer?.name ?? '—'}</div>
+                  <div className="text-[11px] text-muted tabular-nums">
+                    {p.totalHours.toFixed(1)} h · realer Stundensatz {p.effectiveHourlyRate > 0 ? p.effectiveHourlyRate.toFixed(0) + ' €/h' : '—'}
+                  </div>
+                </div>
+                <div className="text-right tabular-nums">
+                  <div className="text-sm font-bold text-ink">{formatEuro(p.invoicedRevenue)}</div>
+                  {p.openRevenue > 0 && (
+                    <div className="text-[11px] text-amber-400">{formatEuro(p.openRevenue)} offen</div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* === Profitabilität pro Projekt mit Budget/Pauschal === */}
+      {profitabilityProjects.filter(p => p.budgetHours || p.fixedPrice).length > 0 && (
+        <div className="mt-6 rounded-lg border border-divider bg-surface">
+          <div className="border-b border-divider px-4 py-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Projekte mit Budget / Pauschalpreis</span>
+          </div>
+          <ul className="divide-y divide-divider">
+            {profitabilityProjects.filter(p => p.budgetHours || p.fixedPrice).map(p => {
+              const overBudget = p.budgetUsagePercent && p.budgetUsagePercent > 100;
+              return (
+                <li key={p.projectId} className="flex items-center gap-3 px-4 py-3">
+                  <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.customer?.color ?? '#525252' }} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-bold text-ink">{p.project?.name ?? '—'}</div>
+                    <div className="text-[11px] text-muted tabular-nums">
+                      {p.totalHours.toFixed(1)} h gearbeitet
+                      {p.budgetHours ? ` · Budget ${p.budgetHours} h` : ''}
+                      {p.realHourlyRate ? ` · realer Satz ${p.realHourlyRate.toFixed(0)} €/h` : ''}
+                    </div>
+                  </div>
+                  <div className="text-right tabular-nums">
+                    {p.budgetUsagePercent !== undefined && (
+                      <div className={`text-sm font-bold ${overBudget ? 'text-red-400' : 'text-ink'}`}>
+                        {p.budgetUsagePercent.toFixed(0)}%
+                      </div>
+                    )}
+                    {p.fixedPrice && (
+                      <div className="text-[11px] text-muted">{formatEuro(p.fixedPrice)} Pauschal</div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </>
   );
 }

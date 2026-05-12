@@ -20,7 +20,7 @@ export function isValidIban(iban: string): boolean {
 
   try {
     return BigInt(numeric) % 97n === 1n;
-  } catch (e) {
+  } catch {
     return false;
   }
 }

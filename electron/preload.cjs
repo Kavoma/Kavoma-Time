@@ -12,4 +12,9 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   setStartPauseShortcut: (accelerator) => ipcRenderer.invoke('set-start-pause-shortcut', accelerator),
+
+  // Backup-Verschlüsselung
+  encryptBackup: (plaintext) => ipcRenderer.invoke('backup-encrypt', plaintext),
+  decryptBackup: (payload)   => ipcRenderer.invoke('backup-decrypt', payload),
+  getAppInfo: () => ipcRenderer.invoke('get-app-info'),
 });

@@ -44,17 +44,81 @@ const SEED_STATE: AppState = {
 interface ContextValue {
   state: AppState | null;
   setState: React.Dispatch<React.SetStateAction<AppState | null>>;
+  isRestoring: boolean;
+  restoreBackup: (data: AppState) => Promise<void>;
 }
 
 const AppStateContext = createContext<ContextValue | null>(null);
 
+function migrateData(data: any): AppState {
+  const migrated = { ...data };
+
+  // Migration für ältere Saves
+  if (!Array.isArray(migrated.customers)) migrated.customers = SEED_STATE.customers;
+  if (!Array.isArray(migrated.projects)) migrated.projects = SEED_STATE.projects;
+  if (typeof migrated.weeklyTargetHours !== 'number') migrated.weeklyTargetHours = SEED_STATE.weeklyTargetHours;
+  if (!migrated.shortcuts || typeof migrated.shortcuts.startPause !== 'string') migrated.shortcuts = SEED_STATE.shortcuts;
+  if (!migrated.issuer || typeof migrated.issuer !== 'object') migrated.issuer = SEED_STATE.issuer;
+  else migrated.issuer = { ...SEED_STATE.issuer, ...migrated.issuer };
+  if (!Array.isArray(migrated.invoices)) migrated.invoices = [];
+  if (typeof migrated.nextInvoiceCounter !== 'number') migrated.nextInvoiceCounter = 1;
+  if (typeof migrated.invoicePrefix !== 'string') migrated.invoicePrefix = SEED_STATE.invoicePrefix;
+  if (typeof migrated.nextDebtorNumber !== 'number') migrated.nextDebtorNumber = SEED_STATE.nextDebtorNumber;
+
+  // Migration: Strukturierte Adressen
+  if (migrated.issuer && (migrated.issuer as any).address && !migrated.issuer.street) {
+    const lines = (migrated.issuer as any).address.split('\n');
+    migrated.issuer.street = lines[0]?.trim() || '';
+    migrated.issuer.city = lines.slice(1).join(', ').trim() || '';
+  }
+  migrated.customers?.forEach((c: any) => {
+    if (c.address && !c.street) {
+      const lines = c.address.split('\n');
+      c.street = lines[0]?.trim() || '';
+      c.city = lines.slice(1).join(', ').trim() || '';
+    }
+    if (!c.debtorNumber) {
+      c.debtorNumber = String(migrated.nextDebtorNumber);
+      migrated.nextDebtorNumber++;
+    }
+  });
+
+  // Migration: Invoice-Status + Mahn-Array
+  migrated.invoices?.forEach((inv: any) => {
+    if (!inv.status) inv.status = 'active';
+    if (!Array.isArray(inv.reminders)) inv.reminders = [];
+  });
+
+  // Crash Recovery — Timer lief beim Schließen → verstrichene Zeit retten
+  if (migrated.isRunning && migrated.startedAt) {
+    const crashed = Math.floor((Date.now() - migrated.startedAt) / 1000);
+    return { ...migrated, isRunning: false, startedAt: null, elapsedBefore: migrated.elapsedBefore + crashed };
+  }
+
+  return migrated;
+}
+
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const restoreBackup = async (data: AppState) => {
+    setIsRestoring(true);
+    // Gib der Animation Zeit zu starten
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const migrated = migrateData(data);
+    setState(migrated);
+    
+    // Gib der Animation Zeit zum Verweilen
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    setIsRestoring(false);
+  };
 
   // Laden (einmalig)
   useEffect(() => {
     async function loadData() {
-      let data: AppState | null = null;
+      let data: any = null;
       if (window.api) {
         data = await window.api.loadData(STORAGE_KEY);
       } else {
@@ -63,42 +127,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       }
 
       if (data) {
-        // Migration für ältere Saves
-        if (!Array.isArray(data.customers))   data.customers   = SEED_STATE.customers;
-        if (!Array.isArray(data.projects))    data.projects    = SEED_STATE.projects;
-        if (typeof data.weeklyTargetHours !== 'number') data.weeklyTargetHours = SEED_STATE.weeklyTargetHours;
-        if (!data.shortcuts || typeof data.shortcuts.startPause !== 'string') data.shortcuts = SEED_STATE.shortcuts;
-        if (!data.issuer || typeof data.issuer !== 'object') data.issuer = SEED_STATE.issuer;
-        else data.issuer = { ...SEED_STATE.issuer, ...data.issuer };
-        if (!Array.isArray(data.invoices)) data.invoices = [];
-        if (typeof data.nextInvoiceCounter !== 'number') data.nextInvoiceCounter = 1;
-        if (typeof data.invoicePrefix !== 'string') data.invoicePrefix = SEED_STATE.invoicePrefix;
-        if (typeof data.nextDebtorNumber !== 'number') data.nextDebtorNumber = SEED_STATE.nextDebtorNumber;
-
-        // Migration: Strukturierte Adressen
-        if (data.issuer && (data.issuer as any).address && !data.issuer.street) {
-          const lines = (data.issuer as any).address.split('\n');
-          data.issuer.street = lines[0]?.trim() || '';
-          data.issuer.city   = lines.slice(1).join(', ').trim() || '';
-        }
-        data.customers?.forEach((c: any) => {
-          if (c.address && !c.street) {
-            const lines = c.address.split('\n');
-            c.street = lines[0]?.trim() || '';
-            c.city   = lines.slice(1).join(', ').trim() || '';
-          }
-          if (!c.debtorNumber) {
-            c.debtorNumber = String(data!.nextDebtorNumber);
-            data!.nextDebtorNumber++;
-          }
-        });
-
-        // Crash Recovery — Timer lief beim Schließen → verstrichene Zeit retten
-        if (data.isRunning && data.startedAt) {
-          const crashed = Math.floor((Date.now() - data.startedAt) / 1000);
-          data = { ...data, isRunning: false, startedAt: null, elapsedBefore: data.elapsedBefore + crashed };
-        }
-        setState(data);
+        setState(migrateData(data));
       } else {
         setState(SEED_STATE);
       }
@@ -114,7 +143,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   return (
-    <AppStateContext.Provider value={{ state, setState }}>
+    <AppStateContext.Provider value={{ state, setState, isRestoring, restoreBackup }}>
       {children}
     </AppStateContext.Provider>
   );

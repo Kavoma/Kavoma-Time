@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, ShieldCheck, ClipboardList, Check } from 'lucide-react';
+import { FileText, ShieldCheck, ClipboardList } from 'lucide-react';
 import { Customer, Project, TimeEntry, Invoice, Issuer, InvoiceItem } from '../types';
 import { CustomSelect } from './CustomSelect';
 
@@ -86,8 +86,15 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
   }, [entries, customerId, projectId, fromTs, toTs]);
 
   const totalHours = matchedEntries.reduce((s, e) => s + e.durationSeconds, 0) / 3600;
+  // Stundensatz-Auflösung pro Eintrag: Projekt-Rate hat Vorrang vor Kunden-Rate
+  const rateFor = (e: TimeEntry): number => {
+    const p = projects.find(pp => pp.id === e.projectId);
+    if (p?.hourlyRate) return p.hourlyRate;
+    return customer?.hourlyRate ?? 0;
+  };
+  const hourlyAmount = matchedEntries.reduce((s, e) => s + (e.durationSeconds / 3600) * rateFor(e), 0);
+  // Für die Vorschau "Stundensatz" — nur sinnvoll wenn einheitlich
   const rate = customer?.hourlyRate ?? 0;
-  const hourlyAmount = totalHours * rate;
 
   const save = () => {
     if (!customer) { setError('Kunde wählen'); return; }
@@ -96,13 +103,12 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
     if (!hasCustAddr) { setError('Kunde hat keine Adresse — Rechnung wäre nicht vollständig.'); return; }
     if (!issuer.name || !hasIssuAddr) { setError('Absenderdaten in Einstellungen (Name, Straße, Stadt) fehlen.'); return; }
 
-    let items: InvoiceItem[] = [];
+    let items: InvoiceItem[];
 
     if (mode === 'hourly') {
       if (matchedEntries.length === 0) { setError('Keine Zeiteinträge im Zeitraum.'); return; }
-      if (rate <= 0) { setError('Kunde hat keinen Stundensatz hinterlegt.'); return; }
 
-      // Gruppiere nach Projekt
+      // Gruppiere nach Projekt — jedes Projekt kann eigenen Stundensatz haben
       const byProject = new Map<number, TimeEntry[]>();
       matchedEntries.forEach(e => {
         if (!byProject.has(e.projectId)) byProject.set(e.projectId, []);
@@ -110,15 +116,20 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
       });
       items = Array.from(byProject.entries()).map(([pid, ents]) => {
         const p = projects.find(pp => pp.id === pid);
+        const projectRate = p?.hourlyRate ?? customer.hourlyRate ?? 0;
         const hours = ents.reduce((s, e) => s + e.durationSeconds, 0) / 3600;
         return {
           description: `${serviceType}${p ? ` (${p.name})` : ''} — Zeitraum ${new Date(from).toLocaleDateString('de-DE')} – ${new Date(to).toLocaleDateString('de-DE')}`,
           quantity: Number(hours.toFixed(2)),
           unit: 'h',
-          unitPrice: rate,
-          total: Number((hours * rate).toFixed(2)),
+          unitPrice: projectRate,
+          total: Number((hours * projectRate).toFixed(2)),
         };
       });
+      if (items.some(it => it.unitPrice <= 0)) {
+        setError('Mindestens ein Projekt/Kunde hat keinen Stundensatz hinterlegt.');
+        return;
+      }
     } else {
       const amount = parseFloat(fixedAmount.replace(',', '.'));
       if (isNaN(amount) || amount <= 0) { setError('Pauschalpreis ungültig.'); return; }
@@ -155,6 +166,8 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
       total: Number(total.toFixed(2)),
       notes: notes.trim(),
       paid: false,
+      status: 'active',
+      reminders: [],
     };
 
     onSave(invoice, { includeReport, includeConsent: includeConsent && !customer?.eInvoiceAccepted });

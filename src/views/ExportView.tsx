@@ -1,12 +1,15 @@
 import { useState, useMemo } from 'react';
-import { Download, Plus, FileText, Trash2, Check, Files, Search, ChevronDown, ShieldCheck, ClipboardList, FileSpreadsheet } from 'lucide-react';
+import { Download, Plus, FileText, Trash2, Check, Files, Search, ShieldCheck, ClipboardList, FileSpreadsheet, Ban, AlertTriangle } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
-import { Invoice } from '../types';
+import { Invoice, DunningReminder } from '../types';
 import { InvoiceCreateModal } from '../components/InvoiceCreateModal';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { ContextMenu } from '../components/ContextMenu';
+import { CancelInvoiceModal } from '../components/CancelInvoiceModal';
+import { DunningModal } from '../components/DunningModal';
 import { downloadInvoicePdf, downloadServiceReportPdf, downloadContractPdf } from '../utils/invoicePdf';
 import { AnimatedNumber } from '../components/AnimatedNumber';
+import { createCancellationInvoice } from '../utils/analytics';
 
 export function ExportView() {
   const { state, setState } = useAppState();
@@ -14,9 +17,29 @@ export function ExportView() {
   const [isExporting, setIsExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCustomer, setFilterCustomer] = useState<number>(0);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'open'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'open' | 'cancelled' | 'dunning'>('all');
   const [menu, setMenu] = useState<{ x: number; y: number; invoiceId: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [dunningId, setDunningId] = useState<string | null>(null);
+
+  const filteredInvoices = useMemo(() => {
+    if (!state) return [];
+    return state.invoices.filter(inv => {
+      const customer = state.customers.find(c => c.id === inv.customerId);
+      const matchesSearch = inv.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCustomer = filterCustomer === 0 || inv.customerId === filterCustomer;
+      const isCancelled = inv.status === 'cancelled';
+      const isStorno    = !!inv.cancelsInvoiceId;
+      let matchesStatus = true;
+      if      (filterStatus === 'paid')      matchesStatus = inv.paid && !isCancelled && !isStorno;
+      else if (filterStatus === 'open')      matchesStatus = !inv.paid && !isCancelled && !isStorno;
+      else if (filterStatus === 'cancelled') matchesStatus = isCancelled || isStorno;
+      else if (filterStatus === 'dunning')   matchesStatus = !isCancelled && !isStorno && !inv.paid && inv.dueDate < Date.now();
+      return matchesSearch && matchesCustomer && matchesStatus;
+    });
+  }, [state, searchTerm, filterCustomer, filterStatus]);
 
   if (!state) return null;
 
@@ -70,17 +93,6 @@ export function ExportView() {
   const fmtEuro = (n: number) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
   const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-  const filteredInvoices = useMemo(() => {
-    return state.invoices.filter(inv => {
-      const customer = state.customers.find(c => c.id === inv.customerId);
-      const matchesSearch = inv.number.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCustomer = filterCustomer === 0 || inv.customerId === filterCustomer;
-      const matchesStatus = filterStatus === 'all' || (filterStatus === 'paid' ? inv.paid : !inv.paid);
-      return matchesSearch && matchesCustomer && matchesStatus;
-    });
-  }, [state.invoices, state.customers, searchTerm, filterCustomer, filterStatus]);
-
   const handleCreate = async (invoice: Invoice, options: { includeReport: boolean; includeConsent: boolean }) => {
     const customer = state.customers.find(c => c.id === invoice.customerId);
     if (!customer) return;
@@ -132,16 +144,84 @@ export function ExportView() {
   };
 
   const remove = (id: string) => {
-    setState(s => s ? { ...s, invoices: s.invoices.filter(i => i.id !== id) } : null);
+    setState(s => {
+      if (!s) return null;
+      const inv = s.invoices.find(i => i.id === id);
+      if (!inv) return s;
+
+      // Beim Storno-Paar IMMER beide löschen — sonst Geister-Einträge
+      // (Original ohne Storno oder Storno ohne Original) und falsche Hero-Card-Zählungen
+      const idsToDelete = new Set<string>([id]);
+      if (inv.cancelledByInvoiceId) idsToDelete.add(inv.cancelledByInvoiceId); // Original → Storno mit weg
+      if (inv.cancelsInvoiceId)     idsToDelete.add(inv.cancelsInvoiceId);     // Storno → Original mit weg
+
+      return { ...s, invoices: s.invoices.filter(i => !idsToDelete.has(i.id)) };
+    });
     setDeletingId(null);
+  };
+
+  const cancelInvoice = (reason: string) => {
+    if (!cancellingId || !state) return;
+    const original = state.invoices.find(i => i.id === cancellingId);
+    if (!original || original.status === 'cancelled') { setCancellingId(null); return; }
+
+    const year = new Date().getFullYear();
+    const newNumber = `${state.invoicePrefix?.replace('YYYY', String(year)) ?? `${year}-`}${String(state.nextInvoiceCounter).padStart(3, '0')}-S`;
+    const stornoInv = createCancellationInvoice(original, reason, newNumber);
+
+    setState(s => s ? {
+      ...s,
+      nextInvoiceCounter: s.nextInvoiceCounter + 1,
+      invoices: [
+        stornoInv,
+        ...s.invoices.map(i => i.id === original.id
+          ? { ...i, status: 'cancelled' as const, cancelledAt: Date.now(), cancellationReason: reason, cancelledByInvoiceId: stornoInv.id }
+          : i),
+      ],
+    } : null);
+
+    // Storno-PDF direkt herunterladen
+    const customer = state.customers.find(c => c.id === original.customerId);
+    if (customer) downloadInvoicePdf(stornoInv, state.issuer, customer);
+
+    setCancellingId(null);
+  };
+
+  const addReminder = (reminder: DunningReminder) => {
+    if (!dunningId || !state) return;
+    const inv = state.invoices.find(i => i.id === dunningId);
+    if (!inv || inv.status === 'cancelled' || inv.cancelsInvoiceId) {
+      setDunningId(null);
+      return;
+    }
+    setState(s => s ? {
+      ...s,
+      invoices: s.invoices.map(i => i.id === dunningId ? { ...i, reminders: [...i.reminders, reminder] } : i),
+    } : null);
+    setDunningId(null);
   };
 
   const deletingInvoice = state.invoices.find(i => i.id === deletingId) || null;
 
   // Stats (basierend auf gefilterten Daten)
-  const totalRevenue = filteredInvoices.reduce((s, i) => s + i.total, 0);
-  const paidRevenue  = filteredInvoices.filter(i => i.paid).reduce((s, i) => s + i.total, 0);
-  const openRevenue  = totalRevenue - paidRevenue;
+  // Aktive Rechnungen — Stornierte + Storno-Rechnungen aus den Finanz-Summen raus
+  const activeInvoices = filteredInvoices.filter(i => i.status !== 'cancelled' && !i.cancelsInvoiceId);
+  const paidRevenue  = activeInvoices.filter(i => i.paid).reduce((s, i) => s + i.total, 0);
+  const openRevenue  = activeInvoices.filter(i => !i.paid).reduce((s, i) => s + i.total, 0);
+  const totalRevenue = paidRevenue + openRevenue;
+
+  // Zähler für Header-Cards (basieren auf allen Rechnungen, nicht gefiltert)
+  const allInvoices = state.invoices;
+  const overdueInvoices  = allInvoices.filter(i => i.status !== 'cancelled' && !i.cancelsInvoiceId && !i.paid && i.dueDate < Date.now());
+  // Mahnungen nur für aktive Rechnungen — stornierte fallen aus dem Mahnverfahren raus
+  const dunningInvoices  = allInvoices.filter(i =>
+    i.reminders.length > 0 && i.status !== 'cancelled' && !i.cancelsInvoiceId
+  );
+  const dunningFees      = dunningInvoices.reduce((s, i) => s + i.reminders.reduce((rs, r) => rs + r.fee, 0), 0);
+  const cancelledCount   = allInvoices.filter(i => i.status === 'cancelled').length;
+  const cancelledVolume  = allInvoices.filter(i => i.status === 'cancelled').reduce((s, i) => s + i.total, 0);
+  const paidCount = activeInvoices.filter(i => i.paid).length;
+  const openCount = activeInvoices.filter(i => !i.paid).length;
 
   return (
     <>
@@ -156,14 +236,17 @@ export function ExportView() {
       </div>
 
       {/* Hero Stats */}
-      <div className="mb-8 grid grid-cols-3 gap-3">
+      <div className="mb-4 grid grid-cols-3 gap-3">
         <div
           onClick={() => setFilterStatus(filterStatus === 'paid' ? 'all' : 'paid')}
           className={`cursor-pointer rounded-xl border p-5 transition-all hover:scale-[1.02] ${
             filterStatus === 'paid' ? 'border-green-500 bg-green-500/5 shadow-lg shadow-green-500/10' : 'border-divider bg-surface'
           }`}
         >
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Bezahlt</div>
+          <div className="flex items-baseline justify-between">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Bezahlt</div>
+            <div className="text-[10px] tabular-nums text-muted">{paidCount}×</div>
+          </div>
           <div className="mt-2 font-display text-2xl font-bold tabular-nums text-green-500">
             <AnimatedNumber value={paidRevenue} />
           </div>
@@ -174,7 +257,10 @@ export function ExportView() {
             filterStatus === 'open' ? 'border-amber-500 bg-amber-500/5 shadow-lg shadow-amber-500/10' : 'border-divider bg-surface'
           }`}
         >
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Offen</div>
+          <div className="flex items-baseline justify-between">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Offen</div>
+            <div className="text-[10px] tabular-nums text-muted">{openCount}×{overdueInvoices.length > 0 ? ` · ${overdueInvoices.length} überfällig` : ''}</div>
+          </div>
           <div className="mt-2 font-display text-2xl font-bold tabular-nums text-amber-400">
             <AnimatedNumber value={openRevenue} />
           </div>
@@ -185,9 +271,57 @@ export function ExportView() {
             filterStatus === 'all' ? 'border-ink bg-ink/5 shadow-lg shadow-ink/5' : 'border-divider bg-surface'
           }`}
         >
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Gesamt</div>
+          <div className="flex items-baseline justify-between">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Gesamt</div>
+            <div className="text-[10px] tabular-nums text-muted">{paidCount + openCount}×</div>
+          </div>
           <div className="mt-2 font-display text-2xl font-bold tabular-nums text-ink">
             <AnimatedNumber value={totalRevenue} />
+          </div>
+        </div>
+      </div>
+
+      {/* Sekundär-Stats: Mahnungen + Stornierungen */}
+      <div className="mb-8 grid grid-cols-2 gap-3">
+        <div
+          onClick={() => setFilterStatus(filterStatus === 'dunning' ? 'all' : 'dunning')}
+          className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
+            filterStatus === 'dunning' ? 'border-red-500 bg-red-500/5 shadow-lg shadow-red-500/10' : 'border-divider bg-surface'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="text-red-400" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Mahnungen</span>
+            </div>
+            <span className="text-[10px] tabular-nums text-muted">
+              {dunningFees > 0 ? `${dunningFees.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} Gebühren` : ''}
+            </span>
+          </div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="font-display text-xl font-bold tabular-nums text-red-400">{dunningInvoices.length}</span>
+            <span className="text-[11px] text-muted">{dunningInvoices.length === 1 ? 'Rechnung in Mahnung' : 'Rechnungen in Mahnung'}</span>
+          </div>
+        </div>
+
+        <div
+          onClick={() => setFilterStatus(filterStatus === 'cancelled' ? 'all' : 'cancelled')}
+          className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
+            filterStatus === 'cancelled' ? 'border-zinc-400 bg-zinc-500/5 shadow-lg shadow-zinc-500/10' : 'border-divider bg-surface'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Ban size={14} className="text-zinc-400" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Stornierungen</span>
+            </div>
+            <span className="text-[10px] tabular-nums text-muted">
+              {cancelledVolume > 0 ? `Volumen ${cancelledVolume.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}` : ''}
+            </span>
+          </div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="font-display text-xl font-bold tabular-nums text-zinc-400">{cancelledCount}</span>
+            <span className="text-[11px] text-muted">{cancelledCount === 1 ? 'Rechnung storniert' : 'Rechnungen storniert'}</span>
           </div>
         </div>
       </div>
@@ -268,9 +402,17 @@ export function ExportView() {
 
                 <div className="mb-4 flex items-start justify-between">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-display text-lg font-bold tabular-nums text-ink">{inv.number}</span>
-                      {inv.paid ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`font-display text-lg font-bold tabular-nums ${inv.status === 'cancelled' ? 'text-muted line-through' : 'text-ink'}`}>{inv.number}</span>
+                      {inv.status === 'cancelled' ? (
+                        <span className="flex items-center gap-1 rounded-full bg-zinc-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                          <Ban size={10} /> Storniert
+                        </span>
+                      ) : inv.cancelsInvoiceId ? (
+                        <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-500">
+                          <Ban size={10} /> Storno-Rechnung
+                        </span>
+                      ) : inv.paid ? (
                         <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-green-500">
                           <Check size={10} /> Bezahlt
                         </span>
@@ -281,6 +423,11 @@ export function ExportView() {
                       ) : (
                         <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-500">
                           Offen
+                        </span>
+                      )}
+                      {inv.reminders.length > 0 && (
+                        <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-400">
+                          <AlertTriangle size={10} /> Mahnstufe {inv.reminders.reduce((m, r) => Math.max(m, r.level), 0)}
                         </span>
                       )}
                     </div>
@@ -330,21 +477,55 @@ export function ExportView() {
       <ContextMenu
         position={menu}
         onClose={() => setMenu(null)}
-        items={menu ? [
-          { label: 'Rechnung (PDF)', icon: <Download size={13} />, onClick: () => redownload(menu.invoiceId) },
-          { label: 'Tätigkeitsbericht', icon: <ClipboardList size={13} />, onClick: () => downloadReport(menu.invoiceId) },
-          { label: 'E-Rechnung Vertrag', icon: <ShieldCheck size={13} />, onClick: () => downloadConsent(menu.invoiceId) },
-          { type: 'separator' },
-          { label: 'Löschen', icon: <Trash2 size={13} />, danger: true, onClick: () => setDeletingId(menu.invoiceId) },
-        ] : []}
+        items={menu ? (() => {
+          const inv = state.invoices.find(i => i.id === menu.invoiceId);
+          const isCancelled = inv?.status === 'cancelled';
+          const isStorno    = !!inv?.cancelsInvoiceId;
+          const overdue = inv && !inv.paid && !isCancelled && !isStorno && inv.dueDate < Date.now();
+          const items: any[] = [
+            { label: 'Rechnung (PDF)',     icon: <Download size={13} />, onClick: () => redownload(menu.invoiceId) },
+            { label: 'Tätigkeitsbericht',  icon: <ClipboardList size={13} />, onClick: () => downloadReport(menu.invoiceId) },
+            { label: 'E-Rechnung Vertrag', icon: <ShieldCheck size={13} />, onClick: () => downloadConsent(menu.invoiceId) },
+          ];
+          if (overdue) {
+            items.push({ type: 'separator' });
+            items.push({ label: 'Mahnung verbuchen', icon: <AlertTriangle size={13} />, onClick: () => setDunningId(menu.invoiceId) });
+          }
+          if (!isCancelled && !isStorno) {
+            items.push({ type: 'separator' });
+            items.push({ label: 'Stornieren', icon: <Ban size={13} />, danger: true, onClick: () => setCancellingId(menu.invoiceId) });
+          }
+          items.push({ type: 'separator' });
+          items.push({ label: 'Löschen', icon: <Trash2 size={13} />, danger: true, onClick: () => setDeletingId(menu.invoiceId) });
+          return items;
+        })() : []}
       />
 
       <ConfirmDeleteModal
         open={deletingInvoice !== null}
         title="Rechnung löschen?"
-        description={deletingInvoice ? `Rechnung ${deletingInvoice.number} wird unwiderruflich gelöscht. Die Zeiteinträge bleiben erhalten.` : ''}
+        description={(() => {
+          if (!deletingInvoice) return '';
+          const hasPair = deletingInvoice.cancelsInvoiceId || deletingInvoice.cancelledByInvoiceId;
+          const base = `Rechnung ${deletingInvoice.number} wird unwiderruflich gelöscht. Zeiteinträge bleiben erhalten.`;
+          const pairWarn = hasPair ? ' Das verknüpfte Storno-Paar wird ebenfalls entfernt, damit die Übersicht konsistent bleibt.' : '';
+          const gobd = ' (Achtung: Für GoBD bitte stattdessen stornieren statt löschen.)';
+          return base + pairWarn + gobd;
+        })()}
         onConfirm={() => deletingId !== null && remove(deletingId)}
         onCancel={() => setDeletingId(null)}
+      />
+
+      <CancelInvoiceModal
+        invoice={state.invoices.find(i => i.id === cancellingId) || null}
+        onConfirm={cancelInvoice}
+        onCancel={() => setCancellingId(null)}
+      />
+
+      <DunningModal
+        invoice={state.invoices.find(i => i.id === dunningId) || null}
+        onConfirm={addReminder}
+        onCancel={() => setDunningId(null)}
       />
     </>
   );

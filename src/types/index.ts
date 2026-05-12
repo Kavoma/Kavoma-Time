@@ -11,12 +11,17 @@ export interface Customer {
   address?: string;     // Legacy / Fallback
   email?: string;
   eInvoiceAccepted?: boolean;
+  eInvoiceConsentDate?: number;   // Zeitpunkt der Zustimmung (ms)
 }
 
 export interface Project {
   id: number;
   customerId: number;
   name: string;
+  description?: string;              // Auftragsbeschreibung / Briefing
+  hourlyRate?: number;               // überschreibt Customer.hourlyRate
+  budgetHours?: number;              // optionales Stundenbudget für Forecasting
+  fixedPrice?: number;               // optionaler Pauschalpreis fürs Projekt (Forecasting + Real-Stundensatz)
 }
 
 export interface TimeEntry {
@@ -53,6 +58,13 @@ export interface InvoiceItem {
   total: number;          // €
 }
 
+export interface DunningReminder {
+  level: 1 | 2 | 3;        // 1. Zahlungserinnerung, 2. Mahnung, 3. letzte Mahnung
+  sentAt: number;
+  fee: number;             // Mahngebühr in €
+  notes?: string;
+}
+
 export interface Invoice {
   id: string;
   number: string;
@@ -72,6 +84,16 @@ export interface Invoice {
   notes: string;
   paid: boolean;
   paidAt?: number;
+
+  // === Storno ===
+  status: 'active' | 'cancelled';
+  cancelledAt?: number;
+  cancellationReason?: string;
+  cancelsInvoiceId?: string;   // wenn diese Rechnung eine Storno-Rechnung ist
+  cancelledByInvoiceId?: string; // wenn diese Rechnung storniert wurde, ID der Storno-Rechnung
+
+  // === Mahnsystem ===
+  reminders: DunningReminder[];
 }
 
 export interface AppState {
@@ -101,6 +123,9 @@ declare global {
       loadData: (key: string) => Promise<any>;
       onHotkeyToggle: (cb: () => void) => () => void;
       setStartPauseShortcut: (accelerator: string) => Promise<void>;
+      encryptBackup: (plaintext: string) => Promise<any>;
+      decryptBackup: (payload: any) => Promise<string>;
+      getAppInfo: () => Promise<{ os: string; arch: string; version: string }>;
     }
   }
 }
