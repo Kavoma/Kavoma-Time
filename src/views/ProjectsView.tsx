@@ -8,26 +8,27 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 
 export function ProjectsView() {
   const { state, setState } = useAppState();
-  const [newName, setNewName]               = useState('');
-  const [newCustomerId, setNewCustomerId]   = useState<number | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [menu, setMenu]                     = useState<{ x: number; y: number; projectId: number } | null>(null);
   const [editingId, setEditingId]           = useState<number | null>(null);
   const [deletingId, setDeletingId]         = useState<number | null>(null);
 
   if (!state) return null;
 
-  const customerId = newCustomerId ?? state.customers[0]?.id ?? null;
-
-  const addProject = () => {
-    const name = newName.trim();
-    if (!name || customerId === null) return;
-    setState(s => s ? { ...s, projects: [...s.projects, { id: Date.now(), name, customerId }] } : null);
-    setNewName('');
-  };
-
-  const updateProject = (updated: Project) => {
-    setState(s => s ? { ...s, projects: s.projects.map(p => p.id === updated.id ? updated : p) } : null);
-    setEditingId(null);
+  const handleSave = (data: Omit<Project, 'id'> & { id?: number }) => {
+    if (data.id) {
+      // Update
+      setState(s => s ? { ...s, projects: s.projects.map(p => p.id === data.id ? data as Project : p) } : null);
+      setEditingId(null);
+    } else {
+      // Create
+      const newProject: Project = {
+        ...data,
+        id: Date.now(),
+      } as Project;
+      setState(s => s ? { ...s, projects: [...s.projects, newProject] } : null);
+      setIsCreateOpen(false);
+    }
   };
 
   const removeProject = (id: number) => {
@@ -46,8 +47,16 @@ export function ProjectsView() {
           <h2 className="text-xl font-bold uppercase tracking-tight leading-none">Projekte</h2>
           <p className="mt-1.5 text-xs text-muted">{state.projects.length} {state.projects.length === 1 ? 'Projekt' : 'Projekte'} angelegt</p>
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">
-          <FolderKanban size={18} className="text-muted" />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-4 py-2 text-xs font-bold leading-normal uppercase tracking-widest text-paper transition-all hover:border-accent hover:bg-accent active:scale-95"
+          >
+            <Plus size={14} /> Neu
+          </button>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">
+            <FolderKanban size={18} className="text-muted" />
+          </div>
         </div>
       </div>
 
@@ -59,35 +68,6 @@ export function ProjectsView() {
         </div>
       ) : (
         <>
-          {/* Neues Projekt anlegen */}
-          <div className="mb-8 rounded-lg border border-divider bg-surface">
-            <div className="border-b border-divider px-4 py-3">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Neues Projekt anlegen</span>
-            </div>
-            <div className="flex gap-2 p-4">
-              <select
-                value={customerId ?? ''}
-                onChange={e => setNewCustomerId(Number(e.target.value))}
-                className="min-w-44 rounded-md border border-divider bg-paper px-3 py-2 text-sm font-bold leading-normal text-ink outline-none transition-colors focus:border-accent"
-              >
-                {state.customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <input
-                type="text"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') addProject(); }}
-                placeholder="Projektname eingeben..."
-                className="flex-1 rounded-md border border-divider bg-paper px-3 py-2 text-sm leading-normal text-ink placeholder:text-muted outline-none transition-colors focus:border-accent"
-              />
-              <button
-                onClick={addProject}
-                className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-5 py-2 text-xs font-bold leading-normal uppercase tracking-widest text-paper transition-all hover:border-accent hover:bg-accent active:scale-95"
-              >
-                <Plus size={14} /> Hinzufügen
-              </button>
-            </div>
-          </div>
 
           {/* Projektliste */}
           <div className="mb-4 flex items-baseline justify-between border-b border-divider pb-3">
@@ -115,7 +95,7 @@ export function ProjectsView() {
               <div className="rounded-md border border-dashed border-divider bg-paper p-10 text-center">
                 <FolderKanban size={28} className="mx-auto mb-3 text-muted" />
                 <p className="text-sm text-muted">Noch keine Projekte angelegt.</p>
-                <p className="mt-1 text-xs text-muted/60">Verwende das Formular oben, um dein erstes Projekt hinzuzufügen.</p>
+                <p className="mt-1 text-xs text-muted/60">Klicke oben auf "Neu", um dein erstes Projekt hinzuzufügen.</p>
               </div>
             )}
           </ul>
@@ -130,10 +110,11 @@ export function ProjectsView() {
           />
 
           <ProjectEditModal
+            open={isCreateOpen || editingId !== null}
             project={editingProject}
             customers={state.customers}
-            onSave={updateProject}
-            onCancel={() => setEditingId(null)}
+            onSave={handleSave}
+            onCancel={() => { setEditingId(null); setIsCreateOpen(false); }}
           />
 
           <ConfirmDeleteModal

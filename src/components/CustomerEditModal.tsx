@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, ShieldCheck, Download } from 'lucide-react';
+import { Pencil, ShieldCheck, Download, Pipette } from 'lucide-react';
+import { HexColorPicker } from 'react-colorful';
 import { Customer } from '../types';
 import { downloadContractPdf } from '../utils/invoicePdf';
 import { useAppState } from '../state/AppStateContext';
 
-const PALETTE = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a855f7', '#ec4899', '#06b6d4', '#84cc16'];
+const PALETTE = [
+  '#3b82f6', // Blue
+  '#6366f1', // Indigo
+  '#a855f7', // Purple
+  '#ec4899', // Pink
+  '#ef4444', // Red
+  '#f59e0b', // Amber
+  '#22c55e', // Green
+  '#06b6d4', // Cyan
+  '#14b8a6', // Teal
+  '#64748b'  // Slate
+];
 
 interface Props {
   open: boolean;
@@ -26,6 +38,7 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
   const [email, setEmail]       = useState('');
   const [debtorNumber, setDebtorNumber] = useState('');
   const [eInvoiceAccepted, setEInvoiceAccepted] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
 
   useEffect(() => {
     if (customer) {
@@ -248,24 +261,66 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
 
               <div className="flex flex-col">
                 <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Farbe</label>
-                <div className="flex flex-wrap gap-2">
+                
+                <div className="flex flex-wrap gap-2.5">
                   {PALETTE.map(c => (
                     <button
                       key={c}
                       type="button"
-                      onClick={() => setColor(c)}
+                      onClick={() => { setColor(c); setShowPicker(false); }}
                       style={{ background: c }}
-                      className={`size-8 cursor-pointer rounded-full transition-transform ${color === c ? 'scale-110 ring-2 ring-ink' : 'opacity-60 hover:opacity-100'}`}
+                      className={`size-8 cursor-pointer rounded-full transition-all active:scale-90 ${color.toLowerCase() === c.toLowerCase() ? 'scale-110 ring-2 ring-ink ring-offset-2 ring-offset-surface' : 'opacity-80 hover:opacity-100 hover:scale-105'}`}
                     />
                   ))}
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="size-8 cursor-pointer rounded border-none bg-transparent"
-                    title="Eigene Farbe"
-                  />
+                  
+                  {/* Custom Color Button / Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPicker(!showPicker)}
+                    style={{ background: !PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) ? color : undefined }}
+                    className={`flex size-8 cursor-pointer items-center justify-center rounded-full border border-divider transition-all active:scale-90 
+                      ${!PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) 
+                        ? 'scale-110 ring-2 ring-ink ring-offset-2 ring-offset-surface border-transparent' 
+                        : showPicker ? 'bg-ink text-paper border-ink' : 'bg-paper text-muted hover:border-ink hover:text-ink'
+                      }`}
+                    title="Eigene Farbe wählen"
+                  >
+                    <Pipette size={14} className={!PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) ? 'hidden' : ''} />
+                    {!PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) && (
+                      <div className="size-1.5 rounded-full bg-white shadow-sm ring-1 ring-black/10" />
+                    )}
+                  </button>
                 </div>
+
+                <AnimatePresence>
+                  {showPicker && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="mt-4 flex flex-col gap-4 overflow-hidden rounded-lg bg-paper p-4 border border-divider"
+                    >
+                      <div className="custom-color-picker flex justify-center">
+                        <HexColorPicker color={color} onChange={setColor} />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="size-8 shrink-0 rounded-md border border-divider shadow-sm" style={{ background: color }} />
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted">#</span>
+                          <input
+                            type="text"
+                            value={color.replace('#', '')}
+                            onChange={(e) => {
+                              const val = e.target.value.trim();
+                              if (val.length <= 6) setColor(`#${val}`);
+                            }}
+                            className="w-full rounded-md border border-divider bg-surface py-2 pl-6 pr-3 text-xs font-bold tabular-nums text-ink outline-none focus:border-accent"
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 

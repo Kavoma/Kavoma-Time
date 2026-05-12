@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil } from 'lucide-react';
+import { Pencil, Plus } from 'lucide-react';
 import { Project, Customer } from '../types';
 import { CustomSelect } from './CustomSelect';
 
 interface Props {
+  open: boolean;
   project: Project | null;
   customers: Customer[];
-  onSave: (p: Project) => void;
+  onSave: (p: Omit<Project, 'id'> & { id?: number }) => void;
   onCancel: () => void;
 }
 
@@ -17,7 +18,7 @@ function parseNumOrUndef(v: string): number | undefined {
   return !isNaN(n) && n > 0 ? n : undefined;
 }
 
-export function ProjectEditModal({ project, customers, onSave, onCancel }: Props) {
+export function ProjectEditModal({ open, project, customers, onSave, onCancel }: Props) {
   const [name, setName]             = useState('');
   const [customerId, setCustomerId] = useState<number>(0);
   const [description, setDescription] = useState('');
@@ -26,20 +27,29 @@ export function ProjectEditModal({ project, customers, onSave, onCancel }: Props
   const [fixedPrice, setFixedPrice] = useState('');
 
   useEffect(() => {
-    if (project) {
-      setName(project.name);
-      setCustomerId(project.customerId);
-      setDescription(project.description ?? '');
-      setRate(project.hourlyRate ? String(project.hourlyRate) : '');
-      setBudgetHours(project.budgetHours ? String(project.budgetHours) : '');
-      setFixedPrice(project.fixedPrice ? String(project.fixedPrice) : '');
+    if (open) {
+      if (project) {
+        setName(project.name);
+        setCustomerId(project.customerId);
+        setDescription(project.description ?? '');
+        setRate(project.hourlyRate ? String(project.hourlyRate) : '');
+        setBudgetHours(project.budgetHours ? String(project.budgetHours) : '');
+        setFixedPrice(project.fixedPrice ? String(project.fixedPrice) : '');
+      } else {
+        setName('');
+        setCustomerId(customers[0]?.id || 0);
+        setDescription('');
+        setRate('');
+        setBudgetHours('');
+        setFixedPrice('');
+      }
     }
-  }, [project]);
+  }, [open, project, customers]);
 
   const save = () => {
-    if (!project || !name.trim() || !customerId) return;
+    if (!name.trim() || !customerId) return;
     onSave({
-      ...project,
+      ...(project ? project : {}),
       name: name.trim(),
       customerId,
       description: description.trim() || undefined,
@@ -51,7 +61,7 @@ export function ProjectEditModal({ project, customers, onSave, onCancel }: Props
 
   return (
     <AnimatePresence>
-      {project && (
+      {open && (
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -72,9 +82,15 @@ export function ProjectEditModal({ project, customers, onSave, onCancel }: Props
           >
             <div className="border-b border-divider px-6 pt-6 pb-4">
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-ink/5">
-                <Pencil size={16} className="text-accent" />
+                {project ? (
+                  <Pencil size={16} className="text-accent" />
+                ) : (
+                  <Plus size={16} className="text-accent" />
+                )}
               </div>
-              <h3 className="text-sm font-bold uppercase tracking-wide">Projekt bearbeiten</h3>
+              <h3 className="text-sm font-bold uppercase tracking-wide">
+                {project ? 'Projekt bearbeiten' : 'Projekt anlegen'}
+              </h3>
             </div>
 
             <div className="flex flex-col gap-4 px-6 py-5">
