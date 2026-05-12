@@ -1,16 +1,19 @@
 {
   "name": "kavoma-time",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
   "productName": "Kavoma Time",
+  "description": "Professionelle Zeiterfassung und Projektverwaltung für Freelancer und Teams.",
+  "author": "Kavoma",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "electron": "electron .",
     "electron:dev": "concurrently --kill-others --names \"VITE,ELECTRON\" --prefix-colors \"cyan,magenta\" \"pnpm dev\" \"wait-on http://localhost:5173 && pnpm electron\"",
+    "dist": "pnpm build && electron-builder --win nsis",
     "dist:portable": "pnpm build && electron-builder --win portable",
     "version-set": "npm version --no-git-tag-version",
     "lint": "eslint . --report-unused-disable-directives"
@@ -22,7 +25,29 @@
       "output": "release"
     },
     "win": {
-      "icon": "build/icon.png"
+      "icon": "build/icons/win/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Kavoma Time"
     },
     "files": [
       "dist/**/*",

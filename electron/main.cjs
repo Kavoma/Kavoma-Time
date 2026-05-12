@@ -122,6 +122,7 @@ Menu.setApplicationMenu(null); // Entfernt das Standard-Electron-Menu komplett
 
 const DEV_URL = 'http://localhost:5173';
 const TRAY_ICON_PATH = path.join(__dirname, 'tray-icon.png');
+const WINDOW_ICON_PATH = path.join(__dirname, 'window-icon.png');
 
 let mainWindow = null;
 let tray = null;
@@ -138,6 +139,7 @@ function createMainWindow() {
     minWidth: 800,
     minHeight: 600,
     title: 'Kavoma Time',
+    icon: WINDOW_ICON_PATH,
     backgroundColor: '#0a0a0a',
     autoHideMenuBar: true,
     show: false,
