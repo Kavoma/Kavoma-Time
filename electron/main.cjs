@@ -134,10 +134,10 @@ let isQuitting = false;
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 750,
-    minWidth: 800,
-    minHeight: 600,
+    width: 1200,
+    height: 820,
+    minWidth: 900,
+    minHeight: 620,
     title: 'Kavoma Time',
     icon: WINDOW_ICON_PATH,
     backgroundColor: '#0a0a0a',
