@@ -78,16 +78,21 @@ function Card({ icon: Icon, label, value, rawValue, format = 'number', sub, diff
 }
 
 // === Tooltip ====================================================
-function ChartTooltip({ active, payload, label, suffix }: any) {
+function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload || !payload.length) return null;
+  const data = payload[0].payload;
+  
   return (
     <div className="rounded-md border border-divider bg-surface px-3 py-2 text-xs shadow-lg">
       <div className="mb-1 font-bold text-ink">{label}</div>
-      {payload.map((p: any, i: number) => (
-        <div key={i} className="tabular-nums text-muted">
-          {p.name}: <span className="text-ink">{p.value.toFixed(1)}{suffix}</span>
+      <div className="tabular-nums text-muted">
+        Stunden: <span className="text-ink">{data.hours.toFixed(1)} h</span>
+      </div>
+      {data.revenue > 0 && (
+        <div className="tabular-nums text-muted">
+          Umsatz: <span className="text-accent">{formatEuro(data.revenue)}</span>
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -177,19 +182,27 @@ export function StatisticsView() {
 
   // === Daily Bar-Chart (Tage in der Periode) ====================
   const dailyData = useMemo(() => {
-    const map = new Map<string, { date: string; hours: number; ts: number }>();
+    const map = new Map<string, { date: string; hours: number; revenue: number; ts: number }>();
     const now = new Date();
     const cursor = new Date(start);
 
     while (cursor.getTime() <= now.getTime()) {
       const key = ymd(cursor);
-      map.set(key, { date: key, hours: 0, ts: cursor.getTime() });
+      map.set(key, { date: key, hours: 0, revenue: 0, ts: cursor.getTime() });
       cursor.setDate(cursor.getDate() + 1);
     }
     entriesInPeriod.forEach((e: TimeEntry) => {
       const key = ymd(new Date(e.startedAt));
       const item = map.get(key);
-      if (item) item.hours += e.durationSeconds / 3600;
+      if (item) {
+        const h = e.durationSeconds / 3600;
+        item.hours += h;
+        
+        const customer = customers.find(c => c.id === e.customerId);
+        if (customer?.hourlyRate) {
+          item.revenue += h * customer.hourlyRate;
+        }
+      }
     });
 
     const labelOf = (d: Date) =>
@@ -198,7 +211,7 @@ export function StatisticsView() {
         : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit' });
 
     return Array.from(map.values()).map(d => ({ ...d, label: labelOf(new Date(d.ts)) }));
-  }, [entriesInPeriod, start, period]);
+  }, [entriesInPeriod, start, period, customers]);
 
   // === Donut: Stunden pro Kunde =================================
   const customerData = useMemo(() => {
@@ -255,13 +268,25 @@ export function StatisticsView() {
   // === Wochentag-Verteilung =====================================
   const weekdayData = useMemo(() => {
     const labels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
-    const totals = [0, 0, 0, 0, 0, 0, 0];
+    const totalSec = [0, 0, 0, 0, 0, 0, 0];
+    const totalRev = [0, 0, 0, 0, 0, 0, 0];
+
     entriesInPeriod.forEach((e: TimeEntry) => {
       const dow = (new Date(e.startedAt).getDay() + 6) % 7;
-      totals[dow] += e.durationSeconds;
+      totalSec[dow] += e.durationSeconds;
+      
+      const customer = customers.find(c => c.id === e.customerId);
+      if (customer?.hourlyRate) {
+        totalRev[dow] += (e.durationSeconds / 3600) * customer.hourlyRate;
+      }
     });
-    return labels.map((label, i) => ({ label, hours: totals[i] / 3600 }));
-  }, [entriesInPeriod]);
+
+    return labels.map((label, i) => ({ 
+      label, 
+      hours: totalSec[i] / 3600,
+      revenue: totalRev[i]
+    }));
+  }, [entriesInPeriod, customers]);
 
   // === Best Day Insight ========================================
   const bestDay = weekdayData.reduce((max: any, d: any) => d.hours > max.hours ? d : max, weekdayData[0]);
@@ -412,11 +437,11 @@ export function StatisticsView() {
               <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
               <XAxis dataKey="label" tick={{ fill: '#525252', fontSize: 10 }} axisLine={{ stroke: '#262626' }} tickLine={false} />
               <YAxis tick={{ fill: '#525252', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTooltip suffix=" h" />} cursor={{ fill: '#262626' }} />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: '#262626' }} />
               {period === 'week' && (
                 <ReferenceLine y={target / 7} stroke="#a3a3a3" strokeDasharray="3 3" />
               )}
-              <Bar dataKey="hours" fill="#ffffff" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="hours" name="Stunden" fill="#ffffff" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -440,7 +465,7 @@ export function StatisticsView() {
                     <Pie data={customerData} dataKey="hours" innerRadius={45} outerRadius={70} strokeWidth={0}>
                       {customerData.map((c, i) => <Cell key={i} fill={c.color} />)}
                     </Pie>
-                    <Tooltip content={<ChartTooltip suffix=" h" />} />
+                    <Tooltip content={<ChartTooltip />} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -479,8 +504,8 @@ export function StatisticsView() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: '#525252', fontSize: 10 }} axisLine={{ stroke: '#262626' }} tickLine={false} />
                 <YAxis tick={{ fill: '#525252', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<ChartTooltip suffix=" h" />} cursor={{ fill: '#262626' }} />
-                <Bar dataKey="hours" fill="#a3a3a3" radius={[3, 3, 0, 0]} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: '#262626' }} />
+                <Bar dataKey="hours" name="Stunden" fill="#a3a3a3" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
