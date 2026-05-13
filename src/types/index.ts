@@ -115,6 +115,9 @@ export interface AppState {
   nextInvoiceCounter: number;   // für laufende Nummer
   invoicePrefix?: string;       // Präfix für Rechnungen (Standard: Jahr-)
   nextDebtorNumber: number;     // für Kunden/Debitoren (DATEV konform)
+  timerOverlayEnabled?: boolean;
+  afkPauseEnabled?: boolean;
+  afkTimeoutMinutes?: number;
 }
 
 declare global {
@@ -123,10 +126,33 @@ declare global {
       saveData: (key: string, data: any) => Promise<void>;
       loadData: (key: string) => Promise<any>;
       onHotkeyToggle: (cb: () => void) => () => void;
+      onStoreUpdated: (cb: (key: string, data: any) => void) => () => void;
+      onTimerCommand: (cb: (command: 'toggle' | 'start' | 'pause' | 'stop', effectiveNow?: number) => void) => () => void;
+      sendTimerOverlayCommand: (command: 'toggle' | 'start' | 'pause' | 'stop') => Promise<void>;
+      getOverlayBounds: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
+      setOverlayPosition: (position: { x: number; y: number }) => Promise<void>;
+      snapOverlayToNearestCorner: () => Promise<void>;
+      getOverlayAnchor: () => Promise<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>;
+      onOverlayAnchorChanged: (cb: (anchor: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right') => void) => () => void;
+      startOverlayDrag: (cursor: { x: number; y: number }) => Promise<void>;
+      endOverlayDrag: () => Promise<void>;
+      showMainWindowFromOverlay: () => Promise<void>;
       setStartPauseShortcut: (accelerator: string) => Promise<void>;
       encryptBackup: (plaintext: string) => Promise<any>;
       decryptBackup: (payload: any) => Promise<string>;
       getAppInfo: () => Promise<{ os: string; arch: string; version: string }>;
+      getUpdateStatus: () => Promise<UpdateStatus>;
+      checkForUpdates: () => Promise<void>;
+      installDownloadedUpdate: () => Promise<boolean>;
+      onUpdateStatus: (cb: (status: UpdateStatus) => void) => () => void;
     }
   }
+}
+
+export interface UpdateStatus {
+  state: 'idle' | 'checking' | 'available' | 'downloading' | 'not-available' | 'downloaded' | 'error' | 'dev-disabled';
+  message: string;
+  version: string | null;
+  progress: number | null;
+  error: string | null;
 }

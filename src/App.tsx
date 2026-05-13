@@ -9,6 +9,7 @@ import { StatisticsView } from './views/StatisticsView';
 import { ExportView } from './views/ExportView';
 import { useAppState } from './state/AppStateContext';
 import { Tooltip } from './components/Tooltip';
+import { TitleBar } from './components/TitleBar';
 
 function renderView(id: string) {
   switch (id) {
@@ -93,50 +94,27 @@ export function App() {
 
   return (
     <div className={`app ${isSidebarCollapsed ? 'collapsed' : ''}`}>
-      <aside className={`flex flex-col gap-8 border-r border-divider bg-paper p-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-4' : 'p-8'}`}>
-        <div className="relative flex items-center min-h-[32px] mb-4">
-          <AnimatePresence mode="wait">
-            {!isSidebarCollapsed ? (
-              <motion.div
-                key="logo-full"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="text-xl font-bold uppercase tracking-tight leading-none overflow-hidden whitespace-nowrap"
-              >
-                Kavoma Time
-              </motion.div>
-            ) : (
-              <motion.div
-                key="logo-collapsed"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="flex w-full items-center justify-center text-2xl font-black text-ink"
-              >
-                K
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="absolute right-0 top-1/2 -translate-y-1/2 flex cursor-pointer items-center justify-center text-muted hover:text-ink transition-all hover:scale-110 active:scale-95 z-20"
-          >
-            <Tooltip content={isSidebarCollapsed ? "Sidebar ausklappen" : "Sidebar einklappen"} position="right">
-              <div className="flex items-center justify-center">
-                {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-              </div>
-            </Tooltip>
-          </button>
-        </div>
-
+      <TitleBar />
+      <div className="app-content">
+        <aside className={`flex flex-col gap-8 border-r border-divider bg-paper p-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-4' : 'p-8'}`}>
         <nav className="flex flex-col gap-px">
-          {!isSidebarCollapsed && (
-            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-              Navigation
-            </div>
-          )}
+          <div className={`mb-3 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+            {!isSidebarCollapsed && (
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                Navigation
+              </div>
+            )}
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="flex cursor-pointer items-center justify-center text-muted/60 hover:text-ink transition-all hover:scale-110 active:scale-95"
+            >
+              <Tooltip content={isSidebarCollapsed ? "Sidebar ausklappen" : "Sidebar einklappen"} position="right">
+                <div className="flex items-center justify-center p-1">
+                  {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+                </div>
+              </Tooltip>
+            </button>
+          </div>
           {navItems.map(item => {
             const isActive = activeView === item.id;
             const Icon = item.icon;
@@ -255,7 +233,8 @@ export function App() {
             </motion.div>
           </AnimatePresence>
         </div>
-      </main>
+        </main>
+      </div>
       
       <AnimatePresence>
         {isRestoring && (

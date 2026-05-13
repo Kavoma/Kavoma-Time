@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload, Info } from 'lucide-react';
+import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload, Info, Monitor, RefreshCw, Power } from 'lucide-react';
 import { ConfirmRestoreModal } from '../components/ConfirmRestoreModal';
 import { useAppState } from '../state/AppStateContext';
 import { NumberInput } from '../components/NumberInput';
-import { Issuer } from '../types';
+import { Issuer, UpdateStatus } from '../types';
 import { isValidIban, getBankName, isValidBic, formatIban, formatBic, formatPhone, formatTaxId } from '../utils/iban';
 
 // Wandelt ein KeyboardEvent in einen Electron-Accelerator-String um
@@ -68,6 +68,7 @@ export function SettingsView() {
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
   const [pendingBackupData, setPendingBackupData] = useState<any>(null);
   const [appInfo, setAppInfo] = useState<{ os: string; arch: string; version: string } | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
 
   const buttonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -143,6 +144,8 @@ export function SettingsView() {
 
   useEffect(() => {
     window.api?.getAppInfo().then(setAppInfo);
+    window.api?.getUpdateStatus?.().then(setUpdateStatus);
+    return window.api?.onUpdateStatus?.(setUpdateStatus);
   }, []);
 
   useEffect(() => {
@@ -184,6 +187,21 @@ export function SettingsView() {
     setState(s => s ? { ...s, invoicePrefix: val } : null);
   };
 
+  const updateTimerOverlayEnabled = (enabled: boolean) => {
+    setState(s => s ? { ...s, timerOverlayEnabled: enabled } : null);
+  };
+
+  const updateAfkPauseEnabled = (enabled: boolean) => {
+    setState(s => s ? { ...s, afkPauseEnabled: enabled } : null);
+  };
+
+  const updateAfkTimeoutMinutes = (minutes: number) => {
+    const nextMinutes = Math.min(240, Math.max(1, minutes));
+    setState(s => s ? { ...s, afkTimeoutMinutes: nextMinutes } : null);
+  };
+
+  const isCheckingForUpdate = updateStatus?.state === 'checking' || updateStatus?.state === 'downloading' || updateStatus?.state === 'available';
+
   const updateIssuer = (field: keyof Issuer, value: any) => {
     let formattedValue = value;
 
@@ -219,6 +237,54 @@ export function SettingsView() {
         </div>
       </div>
 
+      {/* Updates */}
+      <div className="mb-6 rounded-lg border border-divider bg-surface">
+        <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
+          <RefreshCw size={14} className="text-muted" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Updates</span>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-bold text-ink">Automatische Updates</div>
+              <div className="mt-0.5 text-xs text-muted">{updateStatus?.message ?? 'Bereit'}</div>
+              {updateStatus?.error && (
+                <div className="mt-1 text-[11px] text-red-400">{updateStatus.error}</div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={isCheckingForUpdate}
+                onClick={() => window.api?.checkForUpdates?.()}
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <RefreshCw size={13} className={isCheckingForUpdate ? 'animate-spin' : ''} />
+                Prüfen
+              </button>
+              {updateStatus?.state === 'downloaded' && (
+                <button
+                  type="button"
+                  onClick={() => window.api?.installDownloadedUpdate?.()}
+                  className="flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink"
+                >
+                  <Power size={13} />
+                  Neustart
+                </button>
+              )}
+            </div>
+          </div>
+          {typeof updateStatus?.progress === 'number' && (
+            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-paper">
+              <div
+                className="h-full rounded-full bg-ink transition-all"
+                style={{ width: `${Math.min(100, Math.max(0, updateStatus.progress))}%` }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Wochenziel */}
       <div className="mb-6 rounded-lg border border-divider bg-surface">
         <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
@@ -234,6 +300,66 @@ export function SettingsView() {
             className="w-24"
           />
           <span className="text-sm text-muted">Stunden pro Woche</span>
+        </div>
+      </div>
+
+      {/* AFK-Erkennung */}
+      <div className="mb-6 rounded-lg border border-divider bg-surface">
+        <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
+          <Clock size={14} className="text-muted" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">AFK-Erkennung</span>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-bold text-ink">Automatisch pausieren</div>
+              <div className="mt-0.5 text-xs text-muted">Bei keiner Maus- oder Tastaturaktivität wird der Timer rückwirkend auf die letzte Aktivität pausiert.</div>
+            </div>
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input
+                type="checkbox"
+                checked={state.afkPauseEnabled !== false}
+                onChange={e => updateAfkPauseEnabled(e.target.checked)}
+                className="peer sr-only"
+              />
+              <span className="h-6 w-11 rounded-full border border-divider bg-paper transition-colors peer-checked:bg-ink" />
+              <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-muted transition-transform peer-checked:translate-x-5 peer-checked:bg-paper" />
+            </label>
+          </div>
+          <div className={`mt-4 flex items-center gap-3 ${state.afkPauseEnabled === false ? 'opacity-45' : ''}`}>
+            <NumberInput
+              min={1}
+              max={240}
+              value={state.afkTimeoutMinutes ?? 10}
+              onChange={updateAfkTimeoutMinutes}
+              className="w-24"
+            />
+            <span className="text-sm text-muted">Minuten ohne Aktivität</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Timer Overlay */}
+      <div className="mb-6 rounded-lg border border-divider bg-surface">
+        <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
+          <Monitor size={14} className="text-muted" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Timer Overlay</span>
+        </div>
+        <div className="flex items-center justify-between gap-4 p-4">
+          <div>
+            <div className="text-sm font-bold text-ink">Desktop-Timer anzeigen</div>
+            <div className="mt-0.5 text-xs text-muted">Erscheint im Hintergrund, lässt sich ziehen und snappt in die nächste Bildschirmecke.</div>
+          </div>
+          <label className="relative inline-flex cursor-pointer items-center">
+            <input
+              type="checkbox"
+              checked={state.timerOverlayEnabled !== false}
+              onChange={e => updateTimerOverlayEnabled(e.target.checked)}
+              className="peer sr-only"
+            />
+            <span className="h-6 w-11 rounded-full border border-divider bg-paper transition-colors peer-checked:bg-ink" />
+            <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-muted transition-transform peer-checked:translate-x-5 peer-checked:bg-paper" />
+          </label>
         </div>
       </div>
 

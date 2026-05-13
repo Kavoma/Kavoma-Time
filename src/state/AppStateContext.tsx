@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { AppState } from '../types';
+import { runTimerCommand, TimerCommand } from '../utils/timerActions';
 
 const STORAGE_KEY = 'kavoma_time';
 
@@ -39,6 +40,9 @@ const SEED_STATE: AppState = {
   nextInvoiceCounter: 1,
   invoicePrefix: 'YYYY-',
   nextDebtorNumber: 10001,
+  timerOverlayEnabled: true,
+  afkPauseEnabled: true,
+  afkTimeoutMinutes: 10,
 };
 
 interface ContextValue {
@@ -50,7 +54,7 @@ interface ContextValue {
 
 const AppStateContext = createContext<ContextValue | null>(null);
 
-function migrateData(data: any): AppState {
+function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
   const migrated = { ...data };
 
   // Migration für ältere Saves
@@ -64,6 +68,10 @@ function migrateData(data: any): AppState {
   if (typeof migrated.nextInvoiceCounter !== 'number') migrated.nextInvoiceCounter = 1;
   if (typeof migrated.invoicePrefix !== 'string') migrated.invoicePrefix = SEED_STATE.invoicePrefix;
   if (typeof migrated.nextDebtorNumber !== 'number') migrated.nextDebtorNumber = SEED_STATE.nextDebtorNumber;
+  if (typeof migrated.timerOverlayEnabled !== 'boolean') migrated.timerOverlayEnabled = true;
+  if (typeof migrated.afkPauseEnabled !== 'boolean') migrated.afkPauseEnabled = true;
+  if (typeof migrated.afkTimeoutMinutes !== 'number') migrated.afkTimeoutMinutes = 10;
+  migrated.afkTimeoutMinutes = Math.min(240, Math.max(1, migrated.afkTimeoutMinutes));
 
   // Migration: Strukturierte Adressen
   if (migrated.issuer && (migrated.issuer as any).address && !migrated.issuer.street) {
@@ -90,7 +98,7 @@ function migrateData(data: any): AppState {
   });
 
   // Crash Recovery — Timer lief beim Schließen → verstrichene Zeit retten
-  if (migrated.isRunning && migrated.startedAt) {
+  if (recoverRunningTimer && migrated.isRunning && migrated.startedAt) {
     const crashed = Math.floor((Date.now() - migrated.startedAt) / 1000);
     return { ...migrated, isRunning: false, startedAt: null, elapsedBefore: migrated.elapsedBefore + crashed };
   }
@@ -101,6 +109,8 @@ function migrateData(data: any): AppState {
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+  const skipNextPersistRef = useRef(false);
+  const isTimerOverlay = new URLSearchParams(window.location.search).get('overlay') === 'timer';
 
   const restoreBackup = async (data: AppState) => {
     setIsRestoring(true);
@@ -127,7 +137,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       }
 
       if (data) {
-        setState(migrateData(data));
+        setState(migrateData(data, { recoverRunningTimer: !isTimerOverlay }));
       } else {
         setState(SEED_STATE);
       }
@@ -138,9 +148,41 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // Persistieren bei jeder Änderung
   useEffect(() => {
     if (!state) return;
+    if (isTimerOverlay) return;
+    if (skipNextPersistRef.current) {
+      skipNextPersistRef.current = false;
+      return;
+    }
     if (window.api) window.api.saveData(STORAGE_KEY, state);
     else            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [state]);
+
+  useEffect(() => {
+    if (!window.api?.onStoreUpdated) return;
+
+    return window.api.onStoreUpdated((key, data) => {
+      if (key !== STORAGE_KEY) return;
+      skipNextPersistRef.current = true;
+      setState(migrateData(data, { recoverRunningTimer: false }));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isTimerOverlay) return;
+    if (!window.api?.onTimerCommand && !window.api?.onHotkeyToggle) return;
+
+    const runCommand = (command: TimerCommand, effectiveNow?: number) => {
+      setState(s => s ? runTimerCommand(s, command, effectiveNow) : null);
+    };
+
+    const cleanupTimerCommand = window.api?.onTimerCommand?.(runCommand);
+    const cleanupHotkey = window.api?.onHotkeyToggle?.(() => runCommand('toggle'));
+
+    return () => {
+      cleanupTimerCommand?.();
+      cleanupHotkey?.();
+    };
+  }, []);
 
   return (
     <AppStateContext.Provider value={{ state, setState, isRestoring, restoreBackup }}>
