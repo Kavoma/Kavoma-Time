@@ -137,6 +137,7 @@ declare global {
       startOverlayDrag: (cursor: { x: number; y: number }) => Promise<void>;
       endOverlayDrag: () => Promise<void>;
       showMainWindowFromOverlay: () => Promise<void>;
+      setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => void;
       setStartPauseShortcut: (accelerator: string) => Promise<void>;
       encryptBackup: (plaintext: string) => Promise<any>;
       decryptBackup: (payload: any) => Promise<string>;

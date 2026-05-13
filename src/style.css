@@ -52,26 +52,23 @@ body.timer-overlay-body #root {
 .timer-overlay-shell {
     display: flex;
     height: 100vh;
+    width: 100vw;
     justify-content: center;
+    align-items: center;
     padding: 0;
     user-select: none;
+    pointer-events: none; /* Klicks gehen standardmäßig durch (Padding-Bereich) */
 }
 
 .timer-overlay-card {
-    width: 184px;
-    cursor: grab;
-    transform: translateZ(0) scale(1);
-    transition: transform 0.18s cubic-bezier(0.2, 1.2, 0.2, 1), filter 0.18s ease;
+    pointer-events: none; /* Der Wrapper selbst lässt Klicks durch */
 }
 
-.timer-overlay-card:active,
-.timer-overlay-card.is-dragging {
-    cursor: grabbing;
-    filter: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.45));
-    transform: translateZ(0) scale(1.06) rotate(-1deg);
+.timer-overlay-card-core {
+    pointer-events: auto; /* Nur die sichtbare Karte fängt Klicks ab */
 }
 
-.timer-overlay-card.is-dragging > div {
+.timer-overlay-card-core.is-dragging > div {
     pointer-events: none;
 }
 
