@@ -1,6 +1,6 @@
 {
   "name": "kavoma-time",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -14,6 +14,7 @@
     "electron": "electron .",
     "electron:dev": "concurrently --kill-others --names \"VITE,ELECTRON\" --prefix-colors \"cyan,magenta\" \"pnpm dev\" \"wait-on http://localhost:5173 && pnpm electron\"",
     "dist": "pnpm build && electron-builder --win nsis",
+    "dist:publish": "pnpm build && electron-builder --win nsis --publish always",
     "dist:portable": "pnpm build && electron-builder --win portable",
     "version-set": "npm version --no-git-tag-version",
     "lint": "eslint . --report-unused-disable-directives"
@@ -21,6 +22,14 @@
   "build": {
     "appId": "com.kavoma.time",
     "productName": "Kavoma Time",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Kavoma",
+        "repo": "Kavoma-Time",
+        "releaseType": "release"
+      }
+    ],
     "directories": {
       "output": "release"
     },
@@ -58,6 +67,7 @@
   },
   "dependencies": {
     "electron-store": "^11.0.2",
+    "electron-updater": "^6.8.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "react-colorful": "^5.7.0",

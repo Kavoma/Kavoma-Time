@@ -8,13 +8,15 @@ import { EditModal } from '../components/EditModal';
 import { NewEntryModal } from '../components/NewEntryModal';
 import { useAppState } from '../state/AppStateContext';
 import { TimeEntry } from '../types';
+import { pauseTimer, startTimer, stopTimer } from '../utils/timerActions';
+import { getLiveDurationSeconds } from '../utils/trackerTimer';
 
 export function TrackerView() {
   const { state, setState } = useAppState();
   const customers = state?.customers ?? [];
-  const projects  = state?.projects  ?? [];
+  const projects = state?.projects ?? [];
 
-  const [liveDuration, setLiveDuration] = useState(0);
+  const [, setLiveDurationTick] = useState(0);
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, entryId: number } | null>(null);
   const [deleteModalEntryId, setDeleteModalEntryId] = useState<number | null>(null);
@@ -32,28 +34,21 @@ export function TrackerView() {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
+  const liveDuration = state
+    ? getLiveDurationSeconds({
+      isRunning: state.isRunning,
+      startedAt: state.startedAt,
+      elapsedBefore: state.elapsedBefore,
+    })
+    : 0;
+
   // === Actions ===
   const handleStart = () => {
-    if (state?.isRunning) return;
-    const now = Date.now();
-    setState(s => s ? {
-      ...s,
-      isRunning: true,
-      startedAt: now,
-      sessionStartedAt: s.sessionStartedAt || now
-    } : null);
+    setState(s => s ? startTimer(s) : null);
   };
 
   const handlePause = () => {
-    if (!state?.isRunning || !state.startedAt) return;
-    const now = Date.now();
-    const liveSeconds = Math.floor((now - state.startedAt) / 1000);
-    setState(s => s ? {
-      ...s,
-      isRunning: false,
-      startedAt: null,
-      elapsedBefore: s.elapsedBefore + liveSeconds
-    } : null);
+    setState(s => s ? pauseTimer(s) : null);
   };
 
   useEffect(() => {
@@ -82,18 +77,14 @@ export function TrackerView() {
   }, [state?.customers, state?.projects, state?.currentCustomerId, state?.currentProjectId]);
 
   useEffect(() => {
-    let interval: number;
-    if (state?.isRunning) {
-      interval = window.setInterval(() => {
-        const now = Date.now();
-        const liveSeconds = state?.startedAt ? Math.floor((now - state.startedAt) / 1000) : 0;
-        setLiveDuration((state?.elapsedBefore || 0) + liveSeconds);
-      }, 1000);
-    } else {
-      setLiveDuration(state?.elapsedBefore || 0);
-    }
+    if (!state?.isRunning) return;
+
+    const interval = window.setInterval(() => {
+      setLiveDurationTick(tick => tick + 1);
+    }, 1000);
+
     return () => clearInterval(interval);
-  }, [state?.isRunning, state?.startedAt, state?.elapsedBefore]);
+  }, [state?.isRunning, state?.startedAt]);
 
   useEffect(() => {
     if (state?.isRunning) {
@@ -103,64 +94,12 @@ export function TrackerView() {
     }
   }, [state?.isRunning, liveDuration]);
 
-  useEffect(() => {
-    if (!window.api?.onHotkeyToggle) return;
-    return window.api.onHotkeyToggle(() => {
-      if (state?.isRunning) handlePause();
-      else handleStart();
-    });
-  }, [state?.isRunning, state?.startedAt, state?.elapsedBefore, state?.sessionStartedAt]);
-
   if (!state) {
     return <div className="text-center text-sm text-muted mt-12">Lade Daten...</div>;
   }
 
   const handleStop = () => {
-    if (!state.isRunning && state.elapsedBefore === 0) return;
-    
-    let totalSeconds = state.elapsedBefore;
-    const now = Date.now();
-    
-    if (state.isRunning && state.startedAt) {
-      totalSeconds += Math.floor((now - state.startedAt) / 1000);
-    }
-
-    if (totalSeconds > 0 && state.sessionStartedAt) {
-      const newEntry: TimeEntry = {
-        id: now,
-        customerId: state.currentCustomerId,
-        projectId: state.currentProjectId,
-        description: state.currentDescription,
-        startedAt: state.sessionStartedAt,
-        endedAt: now,
-        durationSeconds: totalSeconds
-      };
-      
-      setState(s => {
-        if (!s) return null;
-        return {
-          ...s,
-          isRunning: false,
-          startedAt: null,
-          sessionStartedAt: null,
-          elapsedBefore: 0,
-          currentDescription: '',
-          entries: [newEntry, ...s.entries]
-        };
-      });
-    } else {
-      setState(s => {
-        if (!s) return null;
-        return {
-          ...s,
-          isRunning: false,
-          startedAt: null,
-          sessionStartedAt: null,
-          elapsedBefore: 0,
-          currentDescription: '',
-        };
-      });
-    }
+    setState(s => s ? stopTimer(s) : null);
   };
 
   const handleContextMenu = (e: React.MouseEvent, entryId: number) => {
@@ -204,7 +143,7 @@ export function TrackerView() {
     <>
       <header className="mb-3 text-center">
         <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-          {state.isRunning && state.startedAt ? `Läuft seit ${new Date(state.startedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'Bereit'}
+          {state.isRunning && state.startedAt ? `Läuft seit ${new Date(state.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Bereit'}
         </div>
       </header>
 
@@ -228,19 +167,19 @@ export function TrackerView() {
       })()}
 
       <form className="mb-4 grid grid-cols-2 gap-x-3 gap-y-5" onSubmit={e => e.preventDefault()}>
-        <CustomSelect 
-          id="customerSelect" 
-          label="Kunde" 
-          value={state.currentCustomerId} 
-          options={customers} 
-          onChange={(v) => setState(s => s ? ({...s, currentCustomerId: v as number, currentProjectId: projects.find(p=>p.customerId===v)?.id || 0}) : null)} 
+        <CustomSelect
+          id="customerSelect"
+          label="Kunde"
+          value={state.currentCustomerId}
+          options={customers}
+          onChange={(v) => setState(s => s ? ({ ...s, currentCustomerId: v as number, currentProjectId: projects.find(p => p.customerId === v)?.id || 0 }) : null)}
         />
-        <CustomSelect 
-          id="projectSelect" 
-          label="Projekt" 
-          value={state.currentProjectId} 
-          options={availableProjects} 
-          onChange={(v) => setState(s => s ? ({...s, currentProjectId: v as number}) : null)} 
+        <CustomSelect
+          id="projectSelect"
+          label="Projekt"
+          value={state.currentProjectId}
+          options={availableProjects}
+          onChange={(v) => setState(s => s ? ({ ...s, currentProjectId: v as number }) : null)}
         />
 
         <div className="col-span-2">
@@ -250,7 +189,7 @@ export function TrackerView() {
             options={allDescriptions}
             placeholder="Woran arbeitest du?"
             value={state.currentDescription}
-            onChange={v => setState(s => s ? ({...s, currentDescription: v}) : null)}
+            onChange={v => setState(s => s ? ({ ...s, currentDescription: v }) : null)}
             onKeyDown={e => {
               if (e.key === 'Enter') handleStart();
             }}
@@ -259,18 +198,17 @@ export function TrackerView() {
       </form>
 
       <div className="mb-12 flex gap-2">
-        <button 
+        <button
           type="button"
           onClick={state.isRunning ? handlePause : handleStart}
-          className={`flex-1 cursor-pointer rounded-md border px-4 py-3 text-sm font-bold uppercase tracking-widest transition-all active:scale-95 ${
-            state.isRunning 
-              ? 'border-amber-500 bg-amber-500 text-paper hover:bg-paper hover:text-amber-500' 
+          className={`flex-1 cursor-pointer rounded-md border px-4 py-3 text-sm font-bold uppercase tracking-widest transition-all active:scale-95 ${state.isRunning
+              ? 'border-amber-500 bg-amber-500 text-paper hover:bg-paper hover:text-amber-500'
               : 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink'
-          }`}
+            }`}
         >
           {state.isRunning ? 'Pause' : 'Start'}
         </button>
-        <button 
+        <button
           type="button"
           onClick={handleStop}
           className="cursor-pointer rounded-md border border-ink bg-paper px-6 py-3 text-sm font-bold uppercase tracking-widest text-ink transition-all hover:bg-ink hover:text-paper active:scale-95"
@@ -280,8 +218,8 @@ export function TrackerView() {
       </div>
 
       {(() => {
-        const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        const formatHM = (s: number) => `${Math.floor(s/3600)}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;
+        const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const formatHM = (s: number) => `${Math.floor(s / 3600)}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}`;
 
         const sorted = [...state.entries].sort((a, b) => b.startedAt - a.startedAt)
           .filter(e => {
@@ -344,7 +282,7 @@ export function TrackerView() {
               </div>
               <div className="flex flex-col items-end gap-0.5">
                 <div className="text-[11px] text-muted tabular-nums">
-                  {d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} · {d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} — {entry.endedAt ? new Date(entry.endedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'läuft'}
+                  {d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} · {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {entry.endedAt ? new Date(entry.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'läuft'}
                 </div>
                 <div className="text-xs font-black tabular-nums">{formatHM(entry.durationSeconds)}</div>
               </div>
@@ -371,9 +309,8 @@ export function TrackerView() {
                     <button
                       key={v}
                       onClick={() => setEntryView(v)}
-                      className={`cursor-pointer rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${
-                        entryView === v ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
-                      }`}
+                      className={`cursor-pointer rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${entryView === v ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
+                        }`}
                     >
                       {v === 'date' ? 'Datum' : 'Projekt'}
                     </button>
@@ -388,20 +325,20 @@ export function TrackerView() {
               </button>
             </div>
 
-            {state.entries.length > 10 && (
-              <div className="mb-4 relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            {state.entries.length > 5 && (
+              <div className="mb-4 relative group">
+                <Search size={12} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Einträge durchsuchen…"
-                  className="w-full pl-9 pr-8 placeholder:text-muted"
+                  className="w-full !pl-11 !pr-9 !py-1.5 text-[11px] font-bold tracking-wider bg-surface/40 border-divider hover:border-muted focus:border-ink focus:bg-surface transition-all rounded-md outline-none placeholder:text-muted/50"
                 />
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-ink cursor-pointer transition-colors"
                   >
                     <X size={12} />
                   </button>
@@ -497,13 +434,13 @@ export function TrackerView() {
         )}
       </AnimatePresence>
 
-      <DeleteModal 
+      <DeleteModal
         entry={state.entries.find(e => e.id === deleteModalEntryId) || null}
         onConfirm={() => deleteModalEntryId && handleDeleteEntry(deleteModalEntryId)}
         onCancel={() => setDeleteModalEntryId(null)}
       />
 
-      <EditModal 
+      <EditModal
         entry={state.entries.find(e => e.id === editModalEntryId) || null}
         customers={state.customers}
         projects={state.projects}

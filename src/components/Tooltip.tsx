@@ -71,7 +71,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ children, content, position = 
             }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
             style={{ position: 'absolute' }}
-            className={`z-[9999] px-2.5 py-1.5 bg-paper/95 backdrop-blur-xl border border-divider text-[9px] font-black uppercase tracking-[0.15em] text-ink rounded-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] pointer-events-none whitespace-nowrap ${positionClasses[position]}`}
+            className={`z-[10001] px-2.5 py-1.5 bg-paper/95 backdrop-blur-xl border border-divider text-[9px] font-black uppercase tracking-[0.15em] text-ink rounded-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] pointer-events-none whitespace-nowrap ${positionClasses[position]}`}
           >
             {content}
           </motion.div>
