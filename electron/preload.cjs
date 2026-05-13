@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('api', {
   startOverlayDrag: (cursor) => ipcRenderer.invoke('overlay-start-drag', cursor),
   endOverlayDrag: () => ipcRenderer.invoke('overlay-end-drag'),
   showMainWindowFromOverlay: () => ipcRenderer.invoke('overlay-show-main-window'),
+  setIgnoreMouseEvents: (ignore, options) => ipcRenderer.send('overlay-set-ignore-mouse-events', ignore, options),
 
   setStartPauseShortcut: (accelerator) => ipcRenderer.invoke('set-start-pause-shortcut', accelerator),
 

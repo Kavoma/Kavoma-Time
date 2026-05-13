@@ -148,8 +148,10 @@ const DEV_URL = 'http://localhost:5173';
 const TRAY_ICON_PATH = path.join(__dirname, 'tray-icon.png');
 const WINDOW_ICON_PATH = path.join(__dirname, 'window-icon.png');
 const OVERLAY_ANCHOR_KEY = 'timer_overlay_anchor';
-const OVERLAY_WIDTH = 184;
-const OVERLAY_HEIGHT = 122;
+const OVERLAY_WIDTH = 400; // Vergrößert für Schatten-Padding
+const OVERLAY_HEIGHT = 320;
+const VISIBLE_WIDTH = 184;  // Die tatsächliche Breite der Karte
+const VISIBLE_HEIGHT = 54;  // Die tatsächliche Höhe der Karte (ohne ausgeklappte Buttons)
 const OVERLAY_MARGIN = 18;
 
 let mainWindow = null;
@@ -276,14 +278,21 @@ function getDisplayForAnchor(anchor) {
 function getOverlayBoundsForAnchor(anchor) {
   const display = getDisplayForAnchor(anchor);
   const area = display.workArea;
-  const x = anchor.corner.endsWith('right')
-    ? area.x + area.width - OVERLAY_WIDTH - OVERLAY_MARGIN
-    : area.x + OVERLAY_MARGIN;
-  const y = anchor.corner.startsWith('bottom')
-    ? area.y + area.height - OVERLAY_HEIGHT - OVERLAY_MARGIN
-    : area.y + OVERLAY_MARGIN;
 
-  return { x, y, width: OVERLAY_WIDTH, height: OVERLAY_HEIGHT };
+  // Wir berechnen die Position so, dass die *sichtbare Karte* am Rand klebt,
+  // aber das Fenster drumherum genug Platz für den Schatten bietet.
+  const paddingX = (OVERLAY_WIDTH - VISIBLE_WIDTH) / 2;
+  const paddingY = (OVERLAY_HEIGHT - VISIBLE_HEIGHT) / 2;
+
+  const x = anchor.corner.endsWith('right')
+    ? area.x + area.width - VISIBLE_WIDTH - OVERLAY_MARGIN - paddingX
+    : area.x + OVERLAY_MARGIN - paddingX;
+  
+  const y = anchor.corner.startsWith('bottom')
+    ? area.y + area.height - VISIBLE_HEIGHT - OVERLAY_MARGIN - paddingY
+    : area.y + OVERLAY_MARGIN - paddingY;
+
+  return { x: Math.round(x), y: Math.round(y), width: OVERLAY_WIDTH, height: OVERLAY_HEIGHT };
 }
 
 function positionOverlay(anchor = getOverlayAnchor()) {
@@ -636,6 +645,35 @@ ipcMain.handle('overlay-end-drag', () => {
 ipcMain.handle('overlay-show-main-window', () => {
   showMainWindow();
   updateOverlayVisibility();
+});
+
+ipcMain.on('overlay-set-ignore-mouse-events', (event, ignore, options) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) {
+    console.error('overlay-set-ignore-mouse-events: No window found for sender');
+    event.sender.send('overlay-mouse-events-error', 'No window found');
+    return;
+  }
+
+  // Validate parameters
+  if (typeof ignore !== 'boolean') {
+    console.error('overlay-set-ignore-mouse-events: ignore must be a boolean, got:', typeof ignore);
+    event.sender.send('overlay-mouse-events-error', 'Invalid ignore parameter');
+    return;
+  }
+
+  if (options !== undefined && (typeof options !== 'object' || options === null)) {
+    console.error('overlay-set-ignore-mouse-events: options must be an object or undefined, got:', typeof options);
+    event.sender.send('overlay-mouse-events-error', 'Invalid options parameter');
+    return;
+  }
+
+  try {
+    win.setIgnoreMouseEvents(ignore, options);
+  } catch (error) {
+    console.error('overlay-set-ignore-mouse-events: Failed to set ignore mouse events:', error);
+    event.sender.send('overlay-mouse-events-error', error.message || String(error));
+  }
 });
 
 // ============================================================

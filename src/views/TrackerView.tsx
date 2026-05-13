@@ -202,8 +202,8 @@ export function TrackerView() {
           type="button"
           onClick={state.isRunning ? handlePause : handleStart}
           className={`flex-1 cursor-pointer rounded-md border px-4 py-3 text-sm font-bold uppercase tracking-widest transition-all active:scale-95 ${state.isRunning
-              ? 'border-amber-500 bg-amber-500 text-paper hover:bg-paper hover:text-amber-500'
-              : 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink'
+            ? 'border-amber-500 bg-amber-500 text-paper hover:bg-paper hover:text-amber-500'
+            : 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink'
             }`}
         >
           {state.isRunning ? 'Pause' : 'Start'}
