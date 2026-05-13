@@ -81,6 +81,10 @@ export function ProjectsView() {
                   key={p.id}
                   onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, projectId: p.id }); }}
                   onDoubleClick={() => setEditingId(p.id)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditingId(p.id); } }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Projekt bearbeiten: ${p.name}`}
                   className="group flex items-center gap-3 rounded-md border-l-[3px] bg-surface px-4 py-3 transition-colors hover:bg-divider cursor-pointer"
                   style={{ borderLeftColor: customer?.color || '#525252' }}
                 >

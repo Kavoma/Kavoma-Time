@@ -361,12 +361,12 @@ export function SettingsView() {
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted mb-3">Navigation (Schnellzugriff)</div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-2">
               {[
-                { key: 'Strg + 1', label: 'Tracker' },
-                { key: 'Strg + 2', label: 'Projekte' },
-                { key: 'Strg + 3', label: 'Kunden' },
-                { key: 'Strg + 4', label: 'Statistik' },
-                { key: 'Strg + 5', label: 'Export' },
-                { key: 'Strg + 6', label: 'Einstellungen' },
+                { key: 'Strg/⌘ + 1', label: 'Tracker' },
+                { key: 'Strg/⌘ + 2', label: 'Projekte' },
+                { key: 'Strg/⌘ + 3', label: 'Kunden' },
+                { key: 'Strg/⌘ + 4', label: 'Statistik' },
+                { key: 'Strg/⌘ + 5', label: 'Export' },
+                { key: 'Strg/⌘ + 6', label: 'Einstellungen' },
               ].map(shortcut => (
                 <div key={shortcut.key} className="flex items-center justify-between">
                   <span className="text-xs text-ink">{shortcut.label}</span>

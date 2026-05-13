@@ -21,7 +21,11 @@ export function DatePicker({ value, onChange, label, className = '' }: DatePicke
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Internal state for navigating the calendar (independent of selected value)
-  const [viewDate, setViewDate] = useState(() => value ? new Date(value) : new Date());
+  const [viewDate, setViewDate] = useState(() => {
+    if (!value) return new Date();
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  });
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,11 +40,15 @@ export function DatePicker({ value, onChange, label, className = '' }: DatePicke
   // Reset calendar view to selected date when opening
   useEffect(() => {
     if (isOpen && value) {
-      setViewDate(new Date(value));
+      const [year, month, day] = value.split('-').map(Number);
+      setViewDate(new Date(year, month - 1, day));
     }
-  }, [isOpen]);
+  }, [isOpen, value]);
 
-  const selectedDate = value ? new Date(value) : null;
+  const selectedDate = value ? (() => {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  })() : null;
   
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => {

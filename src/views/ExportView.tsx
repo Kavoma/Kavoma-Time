@@ -34,7 +34,7 @@ export function ExportView() {
     due.setHours(0, 0, 0, 0);
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    return due <= now;
+    return due < now;
   };
 
   const filteredInvoices = useMemo(() => {

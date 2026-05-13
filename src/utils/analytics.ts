@@ -131,15 +131,16 @@ export interface YearForecast {
 
 export function forecastYear(state: AppState): YearForecast {
   const now = new Date();
+  const nowTs = now.getTime();
   const yearStart = new Date(now.getFullYear(), 0, 1).getTime();
   const yearEnd   = new Date(now.getFullYear() + 1, 0, 1).getTime();
   const daysInYear = Math.round((yearEnd - yearStart) / 86_400_000);
-  const calendarDaysPassed = Math.max(1, Math.round((now.getTime() - yearStart) / 86_400_000));
+  const calendarDaysPassed = Math.max(1, Math.round((nowTs - yearStart) / 86_400_000));
   const daysRemaining = daysInYear - calendarDaysPassed;
 
   // --- Abgerechneter Umsatz (Rechnungen) ---
   const ytdInvoices = state.invoices.filter(i =>
-    i.status !== 'cancelled' && !i.cancelsInvoiceId && i.createdAt >= yearStart
+    i.status !== 'cancelled' && !i.cancelsInvoiceId && i.createdAt >= yearStart && i.createdAt <= nowTs
   );
   const invoicedRevenue = ytdInvoices.reduce((s, i) => s + i.total, 0);
 
@@ -148,7 +149,7 @@ export function forecastYear(state: AppState): YearForecast {
   ytdInvoices.forEach(inv => inv.entryIds.forEach(id => invoicedEntryIds.add(id)));
 
   // --- Getrackte, noch nicht abgerechnete Stunden ---
-  const ytdEntries = state.entries.filter(e => e.startedAt >= yearStart);
+  const ytdEntries = state.entries.filter(e => e.startedAt >= yearStart && e.startedAt <= nowTs);
   const unbilledEntries = ytdEntries.filter(e => !invoicedEntryIds.has(e.id));
   const trackedRevenue = unbilledEntries.reduce((s, e) => {
     return s + (e.durationSeconds / 3600) * resolveRate(e, state.customers, state.projects);
@@ -159,7 +160,10 @@ export function forecastYear(state: AppState): YearForecast {
 
   // --- Tatsächliche Arbeitstage (Tage mit ≥1 Eintrag) ---
   const workDays = new Set(
-    ytdEntries.map(e => new Date(e.startedAt).toISOString().slice(0, 10))
+    ytdEntries.map(e => {
+      const d = new Date(e.startedAt);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    })
   );
   const yearToDateWorkDays = workDays.size;
 

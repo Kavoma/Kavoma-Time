@@ -66,7 +66,7 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
       setDebtorNumber(state ? String(state.nextDebtorNumber) : '');
       setEInvoiceAccepted(false);
     }
-  }, [customer, open, state]);
+  }, [customer, open]);
 
   const save = () => {
     if (!name.trim()) return;
