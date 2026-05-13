@@ -132,7 +132,7 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
   doc.setTextColor(80);
   doc.setFontSize(8);
   y += 5;
-  doc.text(`Bitte überweisen Sie den Gesamtbetrag bis zum ${fmtDate(latestReminder.newDueDate ?? latestReminder.dueDate)} auf folgendes Konto:`, 20, y);
+  doc.text(`Bitte überweisen Sie den Gesamtbetrag bis zum ${fmtDate(latestReminder.newDueDate)} auf folgendes Konto:`, 20, y);
   y += 5;
   if (issuer.bank) { doc.text(`Bank: ${issuer.bank}`, 20, y); y += 4; }
   if (issuer.iban) { doc.text(`IBAN: ${issuer.iban}`, 20, y); y += 4; }

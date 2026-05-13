@@ -203,7 +203,7 @@ export function StatisticsView() {
         : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit' });
 
     return Array.from(map.values()).map(d => ({ ...d, label: labelOf(new Date(d.ts)) }));
-  }, [entriesInPeriod, start, period, customers]);
+  }, [entriesInPeriod, start, period, customers, projects]);
 
   // === Donut: Stunden pro Kunde =================================
   const customerData = useMemo(() => {
@@ -225,7 +225,7 @@ export function StatisticsView() {
       })
       .filter((c: any) => c.hours > 0)
       .sort((a: any, b: any) => b.hours - a.hours);
-  }, [entriesInPeriod, customers]);
+  }, [entriesInPeriod, customers, projects]);
 
   // === Top-Projekte =============================================
   const projectData = useMemo(() => {
@@ -278,7 +278,7 @@ export function StatisticsView() {
       hours: totalSec[i] / 3600,
       revenue: totalRev[i]
     }));
-  }, [entriesInPeriod, customers]);
+  }, [entriesInPeriod, customers, projects]);
 
   // === Best Day Insight ========================================
   const bestDay = weekdayData.reduce((max: any, d: any) => d.hours > max.hours ? d : max, weekdayData[0]);
