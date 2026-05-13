@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Settings, Clock, BarChart3, Users, FolderKanban, Download, Database } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Settings, Clock, BarChart3, Users, FolderKanban, Download, Database, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TrackerView } from './views/TrackerView';
 import { CustomersView } from './views/CustomersView';
@@ -8,6 +8,7 @@ import { SettingsView } from './views/SettingsView';
 import { StatisticsView } from './views/StatisticsView';
 import { ExportView } from './views/ExportView';
 import { useAppState } from './state/AppStateContext';
+import { Tooltip } from './components/Tooltip';
 
 function renderView(id: string) {
   switch (id) {
@@ -38,6 +39,14 @@ function formatHM(seconds: number) {
 
 export function App() {
   const [activeView, setActiveView] = useState('tracker');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebar-collapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('sidebar-collapsed', String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
+
   const { state, isRestoring } = useAppState();
 
   const navItems = [
@@ -57,45 +66,153 @@ export function App() {
   const weekHours = weekSeconds / 3600;
   const targetHours = state?.weeklyTargetHours ?? 40;
 
+  // Zusätzliche Metriken für Usability
+  const remainingSeconds = Math.max(0, (targetHours * 3600) - weekSeconds);
+  const percentComplete = Math.min(100, Math.round((weekSeconds / (targetHours * 3600)) * 100));
+
+  // Restliche Tage in der Woche (inkl. heute)
+  const today = new Date().getDay(); // 0 = So, 1 = Mo, ..., 6 = Sa
+  const remainingDaysInWeek = today === 0 ? 0 : 7 - (today - 1); // Sehr simple Schätzung
+  const dailyTargetHours = remainingDaysInWeek > 0 ? (remainingSeconds / 3600) / remainingDaysInWeek : 0;
+
   return (
-    <div className="app">
-      <aside className="flex flex-col gap-8 border-r border-divider bg-paper p-8">
-        <div className="text-xl font-bold uppercase tracking-tight leading-none">
-          Kavoma Time
+    <div className={`app ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+      <aside className={`flex flex-col gap-8 border-r border-divider bg-paper p-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-4' : 'p-8'}`}>
+        <div className="relative flex items-center min-h-[32px] mb-4">
+          <AnimatePresence mode="wait">
+            {!isSidebarCollapsed ? (
+              <motion.div
+                key="logo-full"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="text-xl font-bold uppercase tracking-tight leading-none overflow-hidden whitespace-nowrap"
+              >
+                Kavoma Time
+              </motion.div>
+            ) : (
+              <motion.div
+                key="logo-collapsed"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="flex w-full items-center justify-center text-2xl font-black text-ink"
+              >
+                K
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 flex cursor-pointer items-center justify-center text-muted hover:text-ink transition-all hover:scale-110 active:scale-95 z-20"
+          >
+            <Tooltip content={isSidebarCollapsed ? "Sidebar ausklappen" : "Sidebar einklappen"} position="right">
+              <div className="flex items-center justify-center">
+                {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+              </div>
+            </Tooltip>
+          </button>
         </div>
 
         <nav className="flex flex-col gap-px">
-          <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-            Navigation
-          </div>
+          {!isSidebarCollapsed && (
+            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+              Navigation
+            </div>
+          )}
           {navItems.map(item => {
             const isActive = activeView === item.id;
             const Icon = item.icon;
             return (
-              <button
-                key={item.id}
-                onClick={() => setActiveView(item.id)}
-                className={`flex cursor-pointer items-center gap-3 rounded-md px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-colors ${isActive ? 'bg-surface text-ink' : 'text-muted hover:bg-surface hover:text-ink'
-                  }`}
-              >
-                <Icon size={16} />
-                {item.label}
-              </button>
+              <Tooltip content={isSidebarCollapsed ? item.label : ''} position="right">
+                <button
+                  key={item.id}
+                  onClick={() => setActiveView(item.id)}
+                  className={`group relative flex cursor-pointer items-center rounded-md px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-all duration-300 ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3'} ${isActive ? 'bg-surface text-ink' : 'text-muted hover:bg-surface hover:text-ink'
+                    }`}
+                >
+                  <div className={`flex items-center justify-center transition-transform duration-300 ${isSidebarCollapsed ? 'scale-110' : 'scale-100'}`}>
+                    <Icon size={18} />
+                  </div>
+                  
+                  <AnimatePresence mode="popLayout">
+                    {!isSidebarCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        transition={{ duration: 0.2 }}
+                        className="whitespace-nowrap overflow-hidden"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Active Indicator Dot for Collapsed Mode */}
+                  {isSidebarCollapsed && isActive && (
+                    <motion.div 
+                      layoutId="active-dot"
+                      className="absolute left-0 h-4 w-1 rounded-r-full bg-ink"
+                    />
+                  )}
+                </button>
+              </Tooltip>
             )
           })}
         </nav>
 
-        <div className="mt-auto pt-4">
-          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-            Diese Woche
-          </div>
-          <div className="font-display text-3xl font-bold tabular-nums leading-none">
-            {formatHM(weekSeconds)}
-          </div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-            von {targetHours} Std.
-          </div>
-          <progress max={targetHours} value={weekHours} className="mt-3 w-full"></progress>
+        <div className={`mt-auto pt-4 transition-all duration-300 ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+          {!isSidebarCollapsed ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="w-full"
+            >
+              <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted flex justify-between items-center">
+                <span>Diese Woche</span>
+                <span className="text-accent">{percentComplete}%</span>
+              </div>
+              <div className="font-display text-3xl font-bold tabular-nums leading-none">
+                {formatHM(weekSeconds)}
+              </div>
+              <div className="mt-2 flex items-end justify-between">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted whitespace-nowrap">
+                  von {targetHours} Std.
+                </div>
+              </div>
+              <progress max={targetHours} value={weekHours} className="mt-3 w-full"></progress>
+              
+              {dailyTargetHours > 0 && (
+                <div className="mt-4 rounded-lg bg-surface/50 p-3 text-[10px] font-bold uppercase tracking-[0.1em] text-muted leading-relaxed whitespace-nowrap overflow-hidden text-ellipsis">
+                  Ziel: <span className="text-ink">{dailyTargetHours.toFixed(1)}h</span> / Tag
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            <div className="group relative flex flex-col items-center">
+              <div className="h-20 w-1 bg-divider rounded-full overflow-hidden relative">
+                <div 
+                  className="absolute bottom-0 left-0 right-0 bg-ink transition-all duration-1000 ease-out"
+                  style={{ height: `${percentComplete}%` }}
+                />
+              </div>
+              <div className="mt-4 text-[10px] font-black uppercase text-muted">
+                {percentComplete}%
+              </div>
+              
+              {/* Tooltip-like info on hover */}
+              <div className="absolute left-12 bottom-0 z-50 hidden group-hover:block w-40 rounded-xl bg-surface border border-divider p-4 shadow-2xl">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted mb-2">Details</div>
+                <div className="font-display text-lg font-bold">{formatHM(weekSeconds)}</div>
+                <div className="text-[10px] text-muted uppercase mt-1">von {targetHours}h</div>
+                <div className="mt-2 h-1 w-full bg-divider rounded-full overflow-hidden">
+                  <div className="h-full bg-ink" style={{ width: `${percentComplete}%` }} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </aside>
 

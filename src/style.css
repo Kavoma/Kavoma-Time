@@ -52,11 +52,28 @@ body {
     scrollbar-width: none;
 }
 
+/* === Hide Native Number Spinners === */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
 /* === Haupt-Layout === */
 .app {
+    --sidebar-width: 240px;
     display: grid;
-    grid-template-columns: 240px 1fr;
+    grid-template-columns: var(--sidebar-width) 1fr;
     height: 100vh;
+    transition: grid-template-columns 0.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.app.collapsed {
+    --sidebar-width: 80px;
 }
 
 /* === Progress-Bar (Tailwind hat keine Utilities für ::-webkit-progress-*) === */

@@ -323,7 +323,8 @@ export function TrackerView() {
             <li
               key={entry.id}
               onContextMenu={(e) => handleContextMenu(e, entry.id)}
-              className="group flex items-center gap-3 rounded-md border-l-[3px] bg-surface px-3 py-2.5 transition-colors hover:bg-divider cursor-context-menu"
+              onDoubleClick={() => setEditModalEntryId(entry.id)}
+              className="group flex items-center gap-3 rounded-md border-l-[3px] bg-surface px-3 py-2.5 transition-colors hover:bg-divider cursor-pointer"
               style={{ borderLeftColor: customer?.color || '#525252' }}
             >
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">

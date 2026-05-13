@@ -10,6 +10,7 @@ import { DunningModal } from '../components/DunningModal';
 import { downloadInvoicePdf, downloadServiceReportPdf, downloadContractPdf } from '../utils/invoicePdf';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { createCancellationInvoice } from '../utils/analytics';
+import { Tooltip } from '../components/Tooltip';
 
 export function ExportView() {
   const { state, setState } = useAppState();
@@ -352,14 +353,15 @@ export function ExportView() {
         </div>
         
         <div className="flex items-center gap-2">
-          <button
-            onClick={exportCSV}
-            disabled={filteredInvoices.length === 0}
-            className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-divider bg-surface px-4 text-xs font-bold uppercase tracking-widest transition-all hover:border-ink disabled:opacity-30"
-            title="Export für Steuerberater (CSV)"
-          >
-            <FileSpreadsheet size={14} /> CSV
-          </button>
+          <Tooltip content="Export für Steuerberater (CSV)">
+            <button
+              onClick={exportCSV}
+              disabled={filteredInvoices.length === 0}
+              className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-divider bg-surface px-4 text-xs font-bold uppercase tracking-widest transition-all hover:border-ink disabled:opacity-30"
+            >
+              <FileSpreadsheet size={14} /> CSV
+            </button>
+          </Tooltip>
           <button
             onClick={bulkDownload}
             disabled={isExporting || filteredInvoices.length === 0}

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload, Info } from 'lucide-react';
 import { ConfirmRestoreModal } from '../components/ConfirmRestoreModal';
 import { useAppState } from '../state/AppStateContext';
+import { NumberInput } from '../components/NumberInput';
 import { Issuer } from '../types';
 import { isValidIban, getBankName, isValidBic, formatIban, formatBic, formatPhone, formatTaxId } from '../utils/iban';
 
@@ -226,13 +227,12 @@ export function SettingsView() {
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Wochenziel</span>
         </div>
         <div className="flex items-center gap-3 p-4">
-          <input
-            type="number"
+          <NumberInput
             min={1}
             max={168}
             value={state.weeklyTargetHours}
-            onChange={e => updateTarget(Number(e.target.value))}
-            className="w-24 rounded-md border border-divider bg-paper px-3 py-2 text-sm font-bold tabular-nums text-ink outline-none transition-colors focus:border-accent"
+            onChange={updateTarget}
+            className="w-24"
           />
           <span className="text-sm text-muted">Stunden pro Woche</span>
         </div>
@@ -248,12 +248,11 @@ export function SettingsView() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="mb-2 text-xs text-muted">Nächste Nummer</div>
-              <input
-                type="number"
+              <NumberInput
                 min={1}
                 value={state.nextInvoiceCounter}
-                onChange={e => updateInvoiceCounter(Number(e.target.value))}
-                className="w-full rounded-md border border-divider bg-paper px-3 py-2 text-sm font-bold tabular-nums text-ink outline-none transition-colors focus:border-accent"
+                onChange={updateInvoiceCounter}
+                className="w-full"
               />
             </div>
             <div>
@@ -319,13 +318,12 @@ export function SettingsView() {
           {!localIssuer.smallBusiness && (
             <div className="col-span-2 flex items-center gap-3">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">USt-Satz</label>
-              <input
-                type="number"
+              <NumberInput
                 min={0}
                 max={30}
                 value={localIssuer.vatRate}
-                onChange={e => updateIssuer('vatRate', Number(e.target.value))}
-                className="w-20 rounded-md border border-divider bg-paper px-3 py-2 text-sm font-bold tabular-nums text-ink outline-none focus:border-accent"
+                onChange={v => updateIssuer('vatRate', v)}
+                className="w-24"
               />
               <span className="text-sm text-muted">%</span>
             </div>
