@@ -5,6 +5,7 @@ import { Customer } from '../types';
 import { ContextMenu } from '../components/ContextMenu';
 import { CustomerEditModal } from '../components/CustomerEditModal';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { Tooltip } from '../components/Tooltip';
 
 
 export function CustomersView() {
@@ -80,15 +81,18 @@ export function CustomersView() {
           <li
             key={c.id}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, customerId: c.id }); }}
-            className="group flex items-center gap-3 rounded-md border-l-[3px] bg-surface px-4 py-3 transition-colors hover:bg-divider cursor-context-menu"
+            onDoubleClick={() => setEditingId(c.id)}
+            className="group flex items-center gap-3 rounded-md border-l-[3px] bg-surface px-4 py-3 transition-colors hover:bg-divider cursor-pointer"
             style={{ borderLeftColor: c.color }}
           >
             <span className="size-3.5 shrink-0 rounded-full" style={{ background: c.color }} />
             <span className="flex-1 truncate text-sm font-bold text-ink">{c.name}</span>
             {c.eInvoiceAccepted && (
-              <span title="E-Rechnung Einverständnis liegt vor" className="shrink-0 flex items-center">
-                <ShieldCheck size={14} className="text-green-500/80" />
-              </span>
+              <Tooltip content="E-Rechnung Einverständnis liegt vor">
+                <span className="shrink-0 flex items-center">
+                  <ShieldCheck size={14} className="text-green-500/80" />
+                </span>
+              </Tooltip>
             )}
             {c.hourlyRate ? (
               <span className="shrink-0 rounded-full bg-divider px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent tabular-nums">

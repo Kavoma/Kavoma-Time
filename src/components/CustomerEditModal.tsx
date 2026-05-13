@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, ShieldCheck, Download, Pipette } from 'lucide-react';
+import { Pencil, ShieldCheck, Download, Pipette, Plus } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { Customer } from '../types';
+import { CurrencyInput } from './CurrencyInput';
 import { downloadContractPdf } from '../utils/invoicePdf';
 import { useAppState } from '../state/AppStateContext';
+import { Tooltip } from './Tooltip';
 
 const PALETTE = [
   '#3b82f6', // Blue
@@ -97,22 +99,30 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.15 }}
         >
+          {/* Backdrop */}
           <motion.div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onCancel}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           />
+
+          {/* Dialog */}
           <motion.div
-            className="relative z-10 mx-4 w-full max-w-md rounded-lg border border-divider bg-surface p-0 text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 mx-4 w-full max-w-xl overflow-visible rounded-lg border border-divider bg-surface p-0 text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div className="border-b border-divider px-6 pt-6 pb-4">
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-ink/5">
-                <Pencil size={16} className="text-accent" />
+                {customer ? (
+                  <Pencil size={16} className="text-accent" />
+                ) : (
+                  <Plus size={16} className="text-accent" />
+                )}
               </div>
               <h3 className="text-sm font-bold uppercase tracking-wide">
                 {customer ? 'Kunde bearbeiten' : 'Neuen Kunden anlegen'}
@@ -120,28 +130,30 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
             </div>
 
             <div className="flex flex-col gap-4 px-6 py-5 overflow-y-auto max-h-[70vh]">
-              <div className="flex flex-col">
-                <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
-                  autoFocus
-                  placeholder="Kundenname..."
-                  className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
-                />
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col">
+                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+                    autoFocus
+                    placeholder="Kundenname..."
+                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                  />
+                </div>
 
-              <div className="flex flex-col">
-                <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Debitoren-Nr. (z.B. 10001)</label>
-                <input
-                  type="text"
-                  value={debtorNumber}
-                  onChange={(e) => setDebtorNumber(e.target.value)}
-                  placeholder="10001"
-                  className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
-                />
+                <div className="flex flex-col">
+                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Debitoren-Nr.</label>
+                  <input
+                    type="text"
+                    value={debtorNumber}
+                    onChange={(e) => setDebtorNumber(e.target.value)}
+                    placeholder="10001"
+                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -156,18 +168,18 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Adresszusatz (optional)</label>
+                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Adresszusatz</label>
                   <input
                     type="text"
                     value={address2}
                     onChange={(e) => setAddress2(e.target.value)}
-                    placeholder="z.B. 2. OG / c/o"
+                    placeholder="2. OG / c/o"
                     className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-[100px_1fr] gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col">
                   <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">PLZ</label>
                   <input
@@ -178,7 +190,7 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
                     className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm tabular-nums text-ink outline-none focus:border-accent"
                   />
                 </div>
-                <div className="flex flex-col">
+                <div className="flex flex-col col-span-2">
                   <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Stadt</label>
                   <input
                     type="text"
@@ -201,20 +213,14 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
                     className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-muted outline-none focus:border-accent"
                   />
                 </div>
-                <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Stundensatz (€)</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={rate}
-                    onChange={(e) => setRate(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
-                    placeholder="z.B. 80"
-                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm tabular-nums text-ink outline-none focus:border-accent"
-                  />
-                </div>
+                <CurrencyInput
+                  label="Standard-Stundensatz"
+                  value={rate ? parseFloat(rate.replace(',', '.')) : undefined}
+                  onChange={v => setRate(v !== undefined ? String(v) : '')}
+                  placeholder="0,00"
+                  suffix="€/h"
+                />
               </div>
-
 
               <div className="flex flex-col">
                 <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">E-Rechnung Status</label>
@@ -231,7 +237,7 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
                       </div>
                       <div>
                         <div className="text-xs font-bold text-ink">Einverständnis liegt vor</div>
-                        <div className="text-[10px] text-muted">Gesetzliche PDF-Rechnungserlaubnis</div>
+                        <div className="text-[10px] text-muted">PDF-Rechnungserlaubnis</div>
                       </div>
                     </div>
 
@@ -247,14 +253,15 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
                   </div>
 
                   {customer && (
-                    <button
-                      type="button"
-                      onClick={downloadTemplate}
-                      title="Vertragsvorlage herunterladen"
-                      className="flex h-[54px] w-[54px] cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-muted transition-all hover:border-ink hover:text-ink active:scale-95"
-                    >
-                      <Download size={18} />
-                    </button>
+                    <Tooltip content="Vertragsvorlage herunterladen" position="left">
+                      <button
+                        type="button"
+                        onClick={downloadTemplate}
+                        className="flex h-[54px] w-[54px] cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-muted transition-all hover:border-ink hover:text-ink active:scale-95"
+                      >
+                        <Download size={18} />
+                      </button>
+                    </Tooltip>
                   )}
                 </div>
               </div>
@@ -273,23 +280,23 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
                     />
                   ))}
                   
-                  {/* Custom Color Button / Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => setShowPicker(!showPicker)}
-                    style={{ background: !PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) ? color : undefined }}
-                    className={`flex size-8 cursor-pointer items-center justify-center rounded-full border border-divider transition-all active:scale-90 
-                      ${!PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) 
-                        ? 'scale-110 ring-2 ring-ink ring-offset-2 ring-offset-surface border-transparent' 
-                        : showPicker ? 'bg-ink text-paper border-ink' : 'bg-paper text-muted hover:border-ink hover:text-ink'
-                      }`}
-                    title="Eigene Farbe wählen"
-                  >
-                    <Pipette size={14} className={!PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) ? 'hidden' : ''} />
-                    {!PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) && (
-                      <div className="size-1.5 rounded-full bg-white shadow-sm ring-1 ring-black/10" />
-                    )}
-                  </button>
+                  <Tooltip content="Eigene Farbe wählen">
+                    <button
+                      type="button"
+                      onClick={() => setShowPicker(!showPicker)}
+                      style={{ background: !PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) ? color : undefined }}
+                      className={`flex size-8 cursor-pointer items-center justify-center rounded-full border border-divider transition-all active:scale-90 
+                        ${!PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) 
+                          ? 'scale-110 ring-2 ring-ink ring-offset-2 ring-offset-surface border-transparent' 
+                          : showPicker ? 'bg-ink text-paper border-ink' : 'bg-paper text-muted hover:border-ink hover:text-ink'
+                        }`}
+                    >
+                      <Pipette size={14} className={!PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) ? 'hidden' : ''} />
+                      {!PALETTE.some(c => c.toLowerCase() === color.toLowerCase()) && (
+                        <div className="size-1.5 rounded-full bg-white shadow-sm ring-1 ring-black/10" />
+                      )}
+                    </button>
+                  </Tooltip>
                 </div>
 
                 <AnimatePresence>

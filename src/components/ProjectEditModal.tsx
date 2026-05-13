@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Pencil, Plus } from 'lucide-react';
 import { Project, Customer } from '../types';
 import { CustomSelect } from './CustomSelect';
+import { CurrencyInput } from './CurrencyInput';
+import { NumberInput } from './NumberInput';
 
 interface Props {
   open: boolean;
@@ -125,39 +127,30 @@ export function ProjectEditModal({ open, project, customers, onSave, onCancel }:
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Stundensatz €</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={rate}
-                    onChange={(e) => setRate(e.target.value)}
-                    placeholder="leer = Kunde"
-                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm tabular-nums text-ink placeholder:text-muted outline-none focus:border-accent"
-                  />
-                </div>
+                <CurrencyInput
+                  label="Stundensatz"
+                  value={rate ? parseFloat(rate.replace(',', '.')) : undefined}
+                  onChange={v => setRate(v !== undefined ? String(v) : '')}
+                  placeholder="Kunde"
+                  suffix="€/h"
+                  className="col-span-1"
+                />
                 <div className="flex flex-col">
                   <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Budget Std.</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={budgetHours}
-                    onChange={(e) => setBudgetHours(e.target.value)}
-                    placeholder="optional"
-                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm tabular-nums text-ink placeholder:text-muted outline-none focus:border-accent"
+                  <NumberInput
+                    value={budgetHours ? parseFloat(budgetHours.replace(',', '.')) : 0}
+                    onChange={v => setBudgetHours(v > 0 ? String(v) : '')}
+                    className="w-full"
                   />
                 </div>
-                <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Pauschal €</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={fixedPrice}
-                    onChange={(e) => setFixedPrice(e.target.value)}
-                    placeholder="optional"
-                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm tabular-nums text-ink placeholder:text-muted outline-none focus:border-accent"
-                  />
-                </div>
+                <CurrencyInput
+                  label="Pauschal"
+                  value={fixedPrice ? parseFloat(fixedPrice.replace(',', '.')) : undefined}
+                  onChange={v => setFixedPrice(v !== undefined ? String(v) : '')}
+                  placeholder="optional"
+                  suffix="€"
+                  className="col-span-1"
+                />
               </div>
               <p className="-mt-2 text-[10px] text-muted">
                 Stundensatz überschreibt Kundensatz. Budget / Pauschal nur für Profitabilitäts-Analyse.
