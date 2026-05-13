@@ -28,7 +28,7 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
     2: '1. Mahnung',
     3: '2. Mahnung (Letzte)'
   };
-  const title = titleMap[latestReminder.level];
+  const title = titleMap[latestReminder.level] || `Zahlungs- / Mahnstufe unbekannt (Level ${latestReminder.level})`;
 
   // === Absender (oben rechts) ===
   doc.setFontSize(8);
@@ -158,9 +158,9 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
   doc.setTextColor(140);
   const footerLines = [
     `${issuer.name}${issuer.taxId ? ` · Steuer-Nr./USt-IdNr.: ${issuer.taxId}` : ''}`,
-    issuer.email,
+    issuer.email && `E-Mail: ${issuer.email}`,
     'Datenschutzhinweis: Ihre Daten werden ausschließlich zum Zwecke des Forderungseinzugs verarbeitet.',
-  ];
+  ].filter(Boolean) as string[];
   footerLines.forEach((line, i) => {
     doc.text(line, W / 2, 284 + i * 4, { align: 'center' });
   });
