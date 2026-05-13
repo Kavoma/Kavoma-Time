@@ -24,13 +24,30 @@ export function TimerOverlay() {
     return () => document.body.classList.remove('timer-overlay-body');
   }, []);
 
+  // Synchronously set ignore mouse events on mount to avoid race condition
   useEffect(() => {
-    window.api?.getOverlayAnchor?.().then(setAnchor).catch(() => undefined);
-    
-    // Initial: Klicks durch das Fenster lassen (für den Padding-Bereich)
-    window.api?.setIgnoreMouseEvents?.(true, { forward: true });
+    // Check availability and call synchronously
+    if (window.api && typeof window.api.setIgnoreMouseEvents === 'function') {
+      try {
+        window.api.setIgnoreMouseEvents(true, { forward: true });
+      } catch (error) {
+        console.error('Failed to set initial ignore mouse events:', error);
+      }
+    }
 
-    return window.api?.onOverlayAnchorChanged?.(setAnchor);
+    window.api?.getOverlayAnchor?.().then(setAnchor).catch(() => undefined);
+
+    return () => {
+      // Cleanup: restore normal mouse events on unmount
+      if (window.api && typeof window.api.setIgnoreMouseEvents === 'function') {
+        try {
+          window.api.setIgnoreMouseEvents(false, { forward: false });
+        } catch (error) {
+          console.error('Failed to restore mouse events on unmount:', error);
+        }
+      }
+      window.api?.onOverlayAnchorChanged?.(setAnchor);
+    };
   }, []);
 
   useEffect(() => {
@@ -91,6 +108,10 @@ export function TimerOverlay() {
             onDoubleClick={openMainWindow}
             onMouseEnter={() => window.api?.setIgnoreMouseEvents?.(false)}
             onMouseLeave={() => window.api?.setIgnoreMouseEvents?.(true, { forward: true })}
+            onFocus={() => window.api?.setIgnoreMouseEvents?.(false)}
+            onBlur={() => window.api?.setIgnoreMouseEvents?.(true, { forward: true })}
+            onTouchStart={() => window.api?.setIgnoreMouseEvents?.(false)}
+            onTouchEnd={() => window.api?.setIgnoreMouseEvents?.(true, { forward: true })}
           >
             <div className={`h-2.5 w-2.5 rounded-full ${state?.isRunning ? 'bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.95)]' : 'bg-amber-300 shadow-[0_0_16px_rgba(252,211,77,0.8)]'}`} />
             <div className="min-w-0 flex-1">

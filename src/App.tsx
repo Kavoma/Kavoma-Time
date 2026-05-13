@@ -107,6 +107,8 @@ export function App() {
               <button
                 onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                 className="flex cursor-pointer items-center justify-center text-muted/60 hover:text-ink transition-all hover:scale-110 active:scale-95"
+                aria-label={isSidebarCollapsed ? "Sidebar ausklappen" : "Sidebar einklappen"}
+                aria-expanded={!isSidebarCollapsed}
               >
                 <Tooltip content={isSidebarCollapsed ? "Sidebar ausklappen" : "Sidebar einklappen"} position="right">
                   <div className="flex items-center justify-center p-1">
@@ -119,9 +121,8 @@ export function App() {
               const isActive = activeView === item.id;
               const Icon = item.icon;
               return (
-                <Tooltip content={isSidebarCollapsed ? item.label : ''} position="right">
+                <Tooltip key={item.id} content={isSidebarCollapsed ? item.label : ''} position="right">
                   <button
-                    key={item.id}
                     onClick={() => setActiveView(item.id)}
                     tabIndex={0}
                     className={`group relative flex cursor-pointer items-center rounded-md px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-all duration-300 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3'} ${isActive ? 'bg-surface text-ink' : 'text-muted hover:bg-surface hover:text-ink'
@@ -198,7 +199,12 @@ export function App() {
                 </div>
 
                 {/* Tooltip-like info on hover */}
-                <div className="absolute left-12 bottom-0 z-50 hidden group-hover:block w-40 rounded-xl bg-surface border border-divider p-4 shadow-2xl">
+                <div
+                  className="absolute left-12 bottom-0 z-50 hidden group-hover:block group-focus-within:block w-40 rounded-xl bg-surface border border-divider p-4 shadow-2xl"
+                  tabIndex={0}
+                  role="button"
+                  aria-label="Show details"
+                >
                   <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted mb-2">Details</div>
                   <div className="font-display text-lg font-bold">{formatHM(weekSeconds)}</div>
                   <div className="text-[10px] text-muted uppercase mt-1">von {targetHours}h</div>

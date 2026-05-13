@@ -649,8 +649,30 @@ ipcMain.handle('overlay-show-main-window', () => {
 
 ipcMain.on('overlay-set-ignore-mouse-events', (event, ignore, options) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  if (win) {
+  if (!win) {
+    console.error('overlay-set-ignore-mouse-events: No window found for sender');
+    event.sender.send('overlay-mouse-events-error', 'No window found');
+    return;
+  }
+
+  // Validate parameters
+  if (typeof ignore !== 'boolean') {
+    console.error('overlay-set-ignore-mouse-events: ignore must be a boolean, got:', typeof ignore);
+    event.sender.send('overlay-mouse-events-error', 'Invalid ignore parameter');
+    return;
+  }
+
+  if (options !== undefined && (typeof options !== 'object' || options === null)) {
+    console.error('overlay-set-ignore-mouse-events: options must be an object or undefined, got:', typeof options);
+    event.sender.send('overlay-mouse-events-error', 'Invalid options parameter');
+    return;
+  }
+
+  try {
     win.setIgnoreMouseEvents(ignore, options);
+  } catch (error) {
+    console.error('overlay-set-ignore-mouse-events: Failed to set ignore mouse events:', error);
+    event.sender.send('overlay-mouse-events-error', error.message || String(error));
   }
 });
 
