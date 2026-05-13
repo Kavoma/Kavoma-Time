@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, ShieldCheck, ClipboardList } from 'lucide-react';
 import { Customer, Project, TimeEntry, Invoice, Issuer, InvoiceItem } from '../types';
 import { CustomSelect } from './CustomSelect';
+import { DatePicker } from './DatePicker';
 
 interface Props {
   open: boolean;
@@ -224,16 +225,16 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
 
               {/* Zeitraum */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Leistung von</label>
-                  <input type="date" value={from} onChange={e => setFrom(e.target.value)}
-                    className="rounded-md border border-divider bg-paper px-3 py-2 text-sm tabular-nums text-ink outline-none focus:border-accent" />
-                </div>
-                <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Leistung bis</label>
-                  <input type="date" value={to} onChange={e => setTo(e.target.value)}
-                    className="rounded-md border border-divider bg-paper px-3 py-2 text-sm tabular-nums text-ink outline-none focus:border-accent" />
-                </div>
+                <DatePicker
+                  label="Leistung von"
+                  value={from}
+                  onChange={setFrom}
+                />
+                <DatePicker
+                  label="Leistung bis"
+                  value={to}
+                  onChange={setTo}
+                />
               </div>
 
               {/* Mode */}
@@ -264,7 +265,7 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
                       value={serviceType}
                       onChange={e => setServiceType(e.target.value)}
                       placeholder="Dienstleistung"
-                      className="rounded-md border border-divider bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                      className="h-11 rounded-md border border-divider bg-paper px-3 text-sm font-bold text-ink outline-none focus:border-accent"
                     />
                   </div>
                   <div className="rounded-md border border-divider bg-paper p-3">
@@ -289,7 +290,7 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
                       value={fixedDescription}
                       onChange={e => setFixedDescription(e.target.value)}
                       placeholder="z.B. Webseiten-Entwicklung Pauschal"
-                      className="rounded-md border border-divider bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted outline-none focus:border-accent"
+                      className="h-11 rounded-md border border-divider bg-paper px-3 text-sm font-bold text-ink placeholder:text-muted outline-none focus:border-accent"
                     />
                   </div>
                   <div className="flex flex-col">
@@ -300,7 +301,7 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
                       value={fixedAmount}
                       onChange={e => setFixedAmount(e.target.value)}
                       placeholder="400"
-                      className="rounded-md border border-divider bg-paper px-3 py-2 text-sm tabular-nums text-ink outline-none focus:border-accent"
+                      className="h-11 rounded-md border border-divider bg-paper px-3 text-sm font-bold tabular-nums text-ink outline-none focus:border-accent"
                     />
                   </div>
                 </div>
@@ -311,18 +312,18 @@ export function InvoiceCreateModal({ open, customers, projects, entries, issuer,
                 <div className="flex flex-col">
                   <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Rechnungs-Nr.</label>
                   <input type="text" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)}
-                    className="rounded-md border border-divider bg-paper px-3 py-2 text-sm tabular-nums text-ink outline-none focus:border-accent" />
+                    className="h-11 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none focus:border-accent font-bold" />
                 </div>
-                <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Datum</label>
-                  <input type="date" value={createdAt} onChange={e => setCreatedAt(e.target.value)}
-                    className="rounded-md border border-divider bg-paper px-3 py-2 text-sm tabular-nums text-ink outline-none focus:border-accent" />
-                </div>
-                <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Fällig bis</label>
-                  <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
-                    className="rounded-md border border-divider bg-paper px-3 py-2 text-sm tabular-nums text-ink outline-none focus:border-accent" />
-                </div>
+                <DatePicker
+                  label="Datum"
+                  value={createdAt}
+                  onChange={setCreatedAt}
+                />
+                <DatePicker
+                  label="Fällig bis"
+                  value={dueDate}
+                  onChange={setDueDate}
+                />
               </div>
 
               {/* Notizen */}

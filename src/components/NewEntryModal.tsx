@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Clock } from 'lucide-react';
 import { Customer, Project, TimeEntry } from '../types';
 import { CustomSelect } from './CustomSelect';
+import { CustomAutocomplete } from './CustomAutocomplete';
+import { CustomInput } from './CustomInput';
+import { DatePicker } from './DatePicker';
 
 interface Props {
   open: boolean;
@@ -12,6 +15,7 @@ interface Props {
   defaultProjectId?: number;
   onSave: (entry: TimeEntry) => void;
   onCancel: () => void;
+  recentDescriptions?: string[];
 }
 
 function todayISO(): string {
@@ -25,7 +29,7 @@ function formatHMS(totalSeconds: number) {
   return `${h}:${String(m).padStart(2, '0')} Std.`;
 }
 
-export function NewEntryModal({ open, customers, projects, defaultCustomerId, defaultProjectId, onSave, onCancel }: Props) {
+export function NewEntryModal({ open, customers, projects, defaultCustomerId, defaultProjectId, onSave, onCancel, recentDescriptions = [] }: Props) {
   const [date, setDate] = useState(todayISO());
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
@@ -40,7 +44,6 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
       // Set reasonable defaults
       const now = new Date();
       const currentH = String(now.getHours()).padStart(2, '0');
-      const currentM = String(now.getMinutes()).padStart(2, '0');
       const startH = String(Math.max(0, now.getHours() - 1)).padStart(2, '0');
       
       setStartTime(`${startH}:00`);
@@ -128,17 +131,11 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
             </div>
 
             <div className="flex flex-col gap-4 px-6 py-5">
-              <div className="flex flex-col">
-                <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Datum</label>
-                <input
-                  type="date"
-                  value={date}
-                  max={todayISO()}
-                  onChange={(e) => setDate(e.target.value)}
-                  autoFocus
-                  className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm tabular-nums text-ink outline-none focus:border-accent"
-                />
-              </div>
+              <DatePicker
+                label="Datum"
+                value={date}
+                onChange={setDate}
+              />
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col">
@@ -147,7 +144,7 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
                     type="time"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm tabular-nums text-ink outline-none focus:border-accent"
+                    className="h-11 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none focus:border-accent font-bold"
                   />
                 </div>
                 <div className="flex flex-col">
@@ -156,7 +153,7 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
                     type="time"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm tabular-nums text-ink outline-none focus:border-accent"
+                    className="h-11 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none focus:border-accent font-bold"
                   />
                 </div>
               </div>
@@ -189,17 +186,15 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
                 />
               </div>
 
-              <div className="flex flex-col">
-                <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Beschreibung</label>
-                <input
-                  type="text"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
-                  placeholder="Woran hast du gearbeitet?"
-                  className="rounded-md border border-divider bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-muted outline-none focus:border-accent"
-                />
-              </div>
+              <CustomAutocomplete
+                id="manualDescription"
+                label="Beschreibung"
+                value={description}
+                onChange={setDescription}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); }}
+                placeholder="Woran hast du gearbeitet?"
+                options={recentDescriptions}
+              />
 
               {error && <div className="text-xs font-bold text-red-400/90">{error}</div>}
             </div>

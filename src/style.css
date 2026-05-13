@@ -101,7 +101,15 @@ select::picker(select) {
     appearance: base-select;
 }
 
-select {
+select,
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="password"],
+input[type="url"],
+input[type="number"],
+input[type="time"],
+input[type="date"] {
     background-color: var(--color-paper);
     color: var(--color-ink);
     border: 1px solid var(--color-divider);
@@ -112,9 +120,14 @@ select {
     font-weight: 700;
     letter-spacing: 0.05em;
     outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+select {
     cursor: pointer;
 }
 
+input:focus,
 select:focus {
     border-color: var(--color-ink);
 }

@@ -47,6 +47,22 @@ export function App() {
     localStorage.setItem('sidebar-collapsed', String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
 
+  // Keyboard shortcuts: Ctrl+1 to Ctrl+6 for view navigation
+  useEffect(() => {
+    const viewIds = ['tracker', 'projects', 'customers', 'statistics', 'export', 'settings'];
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+        const num = parseInt(e.key);
+        if (num >= 1 && num <= 6) {
+          e.preventDefault();
+          setActiveView(viewIds[num - 1]);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const { state, isRestoring } = useAppState();
 
   const navItems = [
@@ -129,7 +145,8 @@ export function App() {
                 <button
                   key={item.id}
                   onClick={() => setActiveView(item.id)}
-                  className={`group relative flex cursor-pointer items-center rounded-md px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-all duration-300 ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3'} ${isActive ? 'bg-surface text-ink' : 'text-muted hover:bg-surface hover:text-ink'
+                  tabIndex={0}
+                  className={`group relative flex cursor-pointer items-center rounded-md px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-all duration-300 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3'} ${isActive ? 'bg-surface text-ink' : 'text-muted hover:bg-surface hover:text-ink'
                     }`}
                 >
                   <div className={`flex items-center justify-center transition-transform duration-300 ${isSidebarCollapsed ? 'scale-110' : 'scale-100'}`}>

@@ -7,7 +7,7 @@ import {
 import { useAppState } from '../state/AppStateContext';
 import { TimeEntry } from '../types';
 import { AnimatedNumber } from '../components/AnimatedNumber';
-import { profitabilityByCustomer, profitabilityByProject, forecastYear } from '../utils/analytics';
+import { profitabilityByCustomer, profitabilityByProject, forecastYear, resolveRate } from '../utils/analytics';
 
 type Period = 'week' | 'month' | 'year';
 
@@ -126,17 +126,13 @@ export function StatisticsView() {
   const totalSeconds  = entriesInPeriod.reduce((sum: number, e: TimeEntry) => sum + e.durationSeconds, 0);
   const diffPercent = prevTotalSeconds > 0 ? ((totalSeconds - prevTotalSeconds) / prevTotalSeconds) * 100 : null;
 
-  // Umsatz (geschätzt) — nur Kunden mit hourlyRate
+  // Umsatz (geschätzt) — Projekt-Rate > Kunden-Rate
   const revenue = entriesInPeriod.reduce((sum: number, e: TimeEntry) => {
-    const customer = customers.find(c => c.id === e.customerId);
-    if (!customer?.hourlyRate) return sum;
-    return sum + (e.durationSeconds / 3600) * customer.hourlyRate;
+    return sum + (e.durationSeconds / 3600) * resolveRate(e, customers, projects);
   }, 0);
 
   const prevRevenue = entriesInPrevPeriod.reduce((sum: number, e: TimeEntry) => {
-    const customer = customers.find(c => c.id === e.customerId);
-    if (!customer?.hourlyRate) return sum;
-    return sum + (e.durationSeconds / 3600) * customer.hourlyRate;
+    return sum + (e.durationSeconds / 3600) * resolveRate(e, customers, projects);
   }, 0);
 
   const revenueDiffPercent = prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : null;
@@ -197,11 +193,7 @@ export function StatisticsView() {
       if (item) {
         const h = e.durationSeconds / 3600;
         item.hours += h;
-        
-        const customer = customers.find(c => c.id === e.customerId);
-        if (customer?.hourlyRate) {
-          item.revenue += h * customer.hourlyRate;
-        }
+        item.revenue += h * resolveRate(e, customers, projects);
       }
     });
 
@@ -226,7 +218,9 @@ export function StatisticsView() {
           name: c?.name ?? 'Unbekannt',
           hours: seconds / 3600,
           color: c?.color ?? '#525252',
-          revenue: c?.hourlyRate ? (seconds / 3600) * c.hourlyRate : 0,
+          revenue: entriesInPeriod
+            .filter((e: TimeEntry) => e.customerId === customerId)
+            .reduce((s: number, e: TimeEntry) => s + (e.durationSeconds / 3600) * resolveRate(e, customers, projects), 0),
         };
       })
       .filter((c: any) => c.hours > 0)
@@ -249,14 +243,16 @@ export function StatisticsView() {
         const p = projects.find((pp: any) => pp.id === projectId);
         const c = customers.find((cc: any) => cc.id === p?.customerId);
         const prevSeconds = prevAcc.get(projectId) || 0;
-        return {
+         return {
           projectId,
           name:    p?.name ?? 'Unbekannt',
           customer: c?.name ?? '—',
           color:   c?.color ?? '#525252',
           seconds,
           hours:   seconds / 3600,
-          revenue: c?.hourlyRate ? (seconds / 3600) * c.hourlyRate : 0,
+          revenue: entriesInPeriod
+            .filter((e: TimeEntry) => e.projectId === projectId)
+            .reduce((s: number, e: TimeEntry) => s + (e.durationSeconds / 3600) * resolveRate(e, customers, projects), 0),
           share:   totalSeconds > 0 ? (seconds / totalSeconds) * 100 : 0,
           diff:    diffP(seconds, prevSeconds),
         };
@@ -274,11 +270,7 @@ export function StatisticsView() {
     entriesInPeriod.forEach((e: TimeEntry) => {
       const dow = (new Date(e.startedAt).getDay() + 6) % 7;
       totalSec[dow] += e.durationSeconds;
-      
-      const customer = customers.find(c => c.id === e.customerId);
-      if (customer?.hourlyRate) {
-        totalRev[dow] += (e.durationSeconds / 3600) * customer.hourlyRate;
-      }
+      totalRev[dow] += (e.durationSeconds / 3600) * resolveRate(e, customers, projects);
     });
 
     return labels.map((label, i) => ({ 
@@ -547,23 +539,30 @@ export function StatisticsView() {
         )}
       </div>
 
-      {/* === Forecast === */}
       {yearForecast && yearForecast.yearToDateRevenue > 0 && (
         <div className="mt-6 rounded-lg border border-divider bg-surface p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <TrendingUp size={14} className="text-muted" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Jahres-Hochrechnung</span>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={14} className="text-muted" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Jahres-Hochrechnung</span>
+            </div>
+            <div className="rounded-md bg-paper px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-muted border border-divider">
+              {(yearForecast.workDayRatio * 100).toFixed(0)}% Arbeitstage
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <div className="text-[10px] text-muted">Bisher in {new Date().getFullYear()}</div>
               <div className="mt-1 font-display text-xl font-bold tabular-nums text-ink">{formatEuro(yearForecast.yearToDateRevenue)}</div>
-              <div className="text-[10px] text-muted">{yearForecast.yearToDateDays} Arbeitstage</div>
+              <div className="text-[10px] text-muted">{yearForecast.yearToDateWorkDays} Arbeitstage</div>
+              {yearForecast.trackedRevenue > 0 && (
+                <div className="mt-0.5 text-[9px] text-amber-400/80">davon {formatEuro(yearForecast.trackedRevenue)} noch nicht abgerechnet</div>
+              )}
             </div>
             <div>
-              <div className="text-[10px] text-muted">Ø pro Tag</div>
+              <div className="text-[10px] text-muted">Ø pro Arbeitstag</div>
               <div className="mt-1 font-display text-xl font-bold tabular-nums text-ink">{formatEuro(yearForecast.averageDailyRevenue)}</div>
-              <div className="text-[10px] text-muted">{yearForecast.daysRemaining} Tage Restjahr</div>
+              <div className="text-[10px] text-muted">~{yearForecast.estimatedRemainingWorkDays} Arbeitstage übrig</div>
             </div>
             <div>
               <div className="text-[10px] text-muted">Prognose Jahresende</div>

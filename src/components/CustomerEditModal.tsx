@@ -66,7 +66,7 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
       setDebtorNumber(state ? String(state.nextDebtorNumber) : '');
       setEInvoiceAccepted(false);
     }
-  }, [customer, open]);
+  }, [customer, open, state]);
 
   const save = () => {
     if (!name.trim()) return;
@@ -227,12 +227,10 @@ export function CustomerEditModal({ open, customer, onSave, onCancel }: Props) {
                 <div className="flex items-center gap-2">
                   <div
                     onClick={() => setEInvoiceAccepted(!eInvoiceAccepted)}
-                    className={`flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 transition-all ${eInvoiceAccepted ? 'border-green-500/30 bg-green-500/5' : 'border-divider bg-paper hover:border-accent/50'
-                      }`}
+                    className={`flex flex-1 cursor-pointer items-center justify-between rounded-md border p-3 transition-all ${eInvoiceAccepted ? 'border-green-500/30 bg-green-500/5' : 'border-divider bg-paper hover:border-accent/50'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${eInvoiceAccepted ? 'bg-green-500/20 text-green-500' : 'bg-muted/10 text-muted'
-                        }`}>
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${eInvoiceAccepted ? 'bg-green-500/20 text-green-500' : 'bg-muted/10 text-muted'}`}>
                         <ShieldCheck size={16} />
                       </div>
                       <div>

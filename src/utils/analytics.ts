@@ -115,13 +115,18 @@ export function profitabilityByProject(state: AppState): Map<number, ProjectProf
 
 // === Forecasting =============================================
 export interface YearForecast {
-  yearToDateRevenue: number;     // bisher in diesem Jahr abgerechnet
-  yearToDateDays: number;        // Arbeitstage bisher
+  yearToDateRevenue: number;       // Gesamtumsatz bisher (abgerechnet + getrackt)
+  invoicedRevenue: number;         // Nur abgerechneter Umsatz
+  trackedRevenue: number;          // Nur getrackte, nicht abgerechnete Stunden
+  yearToDateWorkDays: number;      // Tatsächliche Arbeitstage bisher
+  calendarDaysPassed: number;      // Kalendertage bisher
+  workDayRatio: number;            // Verhältnis Arbeitstage/Kalendertage (z.B. 0.69)
   daysInYear: number;
   daysRemaining: number;
-  averageDailyRevenue: number;
-  forecastEnd: number;           // Hochrechnung Jahresende
-  forecastRemaining: number;     // Was noch dazukommt
+  estimatedRemainingWorkDays: number; // Geschätzte verbleibende Arbeitstage
+  averageDailyRevenue: number;     // Ø pro ARBEITSTAG (nicht Kalendertag)
+  forecastEnd: number;             // Hochrechnung Jahresende
+  forecastRemaining: number;       // Was noch dazukommt
 }
 
 export function forecastYear(state: AppState): YearForecast {
@@ -129,31 +134,60 @@ export function forecastYear(state: AppState): YearForecast {
   const yearStart = new Date(now.getFullYear(), 0, 1).getTime();
   const yearEnd   = new Date(now.getFullYear() + 1, 0, 1).getTime();
   const daysInYear = Math.round((yearEnd - yearStart) / 86_400_000);
-  const daysPassed = Math.round((now.getTime() - yearStart) / 86_400_000);
-  const daysRemaining = daysInYear - daysPassed;
+  const calendarDaysPassed = Math.max(1, Math.round((now.getTime() - yearStart) / 86_400_000));
+  const daysRemaining = daysInYear - calendarDaysPassed;
 
+  // --- Abgerechneter Umsatz (Rechnungen) ---
   const ytdInvoices = state.invoices.filter(i =>
     i.status !== 'cancelled' && !i.cancelsInvoiceId && i.createdAt >= yearStart
   );
-  const yearToDateRevenue = ytdInvoices.reduce((s, i) => s + i.total, 0);
+  const invoicedRevenue = ytdInvoices.reduce((s, i) => s + i.total, 0);
 
-  // Arbeitstage = Tage mit ≥1 Eintrag
+  // IDs aller bereits abgerechneten Einträge sammeln
+  const invoicedEntryIds = new Set<number>();
+  ytdInvoices.forEach(inv => inv.entryIds.forEach(id => invoicedEntryIds.add(id)));
+
+  // --- Getrackte, noch nicht abgerechnete Stunden ---
+  const ytdEntries = state.entries.filter(e => e.startedAt >= yearStart);
+  const unbilledEntries = ytdEntries.filter(e => !invoicedEntryIds.has(e.id));
+  const trackedRevenue = unbilledEntries.reduce((s, e) => {
+    return s + (e.durationSeconds / 3600) * resolveRate(e, state.customers, state.projects);
+  }, 0);
+
+  // --- Gesamtumsatz: abgerechnet + getrackt ---
+  const yearToDateRevenue = invoicedRevenue + trackedRevenue;
+
+  // --- Tatsächliche Arbeitstage (Tage mit ≥1 Eintrag) ---
   const workDays = new Set(
-    state.entries
-      .filter(e => e.startedAt >= yearStart)
-      .map(e => new Date(e.startedAt).toISOString().slice(0, 10))
+    ytdEntries.map(e => new Date(e.startedAt).toISOString().slice(0, 10))
   );
-  const yearToDateDays = workDays.size;
+  const yearToDateWorkDays = workDays.size;
 
-  const averageDailyRevenue = daysPassed > 0 ? yearToDateRevenue / daysPassed : 0;
-  const forecastRemaining = averageDailyRevenue * daysRemaining;
+  // --- Intelligente Hochrechnung basierend auf echtem Arbeitsverhalten ---
+  // Ratio: Wie viele der vergangenen Kalendertage waren Arbeitstage?
+  // z.B. 90 Arbeitstage / 130 Kalendertage = 0.69
+  const workDayRatio = calendarDaysPassed > 0 ? yearToDateWorkDays / calendarDaysPassed : 0;
+
+  // Geschätzte verbleibende Arbeitstage basierend auf dem bisherigen Muster
+  const estimatedRemainingWorkDays = Math.round(daysRemaining * workDayRatio);
+
+  // Ø Umsatz pro ARBEITSTAG (nicht Kalendertag!)
+  const averageDailyRevenue = yearToDateWorkDays > 0 ? yearToDateRevenue / yearToDateWorkDays : 0;
+
+  // Prognose: Bisheriger Umsatz + (Ø pro Arbeitstag × geschätzte Restarbeitstage)
+  const forecastRemaining = averageDailyRevenue * estimatedRemainingWorkDays;
   const forecastEnd = yearToDateRevenue + forecastRemaining;
 
   return {
     yearToDateRevenue,
-    yearToDateDays,
+    invoicedRevenue,
+    trackedRevenue,
+    yearToDateWorkDays,
+    calendarDaysPassed,
+    workDayRatio,
     daysInYear,
     daysRemaining,
+    estimatedRemainingWorkDays,
     averageDailyRevenue,
     forecastEnd,
     forecastRemaining,

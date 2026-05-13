@@ -61,6 +61,7 @@ export interface InvoiceItem {
 export interface DunningReminder {
   level: 1 | 2 | 3;        // 1. Zahlungserinnerung, 2. Mahnung, 3. letzte Mahnung
   sentAt: number;
+  newDueDate: number;      // Neue Zahlungsfrist
   fee: number;             // Mahngebühr in €
   notes?: string;
 }

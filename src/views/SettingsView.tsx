@@ -56,8 +56,7 @@ function FieldInput({ label, value, onChange, placeholder, type = 'text', isVali
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`rounded-md border bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted outline-none transition-colors ${isValid === false ? 'border-red-500/50 focus:border-red-500' : 'border-divider focus:border-accent'
-          }`}
+        className={`w-full placeholder:text-muted ${isValid === false ? 'border-red-500 focus:border-red-500' : ''} ${type === 'tel' || label.includes('IBAN') || label.includes('BIC') ? 'tabular-nums' : ''}`}
       />
     </div>
   );
@@ -357,6 +356,25 @@ export function SettingsView() {
           <p className="mt-3 text-[11px] text-muted">
             Esc bricht die Aufnahme ab.
           </p>
+          
+          <div className="mt-6 border-t border-divider pt-4">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted mb-3">Navigation (Schnellzugriff)</div>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+              {[
+                { key: 'Strg + 1', label: 'Tracker' },
+                { key: 'Strg + 2', label: 'Projekte' },
+                { key: 'Strg + 3', label: 'Kunden' },
+                { key: 'Strg + 4', label: 'Statistik' },
+                { key: 'Strg + 5', label: 'Export' },
+                { key: 'Strg + 6', label: 'Einstellungen' },
+              ].map(shortcut => (
+                <div key={shortcut.key} className="flex items-center justify-between">
+                  <span className="text-xs text-ink">{shortcut.label}</span>
+                  <kbd className="rounded border border-divider bg-paper px-1.5 py-0.5 text-[10px] font-bold text-muted shadow-sm">{shortcut.key}</kbd>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
