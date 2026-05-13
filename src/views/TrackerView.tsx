@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, Trash2, Plus, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, Plus, ChevronRight, Search, X } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
+import { CustomAutocomplete } from '../components/CustomAutocomplete';
 import { DeleteModal } from '../components/DeleteModal';
 import { EditModal } from '../components/EditModal';
 import { NewEntryModal } from '../components/NewEntryModal';
@@ -21,6 +22,7 @@ export function TrackerView() {
   const [newEntryOpen, setNewEntryOpen] = useState(false);
   const [entryView, setEntryView] = useState<'date' | 'project'>('date');
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
 
   // === Helpers ===
   const formatHMS = (totalSeconds: number) => {
@@ -66,9 +68,6 @@ export function TrackerView() {
     };
   }, [contextMenu]);
 
-  // Sync: currentCustomerId / currentProjectId auf gültige Werte bringen,
-  // wenn Kunden/Projekte hinzukommen, gelöscht werden, oder die Auswahl
-  // (z. B. nach Erst-Anlage) noch auf 0 steht.
   useEffect(() => {
     if (!state) return;
     const validCustomer = state.customers.find(c => c.id === state.currentCustomerId);
@@ -82,7 +81,6 @@ export function TrackerView() {
     }
   }, [state?.customers, state?.projects, state?.currentCustomerId, state?.currentProjectId]);
 
-  // Timer Tick
   useEffect(() => {
     let interval: number;
     if (state?.isRunning) {
@@ -97,7 +95,6 @@ export function TrackerView() {
     return () => clearInterval(interval);
   }, [state?.isRunning, state?.startedAt, state?.elapsedBefore]);
 
-  // Window Title Update
   useEffect(() => {
     if (state?.isRunning) {
       document.title = `▶ ${formatHMS(liveDuration)} - Kavoma Time`;
@@ -106,8 +103,6 @@ export function TrackerView() {
     }
   }, [state?.isRunning, liveDuration]);
 
-  // Globalen Hotkey verdrahten (Strg+Shift+Space → Start/Pause toggle)
-  // Re-Registrierung bei State-Wechsel, damit Handler immer aktuelle Werte sieht
   useEffect(() => {
     if (!window.api?.onHotkeyToggle) return;
     return window.api.onHotkeyToggle(() => {
@@ -116,7 +111,6 @@ export function TrackerView() {
     });
   }, [state?.isRunning, state?.startedAt, state?.elapsedBefore, state?.sessionStartedAt]);
 
-  // Loading Screen
   if (!state) {
     return <div className="text-center text-sm text-muted mt-12">Lade Daten...</div>;
   }
@@ -204,6 +198,7 @@ export function TrackerView() {
   };
 
   const availableProjects = projects.filter(p => p.customerId === state.currentCustomerId);
+  const allDescriptions = [...new Set(state.entries.map(e => e.description).filter(Boolean))];
 
   return (
     <>
@@ -216,6 +211,21 @@ export function TrackerView() {
       <div className={`mb-12 text-center font-display text-[88px] font-bold leading-[0.85] tabular-nums tracking-tight transition-colors duration-500 ${state.isRunning ? 'text-ink' : 'text-muted'}`}>
         {formatHMS(liveDuration)}
       </div>
+
+      {(() => {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todaySec = state.entries
+          .filter(e => e.startedAt >= todayStart.getTime())
+          .reduce((s, e) => s + e.durationSeconds, 0) + liveDuration;
+        const h = Math.floor(todaySec / 3600);
+        const m = Math.floor((todaySec % 3600) / 60);
+        return (
+          <div className="mb-8 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+            Heute: <span className="text-ink">{h}:{String(m).padStart(2, '0')} Std.</span>
+          </div>
+        );
+      })()}
 
       <form className="mb-4 grid grid-cols-2 gap-x-3 gap-y-5" onSubmit={e => e.preventDefault()}>
         <CustomSelect 
@@ -233,20 +243,17 @@ export function TrackerView() {
           onChange={(v) => setState(s => s ? ({...s, currentProjectId: v as number}) : null)} 
         />
 
-        <div className="col-span-2 flex flex-col">
-          <label htmlFor="descriptionInput" className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-            Beschreibung
-          </label>
-          <input 
-            id="descriptionInput" 
-            type="text" 
+        <div className="col-span-2">
+          <CustomAutocomplete
+            id="descriptionInput"
+            label="Beschreibung"
+            options={allDescriptions}
             placeholder="Woran arbeitest du?"
             value={state.currentDescription}
-            onChange={e => setState(s => s ? ({...s, currentDescription: e.target.value}) : null)}
+            onChange={v => setState(s => s ? ({...s, currentDescription: v}) : null)}
             onKeyDown={e => {
               if (e.key === 'Enter') handleStart();
             }}
-            className="rounded-md border border-divider bg-paper px-3 py-3 text-sm text-ink placeholder:text-muted outline-none transition-colors focus:border-ink"
           />
         </div>
       </form>
@@ -273,13 +280,18 @@ export function TrackerView() {
       </div>
 
       {(() => {
-        // Helpers
         const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         const formatHM = (s: number) => `${Math.floor(s/3600)}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;
 
-        const sorted = [...state.entries].sort((a, b) => b.startedAt - a.startedAt);
+        const sorted = [...state.entries].sort((a, b) => b.startedAt - a.startedAt)
+          .filter(e => {
+            if (!searchTerm.trim()) return true;
+            const q = searchTerm.toLowerCase();
+            const cName = customers.find(c => c.id === e.customerId)?.name?.toLowerCase() ?? '';
+            const pName = projects.find(p => p.id === e.projectId)?.name?.toLowerCase() ?? '';
+            return e.description.toLowerCase().includes(q) || cName.includes(q) || pName.includes(q);
+          });
 
-        // Gruppierung nach Tag
         const dateGroups: { key: string; label: string; entries: TimeEntry[]; total: number }[] = [];
         {
           const map = new Map<string, TimeEntry[]>();
@@ -299,7 +311,6 @@ export function TrackerView() {
           }
         }
 
-        // Gruppierung nach Projekt
         const projectGroups: { projectId: number; project: any; customer: any; entries: TimeEntry[]; total: number }[] = [];
         {
           const map = new Map<number, TimeEntry[]>();
@@ -377,6 +388,27 @@ export function TrackerView() {
               </button>
             </div>
 
+            {state.entries.length > 10 && (
+              <div className="mb-4 relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  placeholder="Einträge durchsuchen…"
+                  className="w-full pl-9 pr-8 placeholder:text-muted"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            )}
+
             {state.entries.length === 0 ? (
               <div className="rounded-md border border-divider bg-paper p-8 text-center text-sm text-muted">
                 Noch keine Einträge.
@@ -436,7 +468,6 @@ export function TrackerView() {
         );
       })()}
 
-      {/* Context Menu */}
       <AnimatePresence mode="wait">
         {contextMenu && (
           <motion.div
@@ -466,29 +497,28 @@ export function TrackerView() {
         )}
       </AnimatePresence>
 
-      {/* Modals */}
       <DeleteModal 
         entry={state.entries.find(e => e.id === deleteModalEntryId) || null}
         onConfirm={() => deleteModalEntryId && handleDeleteEntry(deleteModalEntryId)}
         onCancel={() => setDeleteModalEntryId(null)}
       />
 
-      <EditModal
+      <EditModal 
         entry={state.entries.find(e => e.id === editModalEntryId) || null}
-        customers={customers}
-        projects={projects}
+        customers={state.customers}
+        projects={state.projects}
         onSave={handleEditEntry}
         onCancel={() => setEditModalEntryId(null)}
+        recentDescriptions={allDescriptions}
       />
 
       <NewEntryModal
         open={newEntryOpen}
-        customers={customers}
-        projects={projects}
-        defaultCustomerId={state.currentCustomerId}
-        defaultProjectId={state.currentProjectId}
+        customers={state.customers}
+        projects={state.projects}
         onSave={handleAddManualEntry}
         onCancel={() => setNewEntryOpen(false)}
+        recentDescriptions={allDescriptions}
       />
     </>
   );
