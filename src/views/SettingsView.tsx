@@ -549,7 +549,7 @@ export function SettingsView() {
           <p className="mt-3 text-[11px] text-muted">
             Esc bricht die Aufnahme ab.
           </p>
-          
+
           <div className="mt-6 border-t border-divider pt-4">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted mb-3">Navigation (Schnellzugriff)</div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-2">
