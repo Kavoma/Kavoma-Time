@@ -170,10 +170,19 @@ function PrivacyContent() {
           aktuelle App-Version an GitHub übertragen. Diese Verarbeitung können Sie in den Einstellungen
           jederzeit deaktivieren.
         </p>
-        <p>
+        <p className="mb-2">
           <strong className="text-ink">Betriebssystem-Informationen:</strong> In der Einstellungs-Ansicht
           werden Betriebssystemversion, Architektur und App-Version angezeigt. Diese Werte verlassen das
           Gerät nicht.
+        </p>
+        <p>
+          <strong className="text-ink">Hochgeladene PDFs (Eingangsrechnungen, Verträge):</strong>{' '}
+          Im Modul „Finanzen" können Sie Eingangsrechnungen und unterschriebene Verträge als PDF
+          archivieren. Diese Dateien werden ausschließlich lokal im Unterordner{' '}
+          <span className="font-mono">attachments/</span> Ihres Benutzerverzeichnisses gespeichert
+          und mit AES-256-GCM verschlüsselt. Der Schlüssel ist über die Windows-Funktion DPAPI an
+          Ihr Benutzerkonto gebunden. Es findet keine Übertragung an Dritte statt. Bei „Alle Daten
+          löschen" werden auch diese Dateien entfernt.
         </p>
       </section>
 

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Settings, Clock, BarChart3, Users, FolderKanban, Download, Database, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Settings, Clock, BarChart3, Users, FolderKanban, Wallet, Database, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TrackerView } from './views/TrackerView';
 import { CustomersView } from './views/CustomersView';
 import { ProjectsView } from './views/ProjectsView';
 import { SettingsView } from './views/SettingsView';
 import { StatisticsView } from './views/StatisticsView';
-import { ExportView } from './views/ExportView';
+import { FinanceView } from './views/FinanceView';
 import { useAppState } from './state/AppStateContext';
 import { Tooltip } from './components/Tooltip';
 import { TitleBar } from './components/TitleBar';
@@ -20,7 +20,7 @@ function renderView(id: string) {
     case 'customers': return <CustomersView />;
     case 'projects': return <ProjectsView />;
     case 'statistics': return <StatisticsView />;
-    case 'export': return <ExportView />;
+    case 'finance': return <FinanceView />;
     case 'settings': return <SettingsView />;
     default: return null;
   }
@@ -61,7 +61,7 @@ export function App() {
 
   // Keyboard shortcuts: Ctrl+1 to Ctrl+6 for view navigation
   useEffect(() => {
-    const viewIds = ['tracker', 'projects', 'customers', 'statistics', 'export', 'settings'];
+    const viewIds = ['tracker', 'projects', 'customers', 'statistics', 'finance', 'settings'];
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
         const num = parseInt(e.key);
@@ -75,14 +75,14 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const { state, isRestoring } = useAppState();
+  const { state, isRestoring, restoreNonce } = useAppState();
 
   const navItems = [
     { id: 'tracker', label: 'Tracker', icon: Clock },
     { id: 'projects', label: 'Projekte', icon: FolderKanban },
     { id: 'customers', label: 'Kunden', icon: Users },
     { id: 'statistics', label: 'Statistik', icon: BarChart3 },
-    { id: 'export', label: 'Export', icon: Download },
+    { id: 'finance', label: 'Finanzen', icon: Wallet },
     { id: 'settings', label: 'Einstellungen', icon: Settings },
   ];
 
@@ -239,7 +239,7 @@ export function App() {
           <div className="mx-auto w-full max-w-6xl">
             <AnimatePresence mode="wait">
               <motion.div
-                key={activeView}
+                key={`${activeView}-${restoreNonce}`}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}

@@ -43,6 +43,11 @@ const SEED_STATE: AppState = {
   timerOverlayEnabled: true,
   afkPauseEnabled: true,
   afkTimeoutMinutes: 10,
+  attachments: [],
+  vendorInvoices: [],
+  contracts: [],
+  nextVendorInvoiceId: 1,
+  nextContractId: 1,
 };
 
 interface ContextValue {
@@ -50,6 +55,13 @@ interface ContextValue {
   setState: React.Dispatch<React.SetStateAction<AppState | null>>;
   isRestoring: boolean;
   restoreBackup: (data: AppState) => Promise<void>;
+  /**
+   * Inkrementiert nach jedem erfolgreichen restoreBackup. Wird in App.tsx
+   * an den View-Key gehängt, damit Komponenten mit lokalem State (Filter,
+   * Issuer-Kopien, Selects) nach einem Restore frisch gemountet werden und
+   * sofort die neuen Daten anzeigen, statt am alten Zustand zu hängen.
+   */
+  restoreNonce: number;
 }
 
 const AppStateContext = createContext<ContextValue | null>(null);
@@ -72,6 +84,19 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
   if (typeof migrated.afkPauseEnabled !== 'boolean') migrated.afkPauseEnabled = true;
   if (typeof migrated.afkTimeoutMinutes !== 'number') migrated.afkTimeoutMinutes = 10;
   migrated.afkTimeoutMinutes = Math.min(240, Math.max(1, migrated.afkTimeoutMinutes));
+
+  // Finanzen-Modul (Anhänge / Eingangsrechnungen / Verträge)
+  if (!Array.isArray(migrated.attachments)) migrated.attachments = [];
+  if (!Array.isArray(migrated.vendorInvoices)) migrated.vendorInvoices = [];
+  if (!Array.isArray(migrated.contracts)) migrated.contracts = [];
+  if (typeof migrated.nextVendorInvoiceId !== 'number') {
+    migrated.nextVendorInvoiceId =
+      (migrated.vendorInvoices.reduce((m: number, v: any) => Math.max(m, Number(v.id) || 0), 0) || 0) + 1;
+  }
+  if (typeof migrated.nextContractId !== 'number') {
+    migrated.nextContractId =
+      (migrated.contracts.reduce((m: number, c: any) => Math.max(m, Number(c.id) || 0), 0) || 0) + 1;
+  }
 
   // Migration: Strukturierte Adressen
   if (migrated.issuer && (migrated.issuer as any).address && !migrated.issuer.street) {
@@ -109,6 +134,7 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreNonce, setRestoreNonce] = useState(0);
   const skipNextPersistRef = useRef(false);
   const isTimerOverlay = new URLSearchParams(window.location.search).get('overlay') === 'timer';
 
@@ -116,13 +142,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setIsRestoring(true);
     // Gib der Animation Zeit zu starten
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     const migrated = migrateData(data);
     setState(migrated);
-    
+
     // Gib der Animation Zeit zum Verweilen
     await new Promise(resolve => setTimeout(resolve, 1200));
     setIsRestoring(false);
+    // Force-Remount: Views mit lokalem State auf den neuen Datenstand zwingen
+    setRestoreNonce(n => n + 1);
   };
 
   // Laden (einmalig)
@@ -185,7 +213,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AppStateContext.Provider value={{ state, setState, isRestoring, restoreBackup }}>
+    <AppStateContext.Provider value={{ state, setState, isRestoring, restoreBackup, restoreNonce }}>
       {children}
     </AppStateContext.Provider>
   );

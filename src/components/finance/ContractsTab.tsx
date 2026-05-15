@@ -1,0 +1,179 @@
+import { useMemo, useState } from 'react';
+import { Plus, FileSignature, Search } from 'lucide-react';
+import { useAppState } from '../../state/AppStateContext';
+import { Attachment, Contract } from '../../types';
+import { ContractUploadModal } from './ContractUploadModal';
+import { PdfViewerModal } from './PdfViewerModal';
+import { deletePdf, formatFileSize } from '../../utils/attachments';
+
+function formatDate(ts: number) {
+  return new Date(ts).toLocaleDateString('de-DE');
+}
+
+export function ContractsTab() {
+  const { state, setState } = useAppState();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [viewerId, setViewerId] = useState<number | null>(null);
+  const [customerFilter, setCustomerFilter] = useState<number>(0);
+  const [search, setSearch] = useState('');
+
+  const contracts = state?.contracts ?? [];
+  const attachments = state?.attachments ?? [];
+  const customers = state?.customers ?? [];
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return [...contracts]
+      .filter((c) => customerFilter === 0 || c.customerId === customerFilter)
+      .filter((c) => {
+        if (!term) return true;
+        return c.title.toLowerCase().includes(term) || (c.note ?? '').toLowerCase().includes(term);
+      })
+      .sort((a, b) => b.signedAt - a.signedAt);
+  }, [contracts, customerFilter, search]);
+
+  const viewer = viewerId !== null ? contracts.find((c) => c.id === viewerId) : null;
+  const viewerAttachment = viewer ? attachments.find((a) => a.id === viewer.attachmentId) ?? null : null;
+
+  const handleSave = (contract: Contract, attachment: Attachment) => {
+    setState((s) => {
+      if (!s) return s;
+      return {
+        ...s,
+        attachments: [...s.attachments, attachment],
+        contracts: [...s.contracts, contract],
+        nextContractId: contract.id + 1,
+      };
+    });
+  };
+
+  const handleDelete = async (id: number) => {
+    const target = contracts.find((c) => c.id === id);
+    if (!target) return;
+    try {
+      await deletePdf(target.attachmentId);
+    } catch (e) {
+      console.error('Konnte Anhang nicht löschen:', e);
+    }
+    setState((s) => {
+      if (!s) return s;
+      return {
+        ...s,
+        contracts: s.contracts.filter((c) => c.id !== id),
+        attachments: s.attachments.filter((a) => a.id !== target.attachmentId),
+      };
+    });
+    setViewerId(null);
+  };
+
+  return (
+    <>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-display text-2xl font-black tracking-tight">Verträge</h2>
+          <p className="mt-1 text-[12px] text-muted">
+            Unterschriebene Kundenverträge als PDF archivieren — verschlüsselt lokal abgelegt.
+          </p>
+        </div>
+        <button
+          onClick={() => setUploadOpen(true)}
+          disabled={customers.length === 0}
+          className="flex cursor-pointer items-center gap-2 rounded-md bg-ink px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Plus size={13} /> Vertrag hochladen
+        </button>
+      </div>
+
+      <div className="mb-4 flex items-center gap-3 rounded-lg border border-divider bg-surface px-3 py-2">
+        <div className="flex flex-1 items-center gap-2">
+          <Search size={14} className="text-muted" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Titel oder Notiz suchen…"
+            className="flex-1 border-0 bg-transparent text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-0"
+          />
+        </div>
+        <select
+          value={customerFilter}
+          onChange={(e) => setCustomerFilter(Number(e.target.value))}
+          className="border-0 bg-transparent text-[12px] font-bold uppercase tracking-widest text-ink focus:outline-none focus:ring-0"
+        >
+          <option value={0}>Alle Kunden</option>
+          {customers.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-divider bg-surface/40 p-12 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-paper text-muted">
+            <FileSignature size={20} />
+          </div>
+          <div className="text-sm font-bold">Noch keine Verträge archiviert</div>
+          <p className="mx-auto mt-1 max-w-md text-[12px] text-muted">
+            Lade unterschriebene Verträge hoch, damit du sie später beim Kunden wiederfindest.
+            Dateien werden AES-256 verschlüsselt im Benutzerprofil abgelegt.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {filtered.map((c) => {
+            const customer = customers.find((cu) => cu.id === c.customerId);
+            const att = attachments.find((a) => a.id === c.attachmentId);
+            const expired = c.validUntil ? c.validUntil < Date.now() : false;
+            return (
+              <button
+                key={c.id}
+                onClick={() => setViewerId(c.id)}
+                className="group cursor-pointer rounded-lg border border-divider bg-surface p-4 text-left transition-all hover:border-muted hover:bg-paper/40"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-display text-base font-bold">{c.title}</div>
+                    <div className="mt-0.5 truncate text-[12px] text-muted">{customer?.name ?? 'Unbekannter Kunde'}</div>
+                  </div>
+                  <FileSignature size={16} className="shrink-0 text-muted group-hover:text-ink" />
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <div className="text-muted">Unterzeichnet</div>
+                    <div className="mt-0.5 tabular-nums">{formatDate(c.signedAt)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted">Gültig bis</div>
+                    <div className={`mt-0.5 tabular-nums ${expired ? 'text-amber-300' : ''}`}>
+                      {c.validUntil ? formatDate(c.validUntil) : '—'}
+                    </div>
+                  </div>
+                </div>
+                {att && (
+                  <div className="mt-3 text-[10px] uppercase tracking-widest text-muted">
+                    {att.filename} · {formatFileSize(att.sizeBytes)}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <ContractUploadModal
+        open={uploadOpen}
+        customers={customers}
+        onClose={() => setUploadOpen(false)}
+        onSave={handleSave}
+        nextId={state?.nextContractId ?? 1}
+      />
+
+      <PdfViewerModal
+        open={viewer !== null && viewerAttachment !== null}
+        attachment={viewerAttachment}
+        title={viewer ? viewer.title : undefined}
+        onClose={() => setViewerId(null)}
+        onDelete={viewer ? () => handleDelete(viewer.id) : undefined}
+      />
+    </>
+  );
+}

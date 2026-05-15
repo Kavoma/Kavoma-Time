@@ -43,6 +43,11 @@ contextBridge.exposeInMainWorld('api', {
 
   // DSGVO Art. 17 — Recht auf Löschung
   wipeAllData: () => ipcRenderer.invoke('wipe-all-data'),
+
+  // Verschlüsselte PDF-Anhänge (Finanzen-Modul)
+  attachmentWrite: (id, base64Plain) => ipcRenderer.invoke('attachment-write', { id, base64Plain }),
+  attachmentRead: (id) => ipcRenderer.invoke('attachment-read', id),
+  attachmentDelete: (id) => ipcRenderer.invoke('attachment-delete', id),
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   getEncryptionStatus: () => ipcRenderer.invoke('get-encryption-status'),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),

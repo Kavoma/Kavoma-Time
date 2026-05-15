@@ -190,6 +190,11 @@ ipcMain.handle('wipe-all-data', async () => {
       const p = path.join(userDataDir, name);
       try { if (fs.existsSync(p)) fs.rmSync(p, { force: true }); } catch (_) { /* skip */ }
     }
+    // Anhänge-Verzeichnis (verschlüsselte Eingangsrechnungen / Verträge) komplett entfernen
+    try {
+      const attDir = path.join(userDataDir, 'attachments');
+      if (fs.existsSync(attDir)) fs.rmSync(attDir, { recursive: true, force: true });
+    } catch (_) { /* skip */ }
     currentEncryptionKey = null;
     currentTimerState = null;
     store = null;
@@ -202,6 +207,59 @@ ipcMain.handle('wipe-all-data', async () => {
     console.error('wipe-all-data failed:', e);
     throw new Error('Daten konnten nicht vollständig gelöscht werden.');
   }
+});
+
+// === Verschlüsselte PDF-Anhänge (Finanzen-Modul) ===
+// AES-256-GCM, identische Schlüsselquelle wie backup-encrypt. Binärformat:
+// IV(12) | AuthTag(16) | Ciphertext(N) — kompakt, kein JSON-Wrapper.
+const ATTACHMENT_DIR = path.join(app.getPath('userData'), 'attachments');
+
+ipcMain.handle('attachment-write', async (_event, { id, base64Plain }) => {
+  if (!currentEncryptionKey) {
+    throw new Error('Verschlüsselung nicht verfügbar — Anhang wurde abgebrochen.');
+  }
+  if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error('Ungültige Anhang-ID.');
+  }
+  fs.mkdirSync(ATTACHMENT_DIR, { recursive: true });
+  const plaintext = Buffer.from(base64Plain, 'base64');
+  const iv  = crypto.randomBytes(12);
+  const key = Buffer.from(currentEncryptionKey, 'hex');
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const enc = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const blob = Buffer.concat([iv, tag, enc]);
+  fs.writeFileSync(path.join(ATTACHMENT_DIR, `${id}.pdf.enc`), blob);
+  return { sizeBytes: plaintext.length };
+});
+
+ipcMain.handle('attachment-read', async (_event, id) => {
+  if (!currentEncryptionKey) {
+    throw new Error('Verschlüsselung nicht verfügbar — Anhang kann nicht gelesen werden.');
+  }
+  if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error('Ungültige Anhang-ID.');
+  }
+  const file = path.join(ATTACHMENT_DIR, `${id}.pdf.enc`);
+  if (!fs.existsSync(file)) throw new Error('Anhang nicht gefunden.');
+  const blob = fs.readFileSync(file);
+  const iv  = blob.subarray(0, 12);
+  const tag = blob.subarray(12, 28);
+  const enc = blob.subarray(28);
+  const key = Buffer.from(currentEncryptionKey, 'hex');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
+  return dec.toString('base64');
+});
+
+ipcMain.handle('attachment-delete', async (_event, id) => {
+  if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error('Ungültige Anhang-ID.');
+  }
+  const file = path.join(ATTACHMENT_DIR, `${id}.pdf.enc`);
+  if (fs.existsSync(file)) fs.rmSync(file, { force: true });
+  return true;
 });
 
 nativeTheme.themeSource = 'dark';
