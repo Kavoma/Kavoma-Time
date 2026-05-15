@@ -36,6 +36,7 @@ export function TimerOverlay() {
     }
 
     window.api?.getOverlayAnchor?.().then(setAnchor).catch(() => undefined);
+    const unsubscribeAnchor = window.api?.onOverlayAnchorChanged?.(setAnchor);
 
     return () => {
       // Cleanup: restore normal mouse events on unmount
@@ -46,7 +47,7 @@ export function TimerOverlay() {
           console.error('Failed to restore mouse events on unmount:', error);
         }
       }
-      window.api?.onOverlayAnchorChanged?.(setAnchor);
+      unsubscribeAnchor?.();
     };
   }, []);
 
