@@ -146,21 +146,31 @@ export function SettingsView() {
 
         let data: any;
         if (parsed?.encrypted && parsed?.data && window.api?.decryptBackup) {
-          // Verschlüsseltes Backup → mit App-Schlüssel entschlüsseln
+          // Verschlüsseltes Backup (.kvbak) → mit App-Schlüssel entschlüsseln
           const decrypted = await window.api.decryptBackup(parsed);
           data = JSON.parse(decrypted);
+        } else if (parsed?.kavoma === 'portable-export' && parsed?.data) {
+          // DSGVO-Art-20-Klartext-JSON-Export — State liegt unter .data
+          data = parsed.data;
         } else {
-          // Klartext-Backup (Legacy)
+          // Legacy-Klartext-Backup (State direkt auf Top-Level)
           data = parsed;
         }
 
-        if (!data.customers || !data.entries) throw new Error('Ungültiges Format');
+        if (!data || !Array.isArray(data.customers) || !Array.isArray(data.entries)) {
+          throw new Error('Ungültiges Format');
+        }
 
         setPendingBackupData(data);
         setIsRestoreModalOpen(true);
       } catch (err) {
         console.error(err);
-        alert('Fehler beim Importieren. Stelle sicher, dass die Datei von dieser Installation stammt (verschlüsselte Backups lassen sich nur am gleichen PC öffnen).');
+        alert(
+          'Fehler beim Importieren.\n\n' +
+          '• Verschlüsselte Backups (.kvbak) lassen sich nur in der Installation öffnen, in der sie erstellt wurden.\n' +
+          '  Nach „Alle Daten löschen" wurde der Schlüssel ersetzt — alte .kvbak-Dateien sind dann nicht mehr entschlüsselbar.\n' +
+          '• Klartext-Exporte (.json) sollten sich immer einspielen lassen. Falls hier ein Fehler kommt, ist die Datei evtl. defekt oder hat ein anderes Format.',
+        );
       }
     };
     reader.readAsText(file);

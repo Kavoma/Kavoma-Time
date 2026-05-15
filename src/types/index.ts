@@ -97,6 +97,48 @@ export interface Invoice {
   reminders: DunningReminder[];
 }
 
+// === Anhang-System (verschlüsselte PDFs in userData/attachments/) ===
+export interface Attachment {
+  id: string;                       // UUID, identisch zum Dateinamen
+  filename: string;                 // Original-Dateiname für Anzeige
+  mimeType: 'application/pdf';
+  sizeBytes: number;
+  sha256: string;                   // Integritäts-Check, hex
+  uploadedAt: number;
+}
+
+export type VendorInvoiceCategory =
+  | 'hardware'
+  | 'software'
+  | 'office'
+  | 'travel'
+  | 'service'
+  | 'other';
+
+export interface VendorInvoice {
+  id: number;
+  attachmentId: string;             // FK → Attachment.id
+  vendorName: string;
+  invoiceNumber?: string;
+  invoiceDate: number;
+  amountGross: number;
+  vatAmount?: number;
+  category: VendorInvoiceCategory;
+  note?: string;
+  createdAt: number;
+}
+
+export interface Contract {
+  id: number;
+  customerId: number;               // FK → Customer.id
+  attachmentId: string;             // FK → Attachment.id
+  title: string;
+  signedAt: number;
+  validUntil?: number;
+  note?: string;
+  createdAt: number;
+}
+
 export interface AppState {
   isRunning: boolean;
   startedAt: number | null;
@@ -118,6 +160,13 @@ export interface AppState {
   timerOverlayEnabled?: boolean;
   afkPauseEnabled?: boolean;
   afkTimeoutMinutes?: number;
+
+  // === Anhänge und dokumentierte Belege/Verträge ===
+  attachments: Attachment[];
+  vendorInvoices: VendorInvoice[];
+  contracts: Contract[];
+  nextVendorInvoiceId?: number;
+  nextContractId?: number;
 }
 
 declare global {
@@ -142,6 +191,9 @@ declare global {
       encryptBackup: (plaintext: string) => Promise<any>;
       decryptBackup: (payload: any) => Promise<string>;
       wipeAllData: () => Promise<boolean>;
+      attachmentWrite: (id: string, base64Plain: string) => Promise<{ sizeBytes: number }>;
+      attachmentRead: (id: string) => Promise<string>;
+      attachmentDelete: (id: string) => Promise<boolean>;
       getAppInfo: () => Promise<{ os: string; arch: string; version: string }>;
       getEncryptionStatus: () => Promise<{ available: boolean; active: boolean }>;
       getUpdateStatus: () => Promise<UpdateStatus>;
