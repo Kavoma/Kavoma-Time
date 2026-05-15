@@ -10,6 +10,9 @@ import { ExportView } from './views/ExportView';
 import { useAppState } from './state/AppStateContext';
 import { Tooltip } from './components/Tooltip';
 import { TitleBar } from './components/TitleBar';
+import { EncryptionBanner } from './components/EncryptionBanner';
+import { OnboardingModal } from './components/OnboardingModal';
+import { LegalModal } from './components/LegalModal';
 
 function renderView(id: string) {
   switch (id) {
@@ -43,10 +46,18 @@ export function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
+
+  useEffect(() => {
+    window.api?.getOnboardingCompleted?.()
+      .then((done) => setNeedsOnboarding(!done))
+      .catch(() => setNeedsOnboarding(false));
+  }, []);
 
   // Keyboard shortcuts: Ctrl+1 to Ctrl+6 for view navigation
   useEffect(() => {
@@ -95,6 +106,13 @@ export function App() {
   return (
     <div className={`app ${isSidebarCollapsed ? 'collapsed' : ''}`}>
       <TitleBar />
+      <EncryptionBanner />
+      <OnboardingModal
+        open={needsOnboarding}
+        onComplete={() => setNeedsOnboarding(false)}
+        onOpenPrivacy={() => setShowPrivacy(true)}
+      />
+      <LegalModal open={showPrivacy} initial="privacy" onClose={() => setShowPrivacy(false)} />
       <div className="app-content">
         <aside className={`flex flex-col gap-8 border-r border-divider bg-paper p-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-4' : 'p-8'}`}>
           <nav className="flex flex-col gap-px">

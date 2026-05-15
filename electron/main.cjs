@@ -2,7 +2,7 @@
 // Electron Main-Process
 // ============================================================
 
-const { app, BrowserWindow, nativeTheme, ipcMain, Tray, Menu, globalShortcut, nativeImage, safeStorage, screen, powerMonitor } = require('electron');
+const { app, BrowserWindow, dialog, nativeTheme, ipcMain, Tray, Menu, globalShortcut, nativeImage, safeStorage, screen, powerMonitor } = require('electron');
 const path = require('node:path');
 const fs   = require('node:fs');
 const crypto = require('node:crypto');
@@ -82,7 +82,9 @@ ipcMain.handle('store-set', (event, key, data) => {
 
 // === Backup-Verschlüsselung (AES-256-GCM mit dem App-Schlüssel) ===
 ipcMain.handle('backup-encrypt', (_event, plaintext) => {
-  if (!currentEncryptionKey) return { encrypted: false, data: plaintext };
+  if (!currentEncryptionKey) {
+    throw new Error('Verschlüsselung nicht verfügbar — Backup wurde abgebrochen, um zu verhindern, dass Daten unverschlüsselt geschrieben werden.');
+  }
   const keyBuf = Buffer.from(currentEncryptionKey, 'hex');
   const iv     = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', keyBuf, iv);
@@ -112,6 +114,13 @@ ipcMain.handle('backup-decrypt', (_event, payload) => {
   return dec.toString('utf8');
 });
 
+ipcMain.handle('get-encryption-status', () => {
+  return {
+    available: safeStorage.isEncryptionAvailable(),
+    active: Boolean(currentEncryptionKey),
+  };
+});
+
 ipcMain.handle('get-app-info', () => {
   const release = require('os').release();
   const major = parseInt(release.split('.')[0]);
@@ -134,11 +143,65 @@ ipcMain.handle('get-update-status', () => updateStatus);
 
 ipcMain.handle('check-for-updates', () => checkForUpdates(true));
 
+// === Onboarding-Status (Erst-Start-Hinweis zu Datenschutz) ===
+const ONBOARDING_KEY = 'onboarding_completed_v1';
+ipcMain.handle('get-onboarding-completed', () => {
+  if (!store) return false;
+  return Boolean(store.get(ONBOARDING_KEY));
+});
+ipcMain.handle('set-onboarding-completed', () => {
+  if (!store) return false;
+  store.set(ONBOARDING_KEY, true);
+  return true;
+});
+
+// === Auto-Update Opt-out (DSGVO Art. 6/13 — Transparenz und Wahl) ===
+const AUTO_UPDATE_KEY = 'auto_update_enabled';
+ipcMain.handle('get-auto-update-enabled', () => {
+  if (!store) return true;
+  const v = store.get(AUTO_UPDATE_KEY);
+  return v === undefined ? true : Boolean(v);
+});
+ipcMain.handle('set-auto-update-enabled', (_event, enabled) => {
+  if (!store) return false;
+  store.set(AUTO_UPDATE_KEY, Boolean(enabled));
+  return true;
+});
+
 ipcMain.handle('install-downloaded-update', () => {
   if (updateStatus.state !== 'downloaded') return false;
   isQuitting = true;
   autoUpdater.quitAndInstall(false, true);
   return true;
+});
+
+// === Recht auf Löschung (DSGVO Art. 17) ===
+// Entfernt alle gespeicherten Daten (electron-store, Schlüsseldatei, sonstige
+// App-Dateien in userData) und startet die App neu, damit sie wie nach einer
+// Neuinstallation startet.
+ipcMain.handle('wipe-all-data', async () => {
+  try {
+    if (store) {
+      try { store.clear(); } catch (_) { /* ignorieren, wir löschen die Dateien gleich */ }
+    }
+    const userDataDir = app.getPath('userData');
+    const filesToRemove = ['kavoma.key', 'kavoma-time-data.json'];
+    for (const name of filesToRemove) {
+      const p = path.join(userDataDir, name);
+      try { if (fs.existsSync(p)) fs.rmSync(p, { force: true }); } catch (_) { /* skip */ }
+    }
+    currentEncryptionKey = null;
+    currentTimerState = null;
+    store = null;
+
+    app.relaunch();
+    isQuitting = true;
+    app.exit(0);
+    return true;
+  } catch (e) {
+    console.error('wipe-all-data failed:', e);
+    throw new Error('Daten konnten nicht vollständig gelöscht werden.');
+  }
 });
 
 nativeTheme.themeSource = 'dark';
@@ -538,6 +601,21 @@ function checkForUpdates(manual = false) {
     return Promise.resolve(null);
   }
 
+  // Opt-out: Wenn der Nutzer automatische Updates deaktiviert hat, überspringen
+  // wir den automatischen Check beim Start. Manuelle Prüfungen bleiben erlaubt.
+  if (!manual && store) {
+    const enabled = store.get(AUTO_UPDATE_KEY);
+    if (enabled === false) {
+      publishUpdateStatus({
+        state: 'idle',
+        message: 'Automatische Updates sind deaktiviert.',
+        progress: null,
+        error: null,
+      });
+      return Promise.resolve(null);
+    }
+  }
+
   if (manual) {
     publishUpdateStatus({
       state: 'checking',
@@ -681,7 +759,54 @@ ipcMain.on('overlay-set-ignore-mouse-events', (event, ignore, options) => {
 // ============================================================
 
 app.whenReady().then(() => {
-  // Verschlüsselter Store — Key aus safeStorage
+  // Verschlüsselter Store — Key aus safeStorage (OS-Keychain / Windows DPAPI).
+  // Wenn die OS-Verschlüsselung nicht verfügbar ist (defektes Profil, exotische
+  // Linux-Umgebung), würden Daten ungeschützt auf Platte liegen. Das ist
+  // DSGVO-Art.-32-relevant, daher hier eine bewusst friktionierte
+  // zweistufige Bestätigung — Tippfehler oder Klick-Reflexe sollen nicht
+  // ausreichen, um sich für den unsicheren Pfad zu entscheiden.
+  if (!safeStorage.isEncryptionAvailable()) {
+    const firstChoice = dialog.showMessageBoxSync({
+      type: 'warning',
+      title: 'Verschlüsselung nicht verfügbar',
+      message: 'Kavoma Time kann Ihre Daten auf diesem System nicht verschlüsseln.',
+      detail:
+        'Die Betriebssystem-Verschlüsselung (Windows DPAPI / Schlüsselbund) ist derzeit nicht verfügbar.\n\n' +
+        'Wenn Sie fortfahren, werden ALLE Zeiterfassungs-, Kunden- und Rechnungsdaten ' +
+        'im Klartext im AppData-Ordner gespeichert. Wer Zugriff auf Ihr Benutzerverzeichnis hat, ' +
+        'kann diese Daten lesen.\n\n' +
+        'Empfehlung: App beenden und einen Administrator kontaktieren oder das Benutzerprofil reparieren.',
+      buttons: ['App beenden (empfohlen)', 'Weiter zur zweiten Bestätigung'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    });
+    if (firstChoice === 0) {
+      app.exit(0);
+      return;
+    }
+    const secondChoice = dialog.showMessageBoxSync({
+      type: 'warning',
+      title: 'Letzte Bestätigung — unverschlüsselt fortfahren?',
+      message: 'Sind Sie sicher, dass Sie die App ohne Verschlüsselung starten möchten?',
+      detail:
+        'Diese Entscheidung kann nicht rückgängig gemacht werden, ohne die App neu zu installieren.\n\n' +
+        'Nach dem Start wird ein dauerhafter Warnbanner im Hauptfenster angezeigt, ' +
+        'solange Verschlüsselung deaktiviert ist.\n\n' +
+        'Diese Wahl widerspricht dem Schutzniveau, das die DSGVO (Art. 32) für ' +
+        'personenbezogene Daten erwartet. Eine Verarbeitung mit Echtdaten von Dritten ' +
+        '(z. B. Kunden) wird ausdrücklich nicht empfohlen.',
+      buttons: ['App beenden', 'Ich verstehe — unverschlüsselt starten'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    });
+    if (secondChoice === 0) {
+      app.exit(0);
+      return;
+    }
+  }
+
   const encryptionKey = getOrCreateEncryptionKey();
   currentEncryptionKey = encryptionKey;
   store = new Store({
