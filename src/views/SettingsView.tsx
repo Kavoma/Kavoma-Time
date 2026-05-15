@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload, Info, Monitor, RefreshCw, Power } from 'lucide-react';
+import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload, Info, Monitor, RefreshCw, Power, Trash2 } from 'lucide-react';
 import { ConfirmRestoreModal } from '../components/ConfirmRestoreModal';
+import { ConfirmWipeModal } from '../components/ConfirmWipeModal';
+import { LegalModal, type LegalDocument } from '../components/LegalModal';
 import { useAppState } from '../state/AppStateContext';
 import { NumberInput } from '../components/NumberInput';
 import { Issuer, UpdateStatus } from '../types';
@@ -66,12 +68,38 @@ export function SettingsView() {
   const { state, setState, restoreBackup } = useAppState();
   const [listening, setListening] = useState(false);
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [isWipeModalOpen, setIsWipeModalOpen] = useState(false);
+  const [legalModal, setLegalModal] = useState<{ open: boolean; doc: LegalDocument }>({ open: false, doc: 'imprint' });
   const [pendingBackupData, setPendingBackupData] = useState<any>(null);
   const [appInfo, setAppInfo] = useState<{ os: string; arch: string; version: string } | null>(null);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+  const [autoUpdateEnabled, setAutoUpdateEnabled] = useState<boolean>(true);
 
   const buttonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const exportPortableJson = () => {
+    if (!state) return;
+    const confirmed = window.confirm(
+      'Die Datei wird UNVERSCHLÜSSELT geschrieben und ist für jeden lesbar, der Zugriff auf die Datei hat.\n\n' +
+      'Diese Funktion erfüllt das Recht auf Datenübertragbarkeit (DSGVO Art. 20). ' +
+      'Bewahre die Datei sicher auf oder lösche sie nach der Übertragung.\n\nFortfahren?',
+    );
+    if (!confirmed) return;
+    const payload = {
+      kavoma: 'portable-export',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: state,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kavoma-time-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const exportData = async () => {
     if (!state) return;
@@ -145,8 +173,19 @@ export function SettingsView() {
   useEffect(() => {
     window.api?.getAppInfo().then(setAppInfo);
     window.api?.getUpdateStatus?.().then(setUpdateStatus);
+    window.api?.getAutoUpdateEnabled?.().then(setAutoUpdateEnabled);
     return window.api?.onUpdateStatus?.(setUpdateStatus);
   }, []);
+
+  const toggleAutoUpdate = async (next: boolean) => {
+    setAutoUpdateEnabled(next);
+    try {
+      await window.api?.setAutoUpdateEnabled?.(next);
+    } catch (e) {
+      console.error(e);
+      setAutoUpdateEnabled(!next);
+    }
+  };
 
   useEffect(() => {
     if (state && !localIssuer) {
@@ -282,6 +321,34 @@ export function SettingsView() {
               />
             </div>
           )}
+
+          {/* Opt-out & Transparenz */}
+          <div className="mt-4 border-t border-divider pt-4">
+            <label className="flex cursor-pointer items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-ink">Beim Start automatisch nach Updates suchen</div>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                  Beim Update-Check kontaktiert die App den GitHub-Release-Server.
+                  Dabei werden technisch zwangsläufig die IP-Adresse, ein User-Agent
+                  (Anwendungs- und Plattform-Kennung) sowie die aktuelle App-Version übertragen —
+                  Daten, die GitHub eigenständig verarbeitet.
+                  Wenn du diese Option ausschaltest, kannst du Updates jederzeit
+                  manuell über „Prüfen" anstoßen.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoUpdateEnabled}
+                onClick={() => toggleAutoUpdate(!autoUpdateEnabled)}
+                className={`relative mt-1 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/70 focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${autoUpdateEnabled ? 'bg-ink' : 'bg-divider'}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-paper transition-transform ${autoUpdateEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -536,6 +603,25 @@ export function SettingsView() {
             Exportiere deine gesamte Datenbank (Kunden, Projekte, Zeiten, Rechnungen) als verschlüsselte KVBAK-Datei.
             Diese Datei kann jederzeit wieder eingespielt werden.
           </p>
+
+          <div className="mt-4 border-t border-divider pt-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="text-[12px] font-bold text-ink">Datenübertragbarkeit (DSGVO Art. 20)</div>
+                <p className="mt-1 text-[10px] leading-relaxed text-muted">
+                  Lade deine Daten als unverschlüsselte, strukturierte JSON-Datei
+                  herunter — geeignet zur Übergabe an andere Software.
+                  Die Datei ist offen lesbar; bewahre sie sicher auf.
+                </p>
+              </div>
+              <button
+                onClick={exportPortableJson}
+                className="flex shrink-0 items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-amber-200 transition-all hover:border-amber-400 hover:bg-amber-500/20 active:scale-95"
+              >
+                <Download size={13} /> JSON-Export
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -553,6 +639,69 @@ export function SettingsView() {
           }
         }}
       />
+
+      <ConfirmWipeModal
+        open={isWipeModalOpen}
+        onCancel={() => setIsWipeModalOpen(false)}
+        onConfirm={async () => {
+          try {
+            await window.api?.wipeAllData?.();
+          } catch (e) {
+            console.error(e);
+            alert('Daten konnten nicht vollständig gelöscht werden. Bitte App manuell deinstallieren oder den AppData-Ordner entfernen.');
+            setIsWipeModalOpen(false);
+          }
+        }}
+      />
+
+      <LegalModal
+        open={legalModal.open}
+        initial={legalModal.doc}
+        onClose={() => setLegalModal((prev) => ({ ...prev, open: false }))}
+      />
+
+      {/* Rechtliches: Impressum & Datenschutz */}
+      <div className="mt-8 rounded-lg border border-divider bg-surface">
+        <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
+          <FileText size={14} className="text-muted" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Rechtliches</span>
+        </div>
+        <div className="flex gap-3 p-4">
+          <button
+            onClick={() => setLegalModal({ open: true, doc: 'imprint' })}
+            className="flex flex-1 items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95"
+          >
+            <FileText size={14} /> Impressum
+          </button>
+          <button
+            onClick={() => setLegalModal({ open: true, doc: 'privacy' })}
+            className="flex flex-1 items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95"
+          >
+            <FileText size={14} /> Datenschutz
+          </button>
+        </div>
+      </div>
+
+      {/* Danger-Zone: Recht auf Löschung (DSGVO Art. 17) */}
+      <div className="mt-8 rounded-lg border border-red-500/30 bg-red-500/[0.04]">
+        <div className="border-b border-red-500/20 px-4 py-3 flex items-center gap-2">
+          <Trash2 size={14} className="text-red-400" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-300">Daten unwiderruflich löschen</span>
+        </div>
+        <div className="p-4">
+          <p className="text-[12px] leading-relaxed text-muted">
+            Entfernt sämtliche in dieser App gespeicherten Daten (Zeiteinträge, Kunden, Projekte, Rechnungen)
+            sowie den lokalen Verschlüsselungsschlüssel. Anschließend startet die App neu wie nach einer Neuinstallation.
+            Erstelle vorher ggf. ein Backup über „Backup exportieren".
+          </p>
+          <button
+            onClick={() => setIsWipeModalOpen(true)}
+            className="mt-3 flex items-center justify-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-red-300 transition-all hover:border-red-400 hover:bg-red-500 hover:text-white active:scale-95"
+          >
+            <Trash2 size={14} /> Alle Daten löschen
+          </button>
+        </div>
+      </div>
 
       {/* System Information */}
       <div className="mt-8 rounded-lg border border-divider bg-surface overflow-hidden">

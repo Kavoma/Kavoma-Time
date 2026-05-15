@@ -141,11 +141,17 @@ declare global {
       setStartPauseShortcut: (accelerator: string) => Promise<void>;
       encryptBackup: (plaintext: string) => Promise<any>;
       decryptBackup: (payload: any) => Promise<string>;
+      wipeAllData: () => Promise<boolean>;
       getAppInfo: () => Promise<{ os: string; arch: string; version: string }>;
+      getEncryptionStatus: () => Promise<{ available: boolean; active: boolean }>;
       getUpdateStatus: () => Promise<UpdateStatus>;
       checkForUpdates: () => Promise<void>;
       installDownloadedUpdate: () => Promise<boolean>;
       onUpdateStatus: (cb: (status: UpdateStatus) => void) => () => void;
+      getAutoUpdateEnabled: () => Promise<boolean>;
+      setAutoUpdateEnabled: (enabled: boolean) => Promise<boolean>;
+      getOnboardingCompleted: () => Promise<boolean>;
+      setOnboardingCompleted: () => Promise<boolean>;
     }
   }
 }

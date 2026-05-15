@@ -40,10 +40,18 @@ contextBridge.exposeInMainWorld('api', {
   // Backup-Verschlüsselung
   encryptBackup: (plaintext) => ipcRenderer.invoke('backup-encrypt', plaintext),
   decryptBackup: (payload)   => ipcRenderer.invoke('backup-decrypt', payload),
+
+  // DSGVO Art. 17 — Recht auf Löschung
+  wipeAllData: () => ipcRenderer.invoke('wipe-all-data'),
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
+  getEncryptionStatus: () => ipcRenderer.invoke('get-encryption-status'),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   installDownloadedUpdate: () => ipcRenderer.invoke('install-downloaded-update'),
+  getAutoUpdateEnabled: () => ipcRenderer.invoke('get-auto-update-enabled'),
+  setAutoUpdateEnabled: (enabled) => ipcRenderer.invoke('set-auto-update-enabled', enabled),
+  getOnboardingCompleted: () => ipcRenderer.invoke('get-onboarding-completed'),
+  setOnboardingCompleted: () => ipcRenderer.invoke('set-onboarding-completed'),
   onUpdateStatus: (cb) => {
     const handler = (_event, status) => cb(status);
     ipcRenderer.on('update-status', handler);

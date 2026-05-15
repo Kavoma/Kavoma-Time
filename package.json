@@ -6,7 +6,13 @@
   "main": "electron/main.cjs",
   "productName": "Kavoma Time",
   "description": "Professionelle Zeiterfassung und Projektverwaltung für Freelancer und Teams.",
-  "author": "Kavoma",
+  "author": "Artjom Kaufmann",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Kavoma/Kavoma-Time",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Kavoma/Kavoma-Time.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -56,12 +62,15 @@
       "allowElevation": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Kavoma Time"
+      "shortcutName": "Kavoma Time",
+      "license": "LICENSE"
     },
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "package.json"
+      "package.json",
+      "LICENSE",
+      "NOTICE"
     ],
     "asar": true
   },
