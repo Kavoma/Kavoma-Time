@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Download, Trash2, AlertTriangle, ZoomIn, ZoomOut, Maximize2, Printer, ExternalLink } from 'lucide-react';
 import { loadPdfBlob } from '../../utils/attachments';
 import { Attachment } from '../../types';
 import { formatFileSize } from '../../utils/attachments';
@@ -13,20 +13,27 @@ interface PdfViewerModalProps {
   onDelete?: () => void;
 }
 
+const ZOOM_STEPS = [50, 75, 100, 125, 150, 200];
+
 export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: PdfViewerModalProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [zoom, setZoom] = useState(100);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     if (!open || !attachment) {
-      setBlobUrl(null);
+      setBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
       setError(null);
       setConfirmDelete(false);
       return;
     }
     let cancelled = false;
     setError(null);
+    // Vorherige Preview sofort verwerfen — sonst sieht der Nutzer das alte
+    // PDF, bis das neue entschlüsselt ist.
+    setBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     loadPdfBlob(attachment.id)
       .then((blob) => {
         if (cancelled) return;
@@ -62,6 +69,37 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
     a.download = attachment.filename;
     a.click();
   };
+
+  const handlePrint = () => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    try {
+      win.focus();
+      win.print();
+    } catch (e) {
+      console.error('Drucken nicht möglich:', e);
+    }
+  };
+
+  const handleOpenInBrowser = () => {
+    if (!blobUrl) return;
+    window.open(blobUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const zoomIn = () => {
+    const next = ZOOM_STEPS.find((s) => s > zoom);
+    if (next !== undefined) setZoom(next);
+  };
+  const zoomOut = () => {
+    const next = [...ZOOM_STEPS].reverse().find((s) => s < zoom);
+    if (next !== undefined) setZoom(next);
+  };
+  const zoomFit = () => setZoom(100);
+
+  // Zoom-Reset, wenn ein anderes Attachment geladen wird
+  useEffect(() => {
+    if (!open) setZoom(100);
+  }, [open, attachment]);
 
   return (
     <AnimatePresence>
@@ -100,7 +138,51 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                   <span className="font-mono">{attachment.sha256.slice(0, 12)}…</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <div className="mr-2 flex items-center gap-1 rounded-md border border-divider bg-paper/60 px-1 py-0.5">
+                  <button
+                    onClick={zoomOut}
+                    disabled={zoom <= ZOOM_STEPS[0]}
+                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                    title="Verkleinern"
+                  >
+                    <ZoomOut size={12} />
+                  </button>
+                  <span className="min-w-[3rem] text-center text-[10px] font-bold tabular-nums text-muted">{zoom}%</span>
+                  <button
+                    onClick={zoomIn}
+                    disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                    title="Vergrößern"
+                  >
+                    <ZoomIn size={12} />
+                  </button>
+                  <button
+                    onClick={zoomFit}
+                    disabled={zoom === 100}
+                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
+                    title="Auf 100%"
+                  >
+                    <Maximize2 size={11} />
+                  </button>
+                </div>
+
+                <button
+                  onClick={handlePrint}
+                  disabled={!blobUrl}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Drucken"
+                >
+                  <Printer size={12} />
+                </button>
+                <button
+                  onClick={handleOpenInBrowser}
+                  disabled={!blobUrl}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  title="In neuem Fenster öffnen"
+                >
+                  <ExternalLink size={12} />
+                </button>
                 <button
                   onClick={handleDownload}
                   disabled={!blobUrl}
@@ -128,7 +210,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
               </div>
             </div>
 
-            <div className="relative flex-1 bg-black/40">
+            <div className="relative flex-1 overflow-auto bg-black/40">
               {error && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
                   <AlertTriangle size={28} className="text-red-300" />
@@ -137,15 +219,31 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 </div>
               )}
               {!error && blobUrl && (
-                <iframe
-                  src={blobUrl}
-                  className="h-full w-full"
-                  title={attachment.filename}
-                />
+                <div
+                  className="origin-top-left"
+                  style={{ width: `${10000 / zoom}%`, height: `${10000 / zoom}%`, transform: `scale(${zoom / 100})` }}
+                >
+                  <iframe
+                    ref={iframeRef}
+                    src={blobUrl}
+                    className="h-full w-full"
+                    title={attachment.filename}
+                  />
+                </div>
               )}
               {!error && !blobUrl && (
-                <div className="absolute inset-0 flex items-center justify-center text-[12px] uppercase tracking-widest text-muted">
-                  PDF wird entschlüsselt…
+                <div className="absolute inset-0 flex items-center justify-center p-8">
+                  <div className="w-full max-w-md space-y-3">
+                    <div className="h-3 w-2/3 animate-pulse rounded bg-divider" />
+                    <div className="h-3 w-full animate-pulse rounded bg-divider" />
+                    <div className="h-3 w-5/6 animate-pulse rounded bg-divider" />
+                    <div className="h-32 w-full animate-pulse rounded bg-divider/60" />
+                    <div className="h-3 w-3/4 animate-pulse rounded bg-divider" />
+                    <div className="h-3 w-full animate-pulse rounded bg-divider" />
+                    <div className="mt-4 text-center text-[10px] uppercase tracking-widest text-muted">
+                      PDF wird entschlüsselt…
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

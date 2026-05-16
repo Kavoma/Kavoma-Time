@@ -73,7 +73,9 @@ export async function loadPdfBlob(attachmentId: string): Promise<Blob> {
 }
 
 export async function deletePdf(attachmentId: string): Promise<void> {
-  if (!window.api?.attachmentDelete) return;
+  if (!window.api?.attachmentDelete) {
+    throw new Error('attachmentDelete-API nicht verfügbar (kein Electron-Kontext).');
+  }
   await window.api.attachmentDelete(attachmentId);
 }
 

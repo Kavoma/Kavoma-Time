@@ -48,8 +48,9 @@ export function profitabilityByCustomer(state: AppState): Map<number, CustomerPr
   // Tatsächlich abgerechneter Umsatz — stornierte Originale UND
   // Storno-Rechnungen (negativer Betrag) komplett ignorieren.
   // → Paar (Original + Storno) netto = 0, deshalb beide raus statt "+pos -neg"
+  // Drafts (Phase 1.5) sind noch keine finale Rechnung → ebenfalls raus.
   for (const inv of state.invoices) {
-    if (inv.status === 'cancelled' || inv.cancelsInvoiceId) continue;
+    if (inv.status === 'cancelled' || inv.status === 'draft' || inv.cancelsInvoiceId) continue;
     const slot = result.get(inv.customerId);
     if (!slot) continue;
     slot.invoicedRevenue += inv.total;
@@ -139,8 +140,10 @@ export function forecastYear(state: AppState): YearForecast {
   const daysRemaining = daysInYear - calendarDaysPassed;
 
   // --- Abgerechneter Umsatz (Rechnungen) ---
+  // Drafts (Phase 1.5) sind noch keine finalisierte Rechnung und werden in
+  // der Jahres-Hochrechnung ausgeklammert.
   const ytdInvoices = state.invoices.filter(i =>
-    i.status !== 'cancelled' && !i.cancelsInvoiceId && i.createdAt >= yearStart && i.createdAt <= nowTs
+    i.status !== 'cancelled' && i.status !== 'draft' && !i.cancelsInvoiceId && i.createdAt >= yearStart && i.createdAt <= nowTs
   );
   const invoicedRevenue = ytdInvoices.reduce((s, i) => s + i.total, 0);
 

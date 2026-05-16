@@ -14,7 +14,9 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
 
   useEffect(() => {
     if (!open) return;
-    window.api?.getAutoUpdateEnabled?.().then(setAutoUpdates).catch(() => undefined);
+    const fn = window.api?.getAutoUpdateEnabled;
+    if (typeof fn !== 'function') return;
+    fn().then(setAutoUpdates).catch(() => undefined);
   }, [open]);
 
   const submit = async () => {
@@ -26,10 +28,12 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
     }
     try {
       await window.api?.setOnboardingCompleted?.();
+      onComplete();
     } catch (e) {
-      console.error(e);
+      console.error('Onboarding-Status konnte nicht persistiert werden:', e);
+      // Bewusst kein onComplete() — sonst sieht der Nutzer das Modal beim
+      // nächsten Start wieder, weil der Status nicht gespeichert wurde.
     }
-    onComplete();
   };
 
   return (

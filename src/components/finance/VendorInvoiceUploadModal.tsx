@@ -24,6 +24,20 @@ function todayInput() {
   return new Date().toISOString().split('T')[0];
 }
 
+// "1.234,56" → 1234.56; "1234,56" → 1234.56; "12.50" → 12.5
+// Punkt wird als Tausendertrenner behandelt, Komma als Dezimaltrenner (de-DE).
+function parseCurrency(input: string): number {
+  const normalized = input.trim().replace(/\./g, '').replace(',', '.');
+  const value = parseFloat(normalized);
+  return Number.isFinite(value) ? value : NaN;
+}
+
+function isValidDateInput(input: string): boolean {
+  if (!input) return false;
+  const ts = new Date(input).getTime();
+  return Number.isFinite(ts);
+}
+
 export function VendorInvoiceUploadModal({ open, onClose, onSave, nextId }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [vendorName, setVendorName] = useState('');
@@ -80,18 +94,27 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave, nextId }: Prop
   };
 
   const canSave =
-    !!file && vendorName.trim().length > 0 && amountGross.trim().length > 0 && !busy;
+    !!file && vendorName.trim().length > 0 && amountGross.trim().length > 0 && isValidDateInput(invoiceDate) && !busy;
 
   const submit = async () => {
     if (!file) return;
-    const amount = parseFloat(amountGross.replace(',', '.'));
-    if (Number.isNaN(amount) || amount < 0) {
+    const amount = parseCurrency(amountGross);
+    if (!Number.isFinite(amount) || amount < 0) {
       setError('Bitte einen gültigen Bruttobetrag eingeben.');
       return;
     }
-    const vat = vatAmount.trim() ? parseFloat(vatAmount.replace(',', '.')) : undefined;
-    if (vat !== undefined && (Number.isNaN(vat) || vat < 0)) {
-      setError('Bitte einen gültigen USt-Betrag eingeben oder das Feld leer lassen.');
+    let vat: number | undefined;
+    if (vatAmount.trim()) {
+      const parsedVat = parseCurrency(vatAmount);
+      if (!Number.isFinite(parsedVat) || parsedVat < 0) {
+        setError('Bitte einen gültigen USt-Betrag eingeben oder das Feld leer lassen.');
+        return;
+      }
+      vat = parsedVat;
+    }
+    const invoiceDateTs = new Date(invoiceDate).getTime();
+    if (!Number.isFinite(invoiceDateTs)) {
+      setError('Bitte ein gültiges Beleg-Datum auswählen.');
       return;
     }
     setBusy(true);
@@ -103,7 +126,7 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave, nextId }: Prop
         attachmentId: attachment.id,
         vendorName: vendorName.trim(),
         invoiceNumber: invoiceNumber.trim() || undefined,
-        invoiceDate: new Date(invoiceDate).getTime(),
+        invoiceDate: invoiceDateTs,
         amountGross: amount,
         vatAmount: vat,
         category,

@@ -37,25 +37,29 @@ if (!gotTheLock) {
 // (OS-Keychain / DPAPI auf Windows) verschlüsselt ist. So lässt sich der
 // Klartext-Store nicht einfach auslesen, wenn jemand die Daten kopiert.
 function getOrCreateEncryptionKey() {
+  // Ohne safeStorage kein Schlüssel — sonst würden wir mit einem
+  // session-only Random-Key verschlüsseln, der beim nächsten Start verloren
+  // ist und den Store unlesbar macht. Stattdessen: undefined zurückgeben →
+  // Store läuft unverschlüsselt, aber dauerhaft lesbar.
+  if (!safeStorage.isEncryptionAvailable()) {
+    return undefined;
+  }
   const keyFile = path.join(app.getPath('userData'), 'kavoma.key');
   try {
-    if (fs.existsSync(keyFile) && safeStorage.isEncryptionAvailable()) {
+    if (fs.existsSync(keyFile)) {
       const encrypted = fs.readFileSync(keyFile);
       return safeStorage.decryptString(encrypted);
     }
   } catch (e) {
     console.warn('Konnte Schlüssel nicht entschlüsseln, generiere neu:', e.message);
   }
-  // Neuen Schlüssel erzeugen
   const key = crypto.randomBytes(32).toString('hex');
   try {
-    if (safeStorage.isEncryptionAvailable()) {
-      fs.mkdirSync(path.dirname(keyFile), { recursive: true });
-      const encrypted = safeStorage.encryptString(key);
-      fs.writeFileSync(keyFile, encrypted);
-    }
+    fs.mkdirSync(path.dirname(keyFile), { recursive: true });
+    const encrypted = safeStorage.encryptString(key);
+    fs.writeFileSync(keyFile, encrypted);
   } catch (e) {
-    console.warn('Konnte Schlüssel nicht speichern (Daten werden unverschlüsselt gespeichert):', e.message);
+    console.warn('Konnte Schlüssel nicht speichern:', e.message);
     return undefined;
   }
   return key;
@@ -243,6 +247,10 @@ ipcMain.handle('attachment-read', async (_event, id) => {
   const file = path.join(ATTACHMENT_DIR, `${id}.pdf.enc`);
   if (!fs.existsSync(file)) throw new Error('Anhang nicht gefunden.');
   const blob = fs.readFileSync(file);
+  // Format: IV(12) | AuthTag(16) | Ciphertext(≥0). Mindestlänge 28.
+  if (blob.length < 28) {
+    throw new Error('Anhang-Datei beschädigt: zu kurz für IV+AuthTag.');
+  }
   const iv  = blob.subarray(0, 12);
   const tag = blob.subarray(12, 28);
   const enc = blob.subarray(28);
@@ -319,7 +327,10 @@ function createMainWindow() {
     },
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.maximize();
+    mainWindow.show();
+  });
 
   if (!app.isPackaged) {
     mainWindow.loadURL(DEV_URL);

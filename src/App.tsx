@@ -54,9 +54,17 @@ export function App() {
   }, [isSidebarCollapsed]);
 
   useEffect(() => {
-    window.api?.getOnboardingCompleted?.()
+    const fn = window.api?.getOnboardingCompleted;
+    if (typeof fn !== 'function') {
+      setNeedsOnboarding(true);
+      return;
+    }
+    fn()
       .then((done) => setNeedsOnboarding(!done))
-      .catch(() => setNeedsOnboarding(false));
+      .catch((err) => {
+        console.error('getOnboardingCompleted failed:', err);
+        setNeedsOnboarding(true);
+      });
   }, []);
 
   // Keyboard shortcuts: Ctrl+1 to Ctrl+6 for view navigation

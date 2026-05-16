@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { Download, Plus, FileText, Trash2, Check, Files, Search, ShieldCheck, ClipboardList, FileSpreadsheet, Ban, AlertTriangle } from 'lucide-react';
+import { Download, Plus, FileText, Trash2, Check, Files, Search, ShieldCheck, ClipboardList, FileSpreadsheet, Ban, AlertTriangle, Repeat, Edit2, Wand2 } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
-import { Invoice, DunningReminder } from '../types';
+import { Invoice, DunningReminder, InvoiceTemplate, RecurringInvoice } from '../types';
 import { InvoiceCreateModal } from '../components/InvoiceCreateModal';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { ContextMenu } from '../components/ContextMenu';
@@ -16,11 +16,13 @@ import { Tooltip } from '../components/Tooltip';
 export function ExportView() {
   const { state, setState } = useAppState();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCustomer, setFilterCustomer] = useState<number>(0);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'open' | 'cancelled' | 'dunning'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'open' | 'cancelled' | 'dunning' | 'draft'>('all');
   const [menu, setMenu] = useState<{ x: number; y: number; invoiceId: string } | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -39,18 +41,21 @@ export function ExportView() {
 
   const filteredInvoices = useMemo(() => {
     if (!state) return [];
-    let result = state.invoices.filter(inv => {
+    const result = state.invoices.filter(inv => {
       const customer = state.customers.find(c => c.id === inv.customerId);
       const matchesSearch = inv.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            customer?.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCustomer = filterCustomer === 0 || inv.customerId === filterCustomer;
       const isCancelled = inv.status === 'cancelled';
       const isStorno    = !!inv.cancelsInvoiceId;
-      let matchesStatus = true;
-      if      (filterStatus === 'paid')      matchesStatus = inv.paid && !isCancelled && !isStorno;
-      else if (filterStatus === 'open')      matchesStatus = !inv.paid && !isCancelled && !isStorno;
+      const isDraft     = inv.status === 'draft';
+      let matchesStatus: boolean;
+      if      (filterStatus === 'paid')      matchesStatus = inv.paid && !isCancelled && !isStorno && !isDraft;
+      else if (filterStatus === 'open')      matchesStatus = !inv.paid && !isCancelled && !isStorno && !isDraft;
       else if (filterStatus === 'cancelled') matchesStatus = isCancelled || isStorno;
-      else if (filterStatus === 'dunning')   matchesStatus = !isCancelled && !isStorno && isOverdue(inv);
+      else if (filterStatus === 'dunning')   matchesStatus = !isCancelled && !isStorno && !isDraft && isOverdue(inv);
+      else if (filterStatus === 'draft')     matchesStatus = isDraft;
+      else /* all */                         matchesStatus = !isDraft; // Drafts standardmäßig nicht in "Alle" — eigener Filter
       return matchesSearch && matchesCustomer && matchesStatus;
     });
 
@@ -149,24 +154,98 @@ export function ExportView() {
   const fmtEuro = (n: number) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
   const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
+  const editingDraft = editingDraftId
+    ? state.invoices.find(i => i.id === editingDraftId && i.status === 'draft') ?? null
+    : null;
+
   const handleCreate = async (invoice: Invoice, options: { includeReport: boolean; includeConsent: boolean }) => {
     const customer = state.customers.find(c => c.id === invoice.customerId);
     if (!customer) return;
-    setState(s => s ? {
-      ...s,
-      invoices: [invoice, ...s.invoices],
-      nextInvoiceCounter: s.nextInvoiceCounter + 1,
-    } : null);
-    
+    // Beim Finalisieren eines bestehenden Drafts ersetzen wir die existierende Invoice
+    // mit demselben id; bei Neu-Erstellung prepend.
+    setState(s => {
+      if (!s) return null;
+      const exists = s.invoices.some(i => i.id === invoice.id);
+      if (exists) {
+        return {
+          ...s,
+          invoices: s.invoices.map(i => i.id === invoice.id ? invoice : i),
+          // nextInvoiceCounter NICHT erhöhen — Nummer wurde beim Draft-Anlegen reserviert
+        };
+      }
+      return {
+        ...s,
+        invoices: [invoice, ...s.invoices],
+        nextInvoiceCounter: s.nextInvoiceCounter + 1,
+      };
+    });
+
     // Paket-Download (Kombiniert PDF wenn includeReport gewählt wurde)
     downloadInvoicePdf(invoice, state.issuer, customer, options.includeReport ? state.entries : undefined);
-    
+
     if (options.includeConsent) {
       await new Promise(r => setTimeout(r, 600));
       downloadContractPdf(state.issuer, customer);
     }
 
     setCreateOpen(false);
+    setEditingDraftId(null);
+  };
+
+  const handleSaveDraft = (draft: Invoice) => {
+    setState(s => {
+      if (!s) return null;
+      const exists = s.invoices.some(i => i.id === draft.id);
+      if (exists) {
+        return { ...s, invoices: s.invoices.map(i => i.id === draft.id ? draft : i) };
+      }
+      // Neuer Draft → Counter erhöht sich erst beim Finalisieren? Nein, beim
+      // Anlegen, damit die Rechnungsnummer reserviert ist und nicht doppelt
+      // vergeben wird, falls parallel eine andere Rechnung erstellt wird.
+      return {
+        ...s,
+        invoices: [draft, ...s.invoices],
+        nextInvoiceCounter: s.nextInvoiceCounter + 1,
+      };
+    });
+    setCreateOpen(false);
+    setEditingDraftId(null);
+  };
+
+  const handleCreateTemplate = (template: InvoiceTemplate) => {
+    setState(s => s ? {
+      ...s,
+      invoiceTemplates: [...s.invoiceTemplates, template],
+      nextTemplateId: (s.nextTemplateId ?? 1) + 1,
+    } : null);
+  };
+
+  const handleCreateRecurring = (recurring: RecurringInvoice) => {
+    setState(s => s ? {
+      ...s,
+      recurringInvoices: [...s.recurringInvoices, recurring],
+      nextRecurringId: (s.nextRecurringId ?? 1) + 1,
+    } : null);
+  };
+
+  const finalizeSelectedDrafts = async () => {
+    if (isFinalizing) return;
+    const drafts = state.invoices.filter(i => selectedIds.includes(String(i.id)) && i.status === 'draft');
+    if (drafts.length === 0) return;
+    setIsFinalizing(true);
+    for (const d of drafts) {
+      const customer = state.customers.find(c => c.id === d.customerId);
+      if (!customer) continue;
+      const final: Invoice = { ...d, status: 'active', createdAt: Date.now() };
+      setState(s => s ? {
+        ...s,
+        invoices: s.invoices.map(i => i.id === d.id ? final : i),
+      } : null);
+      downloadInvoicePdf(final, state.issuer, customer, d.entryIds.length > 0 ? state.entries : undefined);
+      await new Promise(r => setTimeout(r, 500));
+    }
+    setIsFinalizing(false);
+    setSelectedIds([]);
   };
 
   const togglePaid = (id: string) => {
@@ -262,9 +341,9 @@ export function ExportView() {
   const deletingInvoice = state.invoices.find(i => i.id === deletingId) || null;
 
   // Stats (basierend auf gefilterten Daten)
-  // Aktive Rechnungen — Stornierte + Storno-Rechnungen aus den Finanz-Summen raus
-  const activeInvoices = filteredInvoices.filter(i => i.status !== 'cancelled' && !i.cancelsInvoiceId);
-  
+  // Aktive Rechnungen — Stornierte + Storno-Rechnungen + Drafts aus den Finanz-Summen raus
+  const activeInvoices = filteredInvoices.filter(i => i.status !== 'cancelled' && i.status !== 'draft' && !i.cancelsInvoiceId);
+
   // Berechnung der Gesamtsumme inkl. Mahngebühren pro Rechnung
   const getFullTotal = (inv: Invoice) => inv.total + inv.reminders.reduce((s, r) => s + r.fee, 0);
 
@@ -274,14 +353,16 @@ export function ExportView() {
 
   // Zähler für Header-Cards (basieren auf allen Rechnungen, nicht gefiltert)
   const allInvoices = state.invoices;
-  const overdueInvoices  = allInvoices.filter(i => i.status !== 'cancelled' && !i.cancelsInvoiceId && isOverdue(i));
+  const overdueInvoices  = allInvoices.filter(i => i.status !== 'cancelled' && i.status !== 'draft' && !i.cancelsInvoiceId && isOverdue(i));
   // Mahnungen nur für aktive, unbezahlte Rechnungen
   const dunningInvoices  = allInvoices.filter(i =>
-    i.reminders.length > 0 && i.status !== 'cancelled' && !i.cancelsInvoiceId && !i.paid
+    i.reminders.length > 0 && i.status !== 'cancelled' && i.status !== 'draft' && !i.cancelsInvoiceId && !i.paid
   );
   const dunningFees      = dunningInvoices.reduce((s, i) => s + i.reminders.reduce((rs, r) => rs + r.fee, 0), 0);
   const cancelledCount   = allInvoices.filter(i => i.status === 'cancelled').length;
   const cancelledVolume  = allInvoices.filter(i => i.status === 'cancelled').reduce((s, i) => s + i.total, 0);
+  const draftInvoices    = allInvoices.filter(i => i.status === 'draft');
+  const recurringDraftCount = draftInvoices.filter(i => !!i.recurringId).length;
   const paidCount = activeInvoices.filter(i => i.paid).length;
   const openCount = activeInvoices.filter(i => !i.paid).length;
 
@@ -343,8 +424,8 @@ export function ExportView() {
         </div>
       </div>
 
-      {/* Sekundär-Stats: Mahnungen + Stornierungen */}
-      <div className="mb-8 grid grid-cols-2 gap-3">
+      {/* Sekundär-Stats: Mahnungen + Stornierungen + Entwürfe */}
+      <div className="mb-4 grid grid-cols-3 gap-3">
         <div
           onClick={() => setFilterStatus(filterStatus === 'dunning' ? 'all' : 'dunning')}
           className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
@@ -362,7 +443,7 @@ export function ExportView() {
           </div>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="font-display text-xl font-bold tabular-nums text-red-400">{dunningInvoices.length}</span>
-            <span className="text-[11px] text-muted">{dunningInvoices.length === 1 ? 'Rechnung in Mahnung' : 'Rechnungen in Mahnung'}</span>
+            <span className="text-[11px] text-muted">{dunningInvoices.length === 1 ? 'in Mahnung' : 'in Mahnung'}</span>
           </div>
         </div>
 
@@ -378,15 +459,56 @@ export function ExportView() {
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Stornierungen</span>
             </div>
             <span className="text-[10px] tabular-nums text-muted">
-              {cancelledVolume > 0 ? `Volumen ${cancelledVolume.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}` : ''}
+              {cancelledVolume > 0 ? `${cancelledVolume.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}` : ''}
             </span>
           </div>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="font-display text-xl font-bold tabular-nums text-zinc-400">{cancelledCount}</span>
-            <span className="text-[11px] text-muted">{cancelledCount === 1 ? 'Rechnung storniert' : 'Rechnungen storniert'}</span>
+            <span className="text-[11px] text-muted">{cancelledCount === 1 ? 'storniert' : 'storniert'}</span>
+          </div>
+        </div>
+
+        <div
+          onClick={() => setFilterStatus(filterStatus === 'draft' ? 'all' : 'draft')}
+          className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
+            filterStatus === 'draft' ? 'border-amber-500 bg-amber-500/5 shadow-lg shadow-amber-500/10' : 'border-divider bg-surface'
+          }`}
+          title="Entwürfe sind nicht in den Umsatz-Statistiken enthalten"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Edit2 size={14} className="text-amber-300" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Entwürfe</span>
+            </div>
+            <span className="text-[10px] tabular-nums text-muted">
+              {recurringDraftCount > 0 ? `${recurringDraftCount}× Recurring` : ''}
+            </span>
+          </div>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="font-display text-xl font-bold tabular-nums text-amber-300">{draftInvoices.length}</span>
+            <span className="text-[11px] text-muted">{draftInvoices.length === 1 ? 'offen' : 'offen'}</span>
           </div>
         </div>
       </div>
+
+      {/* Recurring-Banner — fällige automatische Drafts */}
+      {recurringDraftCount > 0 && filterStatus !== 'draft' && (
+        <div className="mb-6 flex items-center gap-3 rounded-lg border border-blue-500/40 bg-blue-500/5 px-4 py-2.5">
+          <Repeat size={15} className="flex-shrink-0 text-blue-300" />
+          <div className="flex-1 text-[12px] text-blue-100">
+            <span className="font-bold">{recurringDraftCount}</span>{' '}
+            {recurringDraftCount === 1 ? 'wiederkehrende Rechnung wartet' : 'wiederkehrende Rechnungen warten'} als Entwurf — bitte prüfen und finalisieren.
+          </div>
+          <button
+            onClick={() => setFilterStatus('draft')}
+            className="cursor-pointer rounded-md bg-blue-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-100 transition-colors hover:bg-blue-500/40"
+          >
+            Anzeigen
+          </button>
+        </div>
+      )}
+
+      <div className="mb-2" />
 
       {/* Toolbar */}
       <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -467,7 +589,7 @@ export function ExportView() {
             <Check size={12} className={selectedIds.length === filteredInvoices.length ? 'text-green-500' : ''} />
             {selectedIds.length === filteredInvoices.length ? 'Alle abwählen' : 'Alle auswählen'}
           </button>
-          
+
           {selectedIds.length > 0 && (
             <>
               <div className="h-3 w-px bg-divider mx-1" />
@@ -477,10 +599,22 @@ export function ExportView() {
               >
                 <Ban size={12} /> Auswahl aufheben
               </button>
+              {filterStatus === 'draft' && (
+                <>
+                  <div className="h-3 w-px bg-divider mx-1" />
+                  <button
+                    onClick={finalizeSelectedDrafts}
+                    disabled={isFinalizing}
+                    className="flex items-center gap-1.5 rounded-md bg-amber-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-200 transition-colors hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Wand2 size={12} /> {isFinalizing ? 'Finalisiere…' : `Entwürfe finalisieren (${selectedIds.length})`}
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>
-        
+
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-muted/40">
             {selectedIds.length} von {filteredInvoices.length} markiert
@@ -505,13 +639,27 @@ export function ExportView() {
             const isSelected = selectedIds.includes(String(inv.id));
             const totalFees = inv.reminders.reduce((sum, r) => sum + r.fee, 0);
             const displayTotal = inv.total + totalFees;
+            const isDraft = inv.status === 'draft';
 
             return (
               <div
                 key={inv.id}
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, invoiceId: inv.id }); }}
-                onClick={() => setSelectedIds(prev => prev.includes(String(inv.id)) ? prev.filter(id => id !== String(inv.id)) : [...prev, String(inv.id)])}
-                className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border p-5 transition-all hover:shadow-2xl hover:shadow-black/20 cursor-pointer ${isSelected ? 'border-ink bg-ink/[0.03]' : 'border-divider bg-surface hover:border-accent/40'}`}
+                onClick={(e) => {
+                  if (isDraft && !e.shiftKey) {
+                    // Linksklick auf Draft → Edit-Mode; Shift+Click bleibt Selection-Toggle
+                    setEditingDraftId(inv.id);
+                    setCreateOpen(true);
+                  } else {
+                    setSelectedIds(prev => prev.includes(String(inv.id)) ? prev.filter(id => id !== String(inv.id)) : [...prev, String(inv.id)]);
+                  }
+                }}
+                className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border p-5 transition-all hover:shadow-2xl hover:shadow-black/20 cursor-pointer ${
+                  isSelected ? 'border-ink bg-ink/[0.03]'
+                  : isDraft ? 'border-amber-500/30 bg-amber-500/[0.02] hover:border-amber-400/60'
+                  : 'border-divider bg-surface hover:border-accent/40'
+                }`}
+                title={isDraft ? 'Klick zum Bearbeiten · Shift+Klick zum Auswählen' : undefined}
               >
                 {/* Accent line */}
                 <div className="absolute left-0 top-0 h-full w-1 transition-all group-hover:w-1.5" style={{ background: customer?.color || '#525252' }} />
@@ -519,7 +667,17 @@ export function ExportView() {
                 <div className="mb-4 flex items-start justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`font-display text-lg font-bold tabular-nums ${inv.status === 'cancelled' ? 'text-muted line-through' : 'text-ink'}`}>{inv.number}</span>
+                      <span className={`font-display text-lg font-bold tabular-nums ${inv.status === 'cancelled' ? 'text-muted line-through' : isDraft ? 'text-amber-100' : 'text-ink'}`}>{inv.number}</span>
+                      {isDraft && (
+                        <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
+                          <Edit2 size={9} /> Entwurf
+                        </span>
+                      )}
+                      {inv.recurringId && (
+                        <span className="flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-blue-300" title="Aus wiederkehrender Rechnung erzeugt">
+                          <Repeat size={9} />
+                        </span>
+                      )}
                       {inv.reminders.length > 0 && (
                         <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-400">
                           <AlertTriangle size={10} /> M{inv.reminders.reduce((m, r) => Math.max(m, r.level), 0)}
@@ -528,19 +686,26 @@ export function ExportView() {
                     </div>
                     <div className="mt-1 truncate text-[11px] font-medium text-muted">{customer?.name}</div>
                   </div>
-                  
-                  {/* Interactive Status Chip */}
-                  <div 
-                    onClick={(e) => { e.stopPropagation(); togglePaid(inv.id); }}
-                    className={`flex h-6 items-center gap-1.5 rounded-full px-2.5 transition-all hover:scale-105 active:scale-95 ${
-                      inv.paid 
-                        ? 'bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-paper' 
-                        : 'bg-divider text-muted hover:bg-ink hover:text-paper'
-                    }`}
-                  >
-                    <Check size={10} strokeWidth={3} />
-                    <span className="text-[9px] font-black uppercase tracking-wider">{inv.paid ? 'Bezahlt' : 'Offen'}</span>
-                  </div>
+
+                  {/* Interactive Status Chip — bei Drafts deaktiviert */}
+                  {!isDraft ? (
+                    <div
+                      onClick={(e) => { e.stopPropagation(); togglePaid(inv.id); }}
+                      className={`flex h-6 items-center gap-1.5 rounded-full px-2.5 transition-all hover:scale-105 active:scale-95 ${
+                        inv.paid
+                          ? 'bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-paper'
+                          : 'bg-divider text-muted hover:bg-ink hover:text-paper'
+                      }`}
+                    >
+                      <Check size={10} strokeWidth={3} />
+                      <span className="text-[9px] font-black uppercase tracking-wider">{inv.paid ? 'Bezahlt' : 'Offen'}</span>
+                    </div>
+                  ) : (
+                    <div className="flex h-6 items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 text-amber-200">
+                      <Edit2 size={10} />
+                      <span className="text-[9px] font-black uppercase tracking-wider">Klick zum Bearbeiten</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-end justify-between">
@@ -582,8 +747,13 @@ export function ExportView() {
         issuer={state.issuer}
         nextCounter={state.nextInvoiceCounter}
         invoicePrefix={state.invoicePrefix ?? 'YYYY-'}
+        templates={state.invoiceTemplates}
+        editingDraft={editingDraft}
         onSave={handleCreate}
-        onCancel={() => setCreateOpen(false)}
+        onSaveDraft={handleSaveDraft}
+        onCreateTemplate={handleCreateTemplate}
+        onCreateRecurring={handleCreateRecurring}
+        onCancel={() => { setCreateOpen(false); setEditingDraftId(null); }}
       />
 
       <ContextMenu
@@ -593,8 +763,19 @@ export function ExportView() {
           const inv = state.invoices.find(i => i.id === menu.invoiceId);
           const isCancelled = inv?.status === 'cancelled';
           const isStorno    = !!inv?.cancelsInvoiceId;
-          const overdue = inv && !isCancelled && !isStorno && isOverdue(inv);
+          const isDraft     = inv?.status === 'draft';
+          const overdue = inv && !isCancelled && !isStorno && !isDraft && isOverdue(inv);
           const hasReminders = (inv?.reminders.length ?? 0) > 0;
+
+          // Drafts: eigenes, schlankes Menü — kein PDF (gibt es noch nicht), keine Stornierung
+          if (isDraft) {
+            return [
+              { label: 'Bearbeiten', icon: <Edit2 size={13} />, onClick: () => { setEditingDraftId(menu.invoiceId); setCreateOpen(true); } },
+              { type: 'separator' },
+              { label: 'Entwurf verwerfen', icon: <Trash2 size={13} />, danger: true, onClick: () => setDeletingId(menu.invoiceId) },
+            ];
+          }
+
           const items: any[] = [
             { label: 'Rechnung (PDF)',     icon: <Download size={13} />, onClick: () => redownload(menu.invoiceId) },
             { label: 'Tätigkeitsbericht',  icon: <ClipboardList size={13} />, onClick: () => downloadReport(menu.invoiceId) },

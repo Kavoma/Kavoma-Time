@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { AppState } from '../types';
 import { runTimerCommand, TimerCommand } from '../utils/timerActions';
+import { evaluateRecurringInvoices } from '../utils/recurring';
 
 const STORAGE_KEY = 'kavoma_time';
 
@@ -48,6 +49,10 @@ const SEED_STATE: AppState = {
   contracts: [],
   nextVendorInvoiceId: 1,
   nextContractId: 1,
+  invoiceTemplates: [],
+  recurringInvoices: [],
+  nextTemplateId: 1,
+  nextRecurringId: 1,
 };
 
 interface ContextValue {
@@ -89,14 +94,32 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
   if (!Array.isArray(migrated.attachments)) migrated.attachments = [];
   if (!Array.isArray(migrated.vendorInvoices)) migrated.vendorInvoices = [];
   if (!Array.isArray(migrated.contracts)) migrated.contracts = [];
-  if (typeof migrated.nextVendorInvoiceId !== 'number') {
-    migrated.nextVendorInvoiceId =
-      (migrated.vendorInvoices.reduce((m: number, v: any) => Math.max(m, Number(v.id) || 0), 0) || 0) + 1;
+  if (!Number.isFinite(migrated.nextVendorInvoiceId)) {
+    const maxId = migrated.vendorInvoices.reduce((m: number, v: any) => Math.max(m, Number(v.id) || 0), 0);
+    migrated.nextVendorInvoiceId = Math.max(1, maxId + 1);
   }
-  if (typeof migrated.nextContractId !== 'number') {
-    migrated.nextContractId =
-      (migrated.contracts.reduce((m: number, c: any) => Math.max(m, Number(c.id) || 0), 0) || 0) + 1;
+  if (!Number.isFinite(migrated.nextContractId)) {
+    const maxId = migrated.contracts.reduce((m: number, c: any) => Math.max(m, Number(c.id) || 0), 0);
+    migrated.nextContractId = Math.max(1, maxId + 1);
   }
+
+  // Phase 1.5 — Rechnungs-Vorlagen + Wiederkehrende Rechnungen
+  if (!Array.isArray(migrated.invoiceTemplates)) migrated.invoiceTemplates = [];
+  if (!Array.isArray(migrated.recurringInvoices)) migrated.recurringInvoices = [];
+  if (typeof migrated.nextTemplateId !== 'number') migrated.nextTemplateId = 1;
+  if (typeof migrated.nextRecurringId !== 'number') migrated.nextRecurringId = 1;
+
+  // InvoiceItem.kind aus 'unit' ableiten für alte Daten (nicht-destruktiv,
+  // wird nur als Default gesetzt, falls fehlend — Backups bleiben gültig)
+  migrated.invoices?.forEach((inv: any) => {
+    if (Array.isArray(inv.items)) {
+      inv.items.forEach((it: any) => {
+        if (!it.kind) {
+          it.kind = it.unit === 'h' ? 'time' : 'flat';
+        }
+      });
+    }
+  });
 
   // Migration: Strukturierte Adressen
   if (migrated.issuer && (migrated.issuer as any).address && !migrated.issuer.street) {
@@ -165,7 +188,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       }
 
       if (data) {
-        setState(migrateData(data, { recoverRunningTimer: !isTimerOverlay }));
+        let migrated = migrateData(data, { recoverRunningTimer: !isTimerOverlay });
+        // Phase 1.5: Beim Start fällige wiederkehrende Rechnungen als Drafts
+        // materialisieren. Pure Function, keine Side-Effects.
+        if (!isTimerOverlay) {
+          const evalResult = evaluateRecurringInvoices(Date.now(), migrated);
+          if (evalResult.generatedCount > 0) {
+            migrated = evalResult.state;
+          }
+        }
+        setState(migrated);
       } else {
         setState(SEED_STATE);
       }
