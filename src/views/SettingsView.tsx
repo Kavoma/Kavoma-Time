@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload, Info, Monitor, RefreshCw, Power, Trash2 } from 'lucide-react';
+import { Settings, Keyboard, Clock, FileText, CheckCircle2, AlertCircle, Database, Download, Upload, Info, Monitor, RefreshCw, Power, Trash2, Bookmark, ChevronRight } from 'lucide-react';
 import { ConfirmRestoreModal } from '../components/ConfirmRestoreModal';
 import { ConfirmWipeModal } from '../components/ConfirmWipeModal';
 import { LegalModal, type LegalDocument } from '../components/LegalModal';
+import { TemplateManagementModal } from '../components/TemplateManagementModal';
 import { useAppState } from '../state/AppStateContext';
 import { NumberInput } from '../components/NumberInput';
 import { Issuer, UpdateStatus } from '../types';
@@ -74,9 +75,24 @@ export function SettingsView() {
   const [appInfo, setAppInfo] = useState<{ os: string; arch: string; version: string } | null>(null);
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState<boolean>(true);
+  const [templateModalOpen, setTemplateModalOpen] = useState(false);
 
   const buttonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Template + Recurring Management
+  const handleDeleteTemplate = (id: string) => {
+    setState(s => s ? { ...s, invoiceTemplates: s.invoiceTemplates.filter(t => t.id !== id) } : null);
+  };
+  const handleDeleteRecurring = (id: string) => {
+    setState(s => s ? { ...s, recurringInvoices: s.recurringInvoices.filter(r => r.id !== id) } : null);
+  };
+  const handleToggleRecurring = (id: string) => {
+    setState(s => s ? {
+      ...s,
+      recurringInvoices: s.recurringInvoices.map(r => r.id === id ? { ...r, active: !r.active } : r),
+    } : null);
+  };
 
   const exportPortableJson = () => {
     if (!state) return;
@@ -181,10 +197,14 @@ export function SettingsView() {
   const [localIssuer, setLocalIssuer] = useState<Issuer | null>(null);
 
   useEffect(() => {
-    window.api?.getAppInfo().then(setAppInfo);
-    window.api?.getUpdateStatus?.().then(setUpdateStatus);
-    window.api?.getAutoUpdateEnabled?.().then(setAutoUpdateEnabled);
-    return window.api?.onUpdateStatus?.(setUpdateStatus);
+    const appInfoP = window.api?.getAppInfo?.();
+    if (appInfoP?.then) appInfoP.then(setAppInfo).catch(() => undefined);
+    const updateStatusP = window.api?.getUpdateStatus?.();
+    if (updateStatusP?.then) updateStatusP.then(setUpdateStatus).catch(() => undefined);
+    const autoUpdateP = window.api?.getAutoUpdateEnabled?.();
+    if (autoUpdateP?.then) autoUpdateP.then(setAutoUpdateEnabled).catch(() => undefined);
+    const unsub = window.api?.onUpdateStatus?.(setUpdateStatus);
+    return typeof unsub === 'function' ? unsub : undefined;
   }, []);
 
   const toggleAutoUpdate = async (next: boolean) => {
@@ -479,6 +499,30 @@ export function SettingsView() {
         </div>
       </div>
 
+      {/* Rechnungs-Vorlagen verwalten */}
+      <div className="mb-6 rounded-lg border border-divider bg-surface">
+        <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
+          <Bookmark size={14} className="text-muted" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Rechnungs-Vorlagen</span>
+        </div>
+        <button
+          onClick={() => setTemplateModalOpen(true)}
+          className="flex w-full cursor-pointer items-center justify-between px-4 py-3 text-left transition-colors hover:bg-paper/40"
+        >
+          <div>
+            <div className="text-sm font-bold">Vorlagen &amp; wiederkehrende Rechnungen</div>
+            <div className="mt-0.5 text-[11px] text-muted">
+              {state.invoiceTemplates.length} Vorlage{state.invoiceTemplates.length === 1 ? '' : 'n'}
+              {' · '}
+              {state.recurringInvoices.length} wiederkehrend
+              {' · '}
+              {state.recurringInvoices.filter(r => r.active).length} aktiv
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-muted" />
+        </button>
+      </div>
+
       {/* Issuer-Daten für Rechnungen */}
       <div className="mb-6 rounded-lg border border-divider bg-surface">
         <div className="border-b border-divider px-4 py-3 flex items-center gap-2">
@@ -654,8 +698,13 @@ export function SettingsView() {
         open={isWipeModalOpen}
         onCancel={() => setIsWipeModalOpen(false)}
         onConfirm={async () => {
+          if (typeof window.api?.wipeAllData !== 'function') {
+            setIsWipeModalOpen(false);
+            alert('Datenlöschung nicht verfügbar (kein Electron-Kontext). Bitte App manuell deinstallieren.');
+            return;
+          }
           try {
-            await window.api?.wipeAllData?.();
+            await window.api.wipeAllData();
           } catch (e) {
             console.error(e);
             alert('Daten konnten nicht vollständig gelöscht werden. Bitte App manuell deinstallieren oder den AppData-Ordner entfernen.');
@@ -736,6 +785,17 @@ export function SettingsView() {
           </div>
         </div>
       </div>
+
+      <TemplateManagementModal
+        open={templateModalOpen}
+        templates={state.invoiceTemplates}
+        recurrings={state.recurringInvoices}
+        customers={state.customers}
+        onDelete={handleDeleteTemplate}
+        onDeleteRecurring={handleDeleteRecurring}
+        onToggleRecurring={handleToggleRecurring}
+        onClose={() => setTemplateModalOpen(false)}
+      />
     </>
   );
 }

@@ -283,6 +283,27 @@ Diese Vereinbarung gilt bis auf Widerruf.
   return doc.output('blob');
 }
 
+/**
+ * Phase 1.5 — Live-Preview im InvoiceCreateModal.
+ * Verwendet die identische Build-Pipeline wie der finale Download,
+ * gibt aber statt einem Blob eine data:application/pdf;base64-URL zurück.
+ * So ist garantiert, dass Preview und Final-PDF nicht auseinanderlaufen.
+ */
+export function renderInvoicePreviewDataUrl(
+  invoice: Invoice,
+  issuer: Issuer,
+  customer: Customer,
+  entries?: any[],
+): string {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  renderInvoiceOnDoc(doc, invoice, issuer, customer);
+  if (entries && entries.length > 0) {
+    doc.addPage();
+    renderServiceReportOnDoc(doc, invoice, issuer, customer, entries);
+  }
+  return doc.output('dataurlstring');
+}
+
 export function downloadInvoicePdf(invoice: Invoice, issuer: Issuer, customer: Customer, entries?: any[]) {
   const blob = generateInvoicePdf(invoice, issuer, customer, entries);
   saveAs(blob, `Rechnung-${invoice.number}-${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);

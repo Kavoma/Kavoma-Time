@@ -50,13 +50,20 @@ export interface Issuer {
   vatRate: number;        // % — 0 falls Kleinunternehmer
 }
 
+export type InvoiceItemKind = 'time' | 'flat' | 'discount';
+
 export interface InvoiceItem {
   description: string;
-  quantity: number;       // Stunden oder 1 bei Pauschal
-  unit: string;           // "h" | "Pauschal"
+  quantity: number;       // Stunden, 1 bei Pauschal, Prozent bei Rabatt
+  unit: string;           // "h" | "Pauschal" | "%" | "€"
   unitPrice: number;      // €
-  total: number;          // €
+  total: number;          // € (bei Rabatt negativ)
+  kind?: InvoiceItemKind; // optional — Migration leitet aus 'unit' ab
 }
+
+export type InvoiceMode = 'hourly' | 'fixed' | 'mixed';
+
+export type InvoiceStatus = 'active' | 'cancelled' | 'draft';
 
 export interface DunningReminder {
   level: 1 | 2 | 3;        // 1. Zahlungserinnerung, 2. Mahnung, 3. letzte Mahnung
@@ -71,7 +78,7 @@ export interface Invoice {
   number: string;
   customerId: number;
   projectId: number | null;    // null = alle Projekte des Kunden
-  mode: 'hourly' | 'fixed';
+  mode: InvoiceMode;
   periodFrom: number;
   periodTo: number;
   createdAt: number;
@@ -86,15 +93,49 @@ export interface Invoice {
   paid: boolean;
   paidAt?: number;
 
-  // === Storno ===
-  status: 'active' | 'cancelled';
+  // === Status (active | cancelled | draft) ===
+  // Drafts sind in Umsatz-Statistiken unsichtbar und können nachträglich
+  // finalisiert (auf 'active' wechseln) oder verworfen werden.
+  status: InvoiceStatus;
   cancelledAt?: number;
   cancellationReason?: string;
-  cancelsInvoiceId?: string;   // wenn diese Rechnung eine Storno-Rechnung ist
+  cancelsInvoiceId?: string;     // wenn diese Rechnung eine Storno-Rechnung ist
   cancelledByInvoiceId?: string; // wenn diese Rechnung storniert wurde, ID der Storno-Rechnung
 
   // === Mahnsystem ===
   reminders: DunningReminder[];
+
+  // === Phase 1.5: Recurring-Herkunft ===
+  // ID der RecurringInvoice-Definition, aus der dieser Draft generiert wurde.
+  // Wird beim Finalisieren beibehalten als Audit-Spur.
+  recurringId?: string;
+}
+
+// === Phase 1.5: Rechnungs-Vorlagen ===
+export interface InvoiceTemplate {
+  id: string;
+  name: string;
+  customerId?: number;     // optionaler Default-Kunde
+  projectId?: number;
+  items: InvoiceItem[];    // freie Positionen mit kind
+  serviceType: string;
+  notes: string;
+  dueDays: number;         // Default 14
+  createdAt: number;
+}
+
+// === Phase 1.5: Wiederkehrende Rechnungen ===
+export type RecurringCadence = 'monthly' | 'quarterly' | 'yearly';
+
+export interface RecurringInvoice {
+  id: string;
+  templateId: string;
+  customerId: number;
+  cadence: RecurringCadence;
+  dayOfPeriod: number;     // 1..28 (Maximum für sicheren Monatstag)
+  nextDueAt: number;
+  lastGeneratedAt?: number;
+  active: boolean;
 }
 
 // === Anhang-System (verschlüsselte PDFs in userData/attachments/) ===
@@ -167,6 +208,12 @@ export interface AppState {
   contracts: Contract[];
   nextVendorInvoiceId?: number;
   nextContractId?: number;
+
+  // === Phase 1.5: Vorlagen + Wiederkehrend ===
+  invoiceTemplates: InvoiceTemplate[];
+  recurringInvoices: RecurringInvoice[];
+  nextTemplateId?: number;
+  nextRecurringId?: number;
 }
 
 declare global {
