@@ -74,7 +74,7 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
   y += 15;
   doc.setFontSize(10);
   doc.setTextColor(0);
-  let introText = '';
+  let introText: string;
   if (latestReminder.level === 1) {
     introText = 'Sicherlich ist es Ihnen entgangen, dass die oben genannte Rechnung noch nicht beglichen wurde. Wir bitten Sie freundlich, den offenen Betrag zeitnah zu überweisen.';
   } else if (latestReminder.level === 2) {
@@ -111,7 +111,7 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
     margin: { left: 20, right: 20 },
   });
 
-  // @ts-expect-error
+  // @ts-expect-error — autotable hängt sich an doc per Plugin
   y = doc.lastAutoTable.finalY + 10;
 
   // === Gesamt ===

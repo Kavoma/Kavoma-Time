@@ -78,14 +78,21 @@ export function ContractUploadModal({ open, customers, onClose, onSave, nextId }
     setBusy(true);
     setError(null);
     try {
+      const signedAtTs = new Date(signedAt).getTime();
+      if (!Number.isFinite(signedAtTs)) {
+        setError('Ungültiges Unterzeichnungs-Datum.');
+        setBusy(false);
+        return;
+      }
+      const validUntilTs = validUntil ? new Date(validUntil).getTime() : NaN;
       const attachment = await uploadPdf(file);
       const contract: Contract = {
         id: nextId,
         customerId,
         attachmentId: attachment.id,
         title: title.trim(),
-        signedAt: new Date(signedAt).getTime(),
-        validUntil: validUntil ? new Date(validUntil).getTime() : undefined,
+        signedAt: signedAtTs,
+        validUntil: Number.isFinite(validUntilTs) ? validUntilTs : undefined,
         note: note.trim() || undefined,
         createdAt: Date.now(),
       };

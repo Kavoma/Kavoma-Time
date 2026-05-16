@@ -44,12 +44,15 @@ export function ConfirmWipeModal({ open, onConfirm, onCancel }: ConfirmWipeModal
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirmWipeTitle"
           >
             <div className="p-6">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/15 text-red-400">
                 <AlertTriangle size={18} />
               </div>
-              <h3 className="mb-1.5 text-sm font-bold uppercase tracking-wide">Alle Daten löschen?</h3>
+              <h3 id="confirmWipeTitle" className="mb-1.5 text-sm font-bold uppercase tracking-wide">Alle Daten löschen?</h3>
               <p className="text-[13px] leading-relaxed text-muted">
                 Diese Aktion entfernt unwiderruflich <strong className="text-ink">alle</strong> in dieser App
                 gespeicherten Daten: Zeiteinträge, Kunden, Projekte, Rechnungen sowie den lokalen Verschlüsselungsschlüssel.

@@ -52,18 +52,18 @@ export function ContractsTab() {
     if (!target) return;
     try {
       await deletePdf(target.attachmentId);
+      setState((s) => {
+        if (!s) return s;
+        return {
+          ...s,
+          contracts: s.contracts.filter((c) => c.id !== id),
+          attachments: s.attachments.filter((a) => a.id !== target.attachmentId),
+        };
+      });
+      setViewerId(null);
     } catch (e) {
-      console.error('Konnte Anhang nicht löschen:', e);
+      console.error('Konnte Anhang nicht löschen — State unverändert:', e);
     }
-    setState((s) => {
-      if (!s) return s;
-      return {
-        ...s,
-        contracts: s.contracts.filter((c) => c.id !== id),
-        attachments: s.attachments.filter((a) => a.id !== target.attachmentId),
-      };
-    });
-    setViewerId(null);
   };
 
   return (

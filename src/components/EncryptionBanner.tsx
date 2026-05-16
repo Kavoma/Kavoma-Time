@@ -5,7 +5,12 @@ export function EncryptionBanner() {
   const [encryptionActive, setEncryptionActive] = useState<boolean | null>(null);
 
   useEffect(() => {
-    window.api?.getEncryptionStatus?.()
+    const fn = window.api?.getEncryptionStatus;
+    if (typeof fn !== 'function') {
+      setEncryptionActive(true);
+      return;
+    }
+    fn()
       .then((status) => setEncryptionActive(Boolean(status?.active)))
       .catch(() => setEncryptionActive(true));
   }, []);

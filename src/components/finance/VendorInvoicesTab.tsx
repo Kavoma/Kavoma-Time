@@ -81,18 +81,18 @@ export function VendorInvoicesTab() {
     if (!target) return;
     try {
       await deletePdf(target.attachmentId);
+      setState((s) => {
+        if (!s) return s;
+        return {
+          ...s,
+          vendorInvoices: s.vendorInvoices.filter((v) => v.id !== id),
+          attachments: s.attachments.filter((a) => a.id !== target.attachmentId),
+        };
+      });
+      setViewerId(null);
     } catch (e) {
-      console.error('Konnte Anhang nicht löschen:', e);
+      console.error('Konnte Anhang nicht löschen — State unverändert:', e);
     }
-    setState((s) => {
-      if (!s) return s;
-      return {
-        ...s,
-        vendorInvoices: s.vendorInvoices.filter((v) => v.id !== id),
-        attachments: s.attachments.filter((a) => a.id !== target.attachmentId),
-      };
-    });
-    setViewerId(null);
   };
 
   const exportCsv = () => {
@@ -217,7 +217,16 @@ export function VendorInvoicesTab() {
                   <tr
                     key={v.id}
                     onClick={() => setViewerId(v.id)}
-                    className="cursor-pointer border-t border-divider bg-paper/40 text-sm transition-colors hover:bg-surface"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setViewerId(v.id);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`Beleg ${v.vendorName} anzeigen`}
+                    className="cursor-pointer border-t border-divider bg-paper/40 text-sm transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/60"
                   >
                     <td className="px-4 py-3 tabular-nums text-muted">{formatDate(v.invoiceDate)}</td>
                     <td className="px-4 py-3">
