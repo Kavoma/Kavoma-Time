@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Plus, FileSignature, Search } from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
 import { Attachment, Contract } from '../../types';
@@ -6,16 +6,30 @@ import { ContractUploadModal } from './ContractUploadModal';
 import { PdfViewerModal } from './PdfViewerModal';
 import { deletePdf, formatFileSize } from '../../utils/attachments';
 
+interface Props {
+  initialCustomerFilter?: number;
+  onInitialFilterConsumed?: () => void;
+}
+
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString('de-DE');
 }
 
-export function ContractsTab() {
+export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }: Props = {}) {
   const { state, setState } = useAppState();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [viewerId, setViewerId] = useState<number | null>(null);
-  const [customerFilter, setCustomerFilter] = useState<number>(0);
+  const [customerFilter, setCustomerFilter] = useState<number>(initialCustomerFilter ?? 0);
   const [search, setSearch] = useState('');
+
+  // Wenn von außen ein Vorfilter reinkommt (z. B. Sprung von der Kunden-Liste),
+  // einmalig übernehmen und consumeren.
+  useEffect(() => {
+    if (typeof initialCustomerFilter === 'number') {
+      setCustomerFilter(initialCustomerFilter);
+      onInitialFilterConsumed?.();
+    }
+  }, [initialCustomerFilter, onInitialFilterConsumed]);
 
   const contracts = state?.contracts ?? [];
   const attachments = state?.attachments ?? [];

@@ -6,7 +6,7 @@ import { CustomersView } from './views/CustomersView';
 import { ProjectsView } from './views/ProjectsView';
 import { SettingsView } from './views/SettingsView';
 import { StatisticsView } from './views/StatisticsView';
-import { FinanceView } from './views/FinanceView';
+import { FinanceView, type FinanceNavIntent } from './views/FinanceView';
 import { useAppState } from './state/AppStateContext';
 import { Tooltip } from './components/Tooltip';
 import { TitleBar } from './components/TitleBar';
@@ -14,16 +14,14 @@ import { EncryptionBanner } from './components/EncryptionBanner';
 import { OnboardingModal } from './components/OnboardingModal';
 import { LegalModal } from './components/LegalModal';
 
-function renderView(id: string) {
-  switch (id) {
-    case 'tracker': return <TrackerView />;
-    case 'customers': return <CustomersView />;
-    case 'projects': return <ProjectsView />;
-    case 'statistics': return <StatisticsView />;
-    case 'finance': return <FinanceView />;
-    case 'settings': return <SettingsView />;
-    default: return null;
-  }
+export type ViewKey = 'tracker' | 'customers' | 'projects' | 'statistics' | 'finance' | 'settings';
+
+// Ephemere Navigations-Absicht für Cross-View-Sprünge (z. B. Vertrags-Chip
+// in der Kundenliste → Finanzen-Tab → Verträge mit Kundenfilter).
+// Bewusst NICHT im AppState, weil sie nicht persistiert werden darf.
+export interface NavIntent {
+  view: ViewKey;
+  finance?: FinanceNavIntent;
 }
 
 // Montag dieser Woche (00:00)
@@ -42,12 +40,20 @@ function formatHM(seconds: number) {
 }
 
 export function App() {
-  const [activeView, setActiveView] = useState('tracker');
+  const [activeView, setActiveView] = useState<ViewKey>('tracker');
+  const [navIntent, setNavIntent] = useState<NavIntent | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     return localStorage.getItem('sidebar-collapsed') === 'true';
   });
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+
+  // Sidebar / Hotkey-Navigation cleart immer den Intent, damit alte
+  // Cross-View-Filter nicht versehentlich wieder triggern.
+  const navigateTo = (view: ViewKey, intent?: NavIntent) => {
+    setActiveView(view);
+    setNavIntent(intent ?? null);
+  };
 
   useEffect(() => {
     localStorage.setItem('sidebar-collapsed', String(isSidebarCollapsed));
@@ -69,13 +75,13 @@ export function App() {
 
   // Keyboard shortcuts: Ctrl+1 to Ctrl+6 for view navigation
   useEffect(() => {
-    const viewIds = ['tracker', 'projects', 'customers', 'statistics', 'finance', 'settings'];
+    const viewIds: ViewKey[] = ['tracker', 'projects', 'customers', 'statistics', 'finance', 'settings'];
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
         const num = parseInt(e.key);
         if (num >= 1 && num <= 6) {
           e.preventDefault();
-          setActiveView(viewIds[num - 1]);
+          navigateTo(viewIds[num - 1]);
         }
       }
     };
@@ -85,7 +91,7 @@ export function App() {
 
   const { state, isRestoring, restoreNonce } = useAppState();
 
-  const navItems = [
+  const navItems: { id: ViewKey; label: string; icon: typeof Clock }[] = [
     { id: 'tracker', label: 'Tracker', icon: Clock },
     { id: 'projects', label: 'Projekte', icon: FolderKanban },
     { id: 'customers', label: 'Kunden', icon: Users },
@@ -149,7 +155,7 @@ export function App() {
               return (
                 <Tooltip key={item.id} content={isSidebarCollapsed ? item.label : ''} position="right">
                   <button
-                    onClick={() => setActiveView(item.id)}
+                    onClick={() => navigateTo(item.id)}
                     tabIndex={0}
                     className={`group relative flex cursor-pointer items-center rounded-md px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-all duration-300 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3'} ${isActive ? 'bg-surface text-ink' : 'text-muted hover:bg-surface hover:text-ink'
                       }`}
@@ -254,14 +260,17 @@ export function App() {
                 transition={{ duration: 0.2 }}
                 className="view-section block"
               >
-                {renderView(activeView) || (
-                  <>
-                    <h2 className="mb-8 text-xl font-bold uppercase tracking-tight leading-none">
-                      {navItems.find(i => i.id === activeView)?.label}
-                    </h2>
-                    <div className="text-sm text-muted">Hier entsteht bald diese Ansicht.</div>
-                  </>
+                {activeView === 'tracker' && <TrackerView />}
+                {activeView === 'customers' && <CustomersView navigateTo={navigateTo} />}
+                {activeView === 'projects' && <ProjectsView />}
+                {activeView === 'statistics' && <StatisticsView />}
+                {activeView === 'finance' && (
+                  <FinanceView
+                    intent={navIntent?.view === 'finance' ? navIntent.finance ?? null : null}
+                    onIntentConsumed={() => setNavIntent(null)}
+                  />
                 )}
+                {activeView === 'settings' && <SettingsView />}
               </motion.div>
             </AnimatePresence>
           </div>
