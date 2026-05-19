@@ -61,7 +61,17 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
   };
 
   const removeItem = (index: number) => {
-    onChange(items.filter((_, i) => i !== index));
+    const filtered = items.filter((_, i) => i !== index);
+    // Prozent-Rabatte beziehen sich auf die Subtotal der nicht-Rabatt-Items;
+    // nach dem Entfernen muss diese Basis und damit jeder %-Rabatt neu berechnet
+    // werden, sonst bleibt sein total auf der alten Basis stehen.
+    const baseSubtotal = filtered
+      .filter((it) => it.kind !== 'discount')
+      .reduce((s, it) => s + it.total, 0);
+    const finalItems = filtered.map((it) =>
+      it.kind === 'discount' ? { ...it, total: recalcItemTotal(it, baseSubtotal) } : it,
+    );
+    onChange(finalItems);
   };
 
   const moveItem = (index: number, direction: -1 | 1) => {

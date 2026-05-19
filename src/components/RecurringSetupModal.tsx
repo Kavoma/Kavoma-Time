@@ -54,7 +54,10 @@ export function RecurringSetupModal({ open, onConfirm, onCancel }: Props) {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={onCancel}
+                aria-label="Schließen"
+                title="Schließen"
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-divider hover:text-ink"
               >
                 <X size={15} />

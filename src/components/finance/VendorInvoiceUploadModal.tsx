@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, FileText, AlertTriangle } from 'lucide-react';
 import { Attachment, VendorInvoice, VendorInvoiceCategory } from '../../types';
 import { uploadPdf, formatFileSize } from '../../utils/attachments';
+import { DatePicker } from '../DatePicker';
 
 interface Props {
   open: boolean;
@@ -24,8 +25,9 @@ function todayInput() {
   return new Date().toISOString().split('T')[0];
 }
 
-// "1.234,56" → 1234.56; "1234,56" → 1234.56; "12.50" → 12.5
-// Punkt wird als Tausendertrenner behandelt, Komma als Dezimaltrenner (de-DE).
+// de-DE-Format: Punkt = Tausendertrenner, Komma = Dezimaltrenner.
+// Beispiele: "1.234,56" → 1234.56; "1234,56" → 1234.56; "12.50" → 1250
+// (en-US "12.50" wird hier bewusst NICHT als 12.5 interpretiert — die App ist DE.)
 function parseCurrency(input: string): number {
   const normalized = input.trim().replace(/\./g, '').replace(',', '.');
   const value = parseFloat(normalized);
@@ -236,10 +238,7 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave, nextId }: Prop
                   <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Beleg-Nr.</label>
                   <input type="text" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="optional" />
                 </div>
-                <div className="flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Beleg-Datum *</label>
-                  <input type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} />
-                </div>
+                <DatePicker label="Beleg-Datum *" value={invoiceDate} onChange={setInvoiceDate} />
                 <div className="flex flex-col">
                   <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Brutto (€) *</label>
                   <input

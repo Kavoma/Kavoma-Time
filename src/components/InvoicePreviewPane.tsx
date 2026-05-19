@@ -32,7 +32,9 @@ export function InvoicePreviewPane({ invoice, issuer, customer, entries, debounc
     }
     setIsRendering(true);
     try {
-      const url = renderInvoicePreviewDataUrl(invoice, issuer, customer, entries);
+      const rawUrl = renderInvoicePreviewDataUrl(invoice, issuer, customer, entries);
+      // Native Chrome-PDF-Toolbar/Sidebar ausblenden, auf Breite anpassen — füllt die Pane besser aus.
+      const url = `${rawUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
       setDataUrl(url);
       setError(null);
     } catch (e: any) {
@@ -80,7 +82,7 @@ export function InvoicePreviewPane({ invoice, issuer, customer, entries, debounc
         {!error && dataUrl && (
           <iframe
             src={dataUrl}
-            className="h-full w-full"
+            className="h-full w-full border-0"
             title="Rechnungs-Vorschau"
           />
         )}

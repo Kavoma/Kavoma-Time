@@ -1,8 +1,9 @@
 import { useState, useRef, type DragEvent, type ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, FileSignature, AlertTriangle } from 'lucide-react';
+import { X, Upload, FileSignature, AlertTriangle, XCircle } from 'lucide-react';
 import { Attachment, Contract, Customer } from '../../types';
 import { uploadPdf, formatFileSize } from '../../utils/attachments';
+import { DatePicker } from '../DatePicker';
 
 interface Props {
   open: boolean;
@@ -209,13 +210,22 @@ export function ContractUploadModal({ open, customers, onClose, onSave, nextId }
                   <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Titel *</label>
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="z. B. Rahmenvertrag 2026" />
                 </div>
+                <DatePicker label="Unterzeichnet am *" value={signedAt} onChange={setSignedAt} />
                 <div className="flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Unterzeichnet am *</label>
-                  <input type="date" value={signedAt} onChange={(e) => setSignedAt(e.target.value)} />
-                </div>
-                <div className="flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Gültig bis</label>
-                  <input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Gültig bis</label>
+                    {validUntil && (
+                      <button
+                        type="button"
+                        onClick={() => setValidUntil('')}
+                        className="flex cursor-pointer items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink"
+                        title="Datum löschen"
+                      >
+                        <XCircle size={11} /> Leeren
+                      </button>
+                    )}
+                  </div>
+                  <DatePicker value={validUntil} onChange={setValidUntil} />
                 </div>
                 <div className="col-span-2 flex flex-col">
                   <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Notiz</label>

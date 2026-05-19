@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,20 +17,74 @@ const MONTHS = [
 
 const DAYS_SHORT = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
+// Breite des Popups; Höhe ist variabel, wir kalkulieren konservativ für die Flip-Logik
+const POPUP_WIDTH = 260;
+const POPUP_HEIGHT_ESTIMATE = 320;
+const POPUP_GAP = 8;
+const VIEWPORT_PAD = 8;
+
 export function DatePicker({ value, onChange, label, className = '' }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [popupPos, setPopupPos] = useState<{ top: number; left: number; placement: 'bottom' | 'top' }>({
+    top: 0, left: 0, placement: 'bottom',
+  });
+
   // Internal state for navigating the calendar (independent of selected value)
   const [viewDate, setViewDate] = useState(() => {
     if (!value) return new Date();
     const [year, month, day] = value.split('-').map(Number);
     return new Date(year, month - 1, day);
   });
-  
+
+  // Position des Popups anhand des Triggers berechnen; bei wenig Platz unten nach oben flippen
+  const updatePosition = () => {
+    const trigger = triggerRef.current;
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const placement: 'bottom' | 'top' =
+      spaceBelow < POPUP_HEIGHT_ESTIMATE + POPUP_GAP && spaceAbove > spaceBelow ? 'top' : 'bottom';
+
+    // Horizontal innerhalb des Viewports halten
+    let left = rect.left;
+    const maxLeft = window.innerWidth - POPUP_WIDTH - VIEWPORT_PAD;
+    if (left > maxLeft) left = Math.max(VIEWPORT_PAD, maxLeft);
+    if (left < VIEWPORT_PAD) left = VIEWPORT_PAD;
+
+    const top = placement === 'bottom'
+      ? rect.bottom + POPUP_GAP
+      : rect.top - POPUP_GAP - POPUP_HEIGHT_ESTIMATE;
+
+    setPopupPos({ top, left, placement });
+  };
+
+  // Beim Öffnen sofort positionieren (vor dem Paint, damit kein Flackern entsteht)
+  useLayoutEffect(() => {
+    if (isOpen) updatePosition();
+  }, [isOpen]);
+
+  // Während offen: bei Scroll/Resize nachführen
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = () => updatePosition();
+    window.addEventListener('scroll', handler, true);
+    window.addEventListener('resize', handler);
+    return () => {
+      window.removeEventListener('scroll', handler, true);
+      window.removeEventListener('resize', handler);
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const inContainer = containerRef.current?.contains(target);
+      const inPopup = popupRef.current?.contains(target);
+      if (!inContainer && !inPopup) {
         setIsOpen(false);
       }
     };
@@ -121,6 +176,7 @@ export function DatePicker({ value, onChange, label, className = '' }: DatePicke
       
       <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className="flex h-11 w-full items-center justify-between rounded-md border border-divider bg-paper px-3 text-sm font-bold text-ink outline-none transition-colors focus:border-accent"
@@ -131,62 +187,74 @@ export function DatePicker({ value, onChange, label, className = '' }: DatePicke
           <CalendarIcon size={14} className="text-muted" />
         </button>
 
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 4, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.98 }}
-              transition={{ duration: 0.1 }}
-              className="absolute left-0 top-[calc(100%+8px)] z-[100] w-[260px] rounded-lg border border-divider bg-surface p-3 shadow-2xl"
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <button 
-                  type="button" 
-                  onClick={handlePrevMonth}
-                  className="flex h-6 w-6 items-center justify-center rounded-md bg-paper text-muted hover:text-ink border border-divider"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                <div className="text-[11px] font-black uppercase tracking-wider text-ink">
-                  {MONTHS[currentMonth]} {currentYear}
-                </div>
-                <button 
-                  type="button" 
-                  onClick={handleNextMonth}
-                  className="flex h-6 w-6 items-center justify-center rounded-md bg-paper text-muted hover:text-ink border border-divider"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1 mb-1">
-                {DAYS_SHORT.map(d => (
-                  <div key={d} className="flex h-6 w-8 items-center justify-center text-[9px] font-bold uppercase text-muted/60">
-                    {d}
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-7 gap-1">
-                {days}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const today = new Date();
-                  const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-                  onChange(iso);
-                  setIsOpen(false);
+        {/* Popup via Portal an document.body — entkoppelt vom Clipping-Kontext (Section overflow-hidden, Scroll-Container etc.) */}
+        {typeof document !== 'undefined' && createPortal(
+          <AnimatePresence>
+            {isOpen && (
+              <motion.div
+                ref={popupRef}
+                initial={{ opacity: 0, y: popupPos.placement === 'bottom' ? 4 : -4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: popupPos.placement === 'bottom' ? 4 : -4, scale: 0.98 }}
+                transition={{ duration: 0.1 }}
+                style={{
+                  position: 'fixed',
+                  top: popupPos.top,
+                  left: popupPos.left,
+                  width: POPUP_WIDTH,
+                  zIndex: 1000,
                 }}
-                className="mt-3 w-full rounded-md bg-paper py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink border border-divider transition-colors"
+                className="rounded-lg border border-divider bg-surface p-3 shadow-2xl"
               >
-                Heute
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <div className="mb-3 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={handlePrevMonth}
+                    className="flex h-6 w-6 items-center justify-center rounded-md bg-paper text-muted hover:text-ink border border-divider"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <div className="text-[11px] font-black uppercase tracking-wider text-ink">
+                    {MONTHS[currentMonth]} {currentYear}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleNextMonth}
+                    className="flex h-6 w-6 items-center justify-center rounded-md bg-paper text-muted hover:text-ink border border-divider"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 mb-1">
+                  {DAYS_SHORT.map(d => (
+                    <div key={d} className="flex h-6 w-8 items-center justify-center text-[9px] font-bold uppercase text-muted/60">
+                      {d}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-7 gap-1">
+                  {days}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date();
+                    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                    onChange(iso);
+                    setIsOpen(false);
+                  }}
+                  className="mt-3 w-full rounded-md bg-paper py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink border border-divider transition-colors"
+                >
+                  Heute
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body,
+        )}
       </div>
     </div>
   );

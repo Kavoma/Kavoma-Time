@@ -76,9 +76,18 @@ export function TimeEntryPicker({
   };
 
   const rateFor = (entry: TimeEntry): number => {
+    // 0 ist ein gültiger Stundensatz (Pro-Bono / interne Tickets) — deshalb
+    // nicht falsy-Check, sondern auf null/undefined prüfen, damit ein
+    // bewusst auf 0 gesetzter Projekt-Satz nicht fälschlich auf den
+    // Kunden-Satz zurückfällt.
     const project = projects.find((p) => p.id === entry.projectId);
-    if (project?.hourlyRate) return project.hourlyRate;
-    return customer?.hourlyRate ?? 0;
+    if (project?.hourlyRate != null && Number.isFinite(project.hourlyRate)) {
+      return project.hourlyRate;
+    }
+    if (customer?.hourlyRate != null && Number.isFinite(customer.hourlyRate)) {
+      return customer.hourlyRate;
+    }
+    return 0;
   };
 
   const confirm = () => {
