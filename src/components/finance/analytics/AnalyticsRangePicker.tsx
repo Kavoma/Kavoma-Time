@@ -123,11 +123,13 @@ export function AnalyticsRangePicker({ value, onChange, accountingMode, onAccoun
             <DatePicker
               value={value.customFrom}
               onChange={(v) => onChange({ ...value, customFrom: v })}
+              className="w-44"
             />
             <span className="text-[11px] font-bold uppercase tracking-widest text-muted">bis</span>
             <DatePicker
               value={value.customTo}
               onChange={(v) => onChange({ ...value, customTo: v })}
+              className="w-44"
             />
           </div>
         )}
