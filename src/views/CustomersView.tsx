@@ -1,19 +1,33 @@
-import { useState } from 'react';
-import { Trash2, Pencil, Plus, Users, ShieldCheck } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Trash2, Pencil, Plus, Users, ShieldCheck, FileSignature } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
 import { Customer } from '../types';
 import { ContextMenu } from '../components/ContextMenu';
 import { CustomerEditModal } from '../components/CustomerEditModal';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { Tooltip } from '../components/Tooltip';
+import type { NavIntent, ViewKey } from '../App';
 
+interface Props {
+  navigateTo?: (view: ViewKey, intent?: NavIntent) => void;
+}
 
-export function CustomersView() {
+export function CustomersView({ navigateTo }: Props = {}) {
   const { state, setState } = useAppState();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [menu, setMenu]           = useState<{ x: number; y: number; customerId: number } | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Verträge je Kunde zählen — billig, aber wir vermeiden trotzdem Re-Scans
+  // pro Render-Cycle durch eine kleine Map.
+  const contractCountByCustomer = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const c of state?.contracts ?? []) {
+      map.set(c.customerId, (map.get(c.customerId) ?? 0) + 1);
+    }
+    return map;
+  }, [state?.contracts]);
 
   if (!state) return null;
 
@@ -77,7 +91,9 @@ export function CustomersView() {
         <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Alle Kunden</h3>
       </div>
       <ul className="flex flex-col gap-1.5">
-        {state.customers.map(c => (
+        {state.customers.map(c => {
+          const contractCount = contractCountByCustomer.get(c.id) ?? 0;
+          return (
           <li
             key={c.id}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, customerId: c.id }); }}
@@ -94,6 +110,24 @@ export function CustomersView() {
                 </span>
               </Tooltip>
             )}
+            {contractCount > 0 && (
+              <Tooltip content="Zu Verträgen springen">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigateTo?.('finance', {
+                      view: 'finance',
+                      finance: { tab: 'contracts', customerFilter: c.id },
+                    });
+                  }}
+                  className="shrink-0 flex cursor-pointer items-center gap-1 rounded-full border border-divider bg-paper px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-muted transition-colors hover:border-ink hover:text-ink"
+                >
+                  <FileSignature size={11} />
+                  <span className="tabular-nums">{contractCount}</span>
+                </button>
+              </Tooltip>
+            )}
             {c.hourlyRate ? (
               <span className="shrink-0 rounded-full bg-divider px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent tabular-nums">
                 {c.hourlyRate.toLocaleString('de-DE')} €/h
@@ -103,7 +137,8 @@ export function CustomersView() {
               {state.projects.filter(p => p.customerId === c.id).length} Projekte
             </span>
           </li>
-        ))}
+          );
+        })}
         {state.customers.length === 0 && (
           <div className="rounded-md border border-dashed border-divider bg-paper p-10 text-center">
             <Users size={28} className="mx-auto mb-3 text-muted" />

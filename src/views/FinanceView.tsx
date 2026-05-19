@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Receipt, FileSignature, FileText, LineChart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExportView } from './ExportView';
 import { VendorInvoicesTab } from '../components/finance/VendorInvoicesTab';
 import { ContractsTab } from '../components/finance/ContractsTab';
-import { AnalyticsTabPlaceholder } from '../components/finance/AnalyticsTabPlaceholder';
+import { AnalyticsTab } from '../components/finance/AnalyticsTab';
 
-type FinanceTab = 'invoices' | 'vendor' | 'contracts' | 'analytics';
+export type FinanceTab = 'invoices' | 'vendor' | 'contracts' | 'analytics';
 
 const TABS: { id: FinanceTab; label: string; icon: typeof Receipt }[] = [
   { id: 'invoices', label: 'Rechnungen', icon: Receipt },
@@ -15,8 +15,29 @@ const TABS: { id: FinanceTab; label: string; icon: typeof Receipt }[] = [
   { id: 'analytics', label: 'Auswertung', icon: LineChart },
 ];
 
-export function FinanceView() {
+export interface FinanceNavIntent {
+  tab?: FinanceTab;
+  customerFilter?: number;
+}
+
+interface Props {
+  intent?: FinanceNavIntent | null;
+  onIntentConsumed?: () => void;
+}
+
+export function FinanceView({ intent, onIntentConsumed }: Props = {}) {
   const [tab, setTab] = useState<FinanceTab>('invoices');
+  const [pendingCustomerFilter, setPendingCustomerFilter] = useState<number | undefined>(undefined);
+
+  // Intent konsumieren (nur einmal pro Intent-Ref-Wechsel)
+  useEffect(() => {
+    if (!intent) return;
+    if (intent.tab) setTab(intent.tab);
+    if (typeof intent.customerFilter === 'number') {
+      setPendingCustomerFilter(intent.customerFilter);
+    }
+    onIntentConsumed?.();
+  }, [intent, onIntentConsumed]);
 
   return (
     <>
@@ -58,8 +79,13 @@ export function FinanceView() {
         >
           {tab === 'invoices' && <ExportView />}
           {tab === 'vendor' && <VendorInvoicesTab />}
-          {tab === 'contracts' && <ContractsTab />}
-          {tab === 'analytics' && <AnalyticsTabPlaceholder />}
+          {tab === 'contracts' && (
+            <ContractsTab
+              initialCustomerFilter={pendingCustomerFilter}
+              onInitialFilterConsumed={() => setPendingCustomerFilter(undefined)}
+            />
+          )}
+          {tab === 'analytics' && <AnalyticsTab />}
         </motion.div>
       </AnimatePresence>
     </>
