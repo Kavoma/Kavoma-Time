@@ -9,6 +9,7 @@ interface NumberInputProps {
   step?: number;
   className?: string;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export const NumberInput: React.FC<NumberInputProps> = ({
@@ -19,6 +20,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   step = 1,
   className = '',
   placeholder,
+  disabled = false,
 }) => {
   // Use local state for the string representation to allow empty input during typing
   const [inputValue, setInputValue] = useState<string>(String(value));
@@ -29,12 +31,14 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   }, [value]);
 
   const handleIncrement = () => {
+    if (disabled) return;
     const nextValue = value + step;
     if (max !== undefined && nextValue > max) return;
     onChange(nextValue);
   };
 
   const handleDecrement = () => {
+    if (disabled) return;
     const nextValue = value - step;
     if (min !== undefined && nextValue < min) return;
     onChange(nextValue);
@@ -67,7 +71,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
   };
 
   return (
-    <div className={`relative flex items-center ${className}`}>
+    <div className={`relative flex items-center ${className} ${disabled ? 'opacity-60' : ''}`}>
       <input
         type="text"
         inputMode="decimal"
@@ -75,20 +79,23 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         onChange={handleInputChange}
         onBlur={handleBlur}
         placeholder={placeholder}
-        className="w-full rounded-md border border-divider bg-paper pl-3 pr-10 py-2 text-sm font-bold tabular-nums text-ink outline-none transition-colors focus:border-accent"
+        disabled={disabled}
+        className="w-full rounded-md border border-divider bg-paper pl-3 pr-10 py-2 text-sm font-bold tabular-nums text-ink outline-none transition-colors focus:border-accent disabled:cursor-not-allowed disabled:bg-paper/40"
       />
       <div className="absolute right-1 flex h-full flex-col justify-center gap-0.5 px-1 py-1">
         <button
           type="button"
           onClick={handleIncrement}
-          className="flex flex-1 items-center justify-center rounded-sm text-muted hover:bg-surface hover:text-ink transition-colors px-1"
+          disabled={disabled}
+          className="flex flex-1 items-center justify-center rounded-sm text-muted hover:bg-surface hover:text-ink transition-colors px-1 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted"
         >
           <ChevronUp size={12} strokeWidth={3} />
         </button>
         <button
           type="button"
           onClick={handleDecrement}
-          className="flex flex-1 items-center justify-center rounded-sm text-muted hover:bg-surface hover:text-ink transition-colors px-1"
+          disabled={disabled}
+          className="flex flex-1 items-center justify-center rounded-sm text-muted hover:bg-surface hover:text-ink transition-colors px-1 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted"
         >
           <ChevronDown size={12} strokeWidth={3} />
         </button>

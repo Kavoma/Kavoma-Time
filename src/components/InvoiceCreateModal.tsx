@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, ShieldCheck, ClipboardList, ChevronDown, Bookmark, Save, X, Repeat, Eye, EyeOff } from 'lucide-react';
 import type {
@@ -470,7 +470,7 @@ export function InvoiceCreateModal({
                     />
 
                     <div
-                      onClick={() => setIncludeReport(!includeReport)}
+                      onClick={() => { setIncludeReport(!includeReport); markDirty(); }}
                       className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-all ${
                         includeReport ? 'border-blue-500/30 bg-blue-500/5' : 'border-divider bg-surface/50'
                       }`}
@@ -496,7 +496,7 @@ export function InvoiceCreateModal({
 
                     {!customer?.eInvoiceAccepted && (
                       <div
-                        onClick={() => setIncludeConsent(!includeConsent)}
+                        onClick={() => { setIncludeConsent(!includeConsent); markDirty(); }}
                         className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-all ${
                           includeConsent ? 'border-purple-500/30 bg-purple-500/5' : 'border-divider bg-surface/50'
                         }`}
@@ -638,8 +638,21 @@ export function InvoiceCreateModal({
             periodFrom={from}
             periodTo={to}
             onConfirm={(newItems, newEntryIds) => {
+              // Schutz gegen Doppel-Abrechnung: wenn ALLE ausgewählten Zeit-
+              // Einträge bereits in dieser Rechnung sind, kein Append (sonst
+              // würden Stunden doppelt entstehen). Andernfalls anhängen und die
+              // entryId-Liste dedupen (Items sind pro Projekt gruppiert und
+              // lassen sich nicht zerlegen — eine entry-Doppelung in der Item-
+              // Liste ist visuell sichtbar und vom User korrigierbar; eine
+              // entryId-Doppelung in der unsichtbaren Belegliste ist es nicht).
+              const existing = new Set(entryIds);
+              const freshIds = newEntryIds.filter((id) => !existing.has(id));
+              if (freshIds.length === 0) {
+                setPickerOpen(false);
+                return;
+              }
               setItems((prev) => [...prev, ...newItems]);
-              setEntryIds((prev) => [...prev, ...newEntryIds]);
+              setEntryIds((prev) => [...prev, ...freshIds]);
               setPickerOpen(false);
               markDirty();
             }}

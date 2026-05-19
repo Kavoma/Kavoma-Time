@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Trash2, AlertTriangle, ZoomIn, ZoomOut, Maximize2, Printer, ExternalLink } from 'lucide-react';
-import { loadPdfBlob } from '../../utils/attachments';
+import { X, Download, Trash2, AlertTriangle, ZoomIn, ZoomOut, Maximize2, Printer, ExternalLink, ShieldCheck } from 'lucide-react';
+import { loadPdfBlob, formatFileSize } from '../../utils/attachments';
 import { Attachment } from '../../types';
-import { formatFileSize } from '../../utils/attachments';
+import { InfoTooltip } from '../settings/InfoTooltip';
 
 interface PdfViewerModalProps {
   open: boolean;
@@ -13,15 +13,31 @@ interface PdfViewerModalProps {
   onDelete?: () => void;
 }
 
-const ZOOM_STEPS = [50, 75, 100, 125, 150, 200];
+const ZOOM_STEPS = [50, 75, 100, 125, 150, 200] as const;
+const FIT_WIDTH = 'fit-width' as const;
+
+type ZoomValue = number | typeof FIT_WIDTH;
+
+/** PDF.js (Chrome PDF Plugin) Fragment-Parameter. Quelle: PDF Open Parameters Spec. */
+function buildPdfUrl(blobUrl: string, zoom: ZoomValue): string {
+  // toolbar=0  — native Toolbar (Download/Print/Sidebar) ausblenden
+  // navpanes=0 — Thumbnail-Sidebar ausblenden
+  // view=FitH  — initial auf Breite passend
+  const base = `${blobUrl}#toolbar=0&navpanes=0&scrollbar=0`;
+  if (zoom === FIT_WIDTH) return `${base}&view=FitH`;
+  return `${base}&zoom=${zoom}`;
+}
 
 export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: PdfViewerModalProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [zoom, setZoom] = useState(100);
+  const [zoom, setZoom] = useState<ZoomValue>(FIT_WIDTH);
+  // Wird debounced gesetzt, damit nicht jeder Zoom-Click den iframe sofort neu lädt
+  const [debouncedZoom, setDebouncedZoom] = useState<ZoomValue>(FIT_WIDTH);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
+  // PDF entschlüsseln & Blob-URL aufbauen
   useEffect(() => {
     if (!open || !attachment) {
       setBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
@@ -31,8 +47,6 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
     }
     let cancelled = false;
     setError(null);
-    // Vorherige Preview sofort verwerfen — sonst sieht der Nutzer das alte
-    // PDF, bis das neue entschlüsselt ist.
     setBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     loadPdfBlob(attachment.id)
       .then((blob) => {
@@ -44,23 +58,56 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
         if (cancelled) return;
         setError(e?.message ?? 'PDF konnte nicht geladen werden.');
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [open, attachment]);
 
   useEffect(() => {
-    return () => {
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
-    };
+    return () => { if (blobUrl) URL.revokeObjectURL(blobUrl); };
   }, [blobUrl]);
 
+  // Zoom debouncen — verhindert iframe-Reload-Flackern bei schnellen +/-/0-Klicks
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedZoom(zoom), 120);
+    return () => clearTimeout(t);
+  }, [zoom]);
+
+  const zoomIn = () => {
+    setZoom((curr) => {
+      const currentNumeric = typeof curr === 'number' ? curr : 100;
+      const next = ZOOM_STEPS.find((s) => s > currentNumeric);
+      return next ?? currentNumeric;
+    });
+  };
+  const zoomOut = () => {
+    setZoom((curr) => {
+      const currentNumeric = typeof curr === 'number' ? curr : 100;
+      const next = [...ZOOM_STEPS].reverse().find((s) => s < currentNumeric);
+      return next ?? currentNumeric;
+    });
+  };
+
+  // Tastatur: Esc schließt, +/-/0 zoomen
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      // Zoom-Shortcuts nur, wenn der Fokus nicht in einem Input/Textarea liegt
+      const target = e.target as HTMLElement | null;
+      const inField = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (inField) return;
+      if (e.key === '+' || e.key === '=') { e.preventDefault(); zoomIn(); }
+      else if (e.key === '-' || e.key === '_') { e.preventDefault(); zoomOut(); }
+      else if (e.key === '0') { e.preventDefault(); setZoom(FIT_WIDTH); }
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, zoom]);
+
+  // Beim Öffnen/Attachment-Wechsel zurück auf Fit-Width
+  useEffect(() => {
+    setZoom(FIT_WIDTH);
+  }, [open, attachment]);
 
   const handleDownload = () => {
     if (!blobUrl || !attachment) return;
@@ -86,26 +133,21 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
     window.open(blobUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const zoomIn = () => {
-    const next = ZOOM_STEPS.find((s) => s > zoom);
-    if (next !== undefined) setZoom(next);
-  };
-  const zoomOut = () => {
-    const next = [...ZOOM_STEPS].reverse().find((s) => s < zoom);
-    if (next !== undefined) setZoom(next);
-  };
-  const zoomFit = () => setZoom(100);
+  const zoomLabel = zoom === FIT_WIDTH ? 'Auto' : `${zoom}%`;
+  const canZoomOut = zoom !== FIT_WIDTH && zoom > ZOOM_STEPS[0];
+  const canZoomIn = zoom !== FIT_WIDTH && zoom < ZOOM_STEPS[ZOOM_STEPS.length - 1];
 
-  // Zoom-Reset, wenn ein anderes Attachment geladen wird
-  useEffect(() => {
-    if (!open) setZoom(100);
-  }, [open, attachment]);
+  // Die finale Viewer-URL — nutzt den debounced Zoom, damit der iframe nur ruhig reagiert
+  const viewerSrc = useMemo(
+    () => (blobUrl ? buildPdfUrl(blobUrl, debouncedZoom) : null),
+    [blobUrl, debouncedZoom],
+  );
 
   return (
     <AnimatePresence>
       {open && attachment && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -120,7 +162,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
           />
 
           <motion.div
-            className="relative z-10 flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.7)]"
+            className="relative z-10 flex h-[95vh] w-[95vw] max-w-[1600px] flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.7)]"
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -130,38 +172,53 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
             aria-modal="true"
             aria-label={title ?? attachment.filename}
           >
-            <div className="flex items-center justify-between border-b border-divider px-5 py-3">
-              <div className="min-w-0">
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3 border-b border-divider px-4 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
                 <div className="truncate text-sm font-bold">{title ?? attachment.filename}</div>
-                <div className="text-[10px] uppercase tracking-widest text-muted">
-                  {attachment.filename} · {formatFileSize(attachment.sizeBytes)} · SHA-256{' '}
-                  <span className="font-mono">{attachment.sha256.slice(0, 12)}…</span>
-                </div>
+                <span className="shrink-0 text-[10px] uppercase tracking-widest text-muted">
+                  {formatFileSize(attachment.sizeBytes)}
+                </span>
+                <InfoTooltip ariaLabel="Datei-Details" position="bottom">
+                  <div className="mb-1 flex items-center gap-1.5 font-bold">
+                    <ShieldCheck size={13} className="text-green-400" />
+                    Verschlüsselt gespeichert
+                  </div>
+                  <div className="text-muted">Dateiname: <span className="text-ink">{attachment.filename}</span></div>
+                  <div className="text-muted">Größe: <span className="text-ink">{formatFileSize(attachment.sizeBytes)}</span></div>
+                  <div className="mt-1 text-muted">SHA-256:</div>
+                  <div className="select-text break-all font-mono text-[10px] text-ink">{attachment.sha256}</div>
+                </InfoTooltip>
               </div>
-              <div className="flex items-center gap-1">
-                <div className="mr-2 flex items-center gap-1 rounded-md border border-divider bg-paper/60 px-1 py-0.5">
+
+              <div className="flex shrink-0 items-center gap-1">
+                {/* Zoom-Stepper */}
+                <div className="mr-1 flex items-center gap-0.5 rounded-md border border-divider bg-paper/60 px-1 py-0.5">
                   <button
                     onClick={zoomOut}
-                    disabled={zoom <= ZOOM_STEPS[0]}
+                    disabled={!canZoomOut}
                     className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
-                    title="Verkleinern"
+                    title="Verkleinern (−)"
+                    aria-label="Verkleinern"
                   >
                     <ZoomOut size={12} />
                   </button>
-                  <span className="min-w-[3rem] text-center text-[10px] font-bold tabular-nums text-muted">{zoom}%</span>
+                  <span className="min-w-[3rem] text-center text-[10px] font-bold tabular-nums text-muted">{zoomLabel}</span>
                   <button
                     onClick={zoomIn}
-                    disabled={zoom >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+                    disabled={!canZoomIn}
                     className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
-                    title="Vergrößern"
+                    title="Vergrößern (+)"
+                    aria-label="Vergrößern"
                   >
                     <ZoomIn size={12} />
                   </button>
                   <button
-                    onClick={zoomFit}
-                    disabled={zoom === 100}
+                    onClick={() => setZoom(FIT_WIDTH)}
+                    disabled={zoom === FIT_WIDTH}
                     className="flex h-6 w-6 cursor-pointer items-center justify-center rounded text-muted hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
-                    title="Auf 100%"
+                    title="Auf Breite anpassen (0)"
+                    aria-label="Auf Breite anpassen"
                   >
                     <Maximize2 size={11} />
                   </button>
@@ -170,47 +227,56 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 <button
                   onClick={handlePrint}
                   disabled={!blobUrl}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                   title="Drucken"
+                  aria-label="Drucken"
                 >
                   <Printer size={12} />
                 </button>
                 <button
                   onClick={handleOpenInBrowser}
                   disabled={!blobUrl}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                   title="In neuem Fenster öffnen"
+                  aria-label="In neuem Fenster öffnen"
                 >
                   <ExternalLink size={12} />
                 </button>
                 <button
                   onClick={handleDownload}
                   disabled={!blobUrl}
-                  className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                   title="Original-PDF herunterladen"
                 >
-                  <Download size={13} /> Download
+                  <Download size={12} /> Download
                 </button>
+
+                {/* Trenner */}
+                <div className="mx-1 h-5 w-px bg-divider" />
+
                 {onDelete && (
                   <button
                     onClick={() => setConfirmDelete(true)}
-                    className="flex cursor-pointer items-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-red-300 transition-all hover:border-red-400 hover:bg-red-500/20"
+                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-red-500/40 bg-red-500/10 text-red-300 transition-all hover:border-red-400 hover:bg-red-500/20"
                     title="Beleg löschen"
+                    aria-label="Beleg löschen"
                   >
-                    <Trash2 size={13} />
+                    <Trash2 size={12} />
                   </button>
                 )}
                 <button
                   onClick={onClose}
-                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-divider hover:text-ink"
-                  aria-label="Schließen"
+                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-divider hover:text-ink"
+                  aria-label="Schließen (Esc)"
+                  title="Schließen (Esc)"
                 >
-                  <X size={16} />
+                  <X size={14} />
                 </button>
               </div>
             </div>
 
-            <div className="relative flex-1 overflow-auto bg-black/40">
+            {/* Viewer */}
+            <div className="relative flex-1 overflow-hidden bg-black/60">
               {error && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
                   <AlertTriangle size={28} className="text-red-300" />
@@ -218,20 +284,18 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                   <div className="max-w-md text-[12px] text-muted">{error}</div>
                 </div>
               )}
-              {!error && blobUrl && (
-                <div
-                  className="origin-top-left"
-                  style={{ width: `${10000 / zoom}%`, height: `${10000 / zoom}%`, transform: `scale(${zoom / 100})` }}
-                >
-                  <iframe
-                    ref={iframeRef}
-                    src={blobUrl}
-                    className="h-full w-full"
-                    title={attachment.filename}
-                  />
-                </div>
+              {!error && viewerSrc && (
+                <iframe
+                  ref={iframeRef}
+                  // Key auf den Hash-Anteil, damit der iframe nur dann neu lädt, wenn sich
+                  // der Zoom-Modus tatsächlich ändert — nicht z. B. wenn nur der Modal-State zappt.
+                  key={viewerSrc}
+                  src={viewerSrc}
+                  className="h-full w-full border-0"
+                  title={attachment.filename}
+                />
               )}
-              {!error && !blobUrl && (
+              {!error && !viewerSrc && (
                 <div className="absolute inset-0 flex items-center justify-center p-8">
                   <div className="w-full max-w-md space-y-3">
                     <div className="h-3 w-2/3 animate-pulse rounded bg-divider" />
@@ -248,6 +312,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
               )}
             </div>
 
+            {/* Delete-Confirm */}
             {confirmDelete && onDelete && (
               <div className="border-t border-red-500/30 bg-red-500/5 px-5 py-3">
                 <div className="flex items-center justify-between gap-4">
