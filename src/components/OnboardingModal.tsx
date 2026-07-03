@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, HardDrive, RefreshCw, FileText } from 'lucide-react';
+import { Checkbox } from './Checkbox';
 
 interface OnboardingModalProps {
   open: boolean;
@@ -124,25 +125,24 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
                 </label>
               </div>
 
-              <label className="mt-4 flex cursor-pointer items-start gap-3 text-[12px] leading-relaxed text-muted">
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 cursor-pointer accent-ink"
-                />
-                <span>
-                  Ich habe die{' '}
-                  <button
-                    type="button"
-                    onClick={onOpenPrivacy}
-                    className="cursor-pointer text-ink underline decoration-divider underline-offset-2 hover:decoration-ink"
-                  >
-                    Datenschutzerklärung
-                  </button>{' '}
-                  zur Kenntnis genommen und stimme dem geschilderten Umgang mit meinen Daten zu.
-                </span>
-              </label>
+              <Checkbox
+                checked={agreed}
+                onChange={setAgreed}
+                className="mt-4 items-start"
+                label={
+                  <span>
+                    Ich habe die{' '}
+                    <button
+                      type="button"
+                      onClick={onOpenPrivacy}
+                      className="cursor-pointer text-ink underline decoration-divider underline-offset-2 hover:decoration-ink"
+                    >
+                      Datenschutzerklärung
+                    </button>{' '}
+                    zur Kenntnis genommen und stimme dem geschilderten Umgang mit meinen Daten zu.
+                  </span>
+                }
+              />
             </div>
 
             <div className="flex justify-end border-t border-divider px-7 py-4">

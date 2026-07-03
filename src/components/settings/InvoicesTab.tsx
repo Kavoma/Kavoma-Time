@@ -4,6 +4,7 @@ import { useAppState } from '../../state/AppStateContext';
 import { NumberInput } from '../NumberInput';
 import { SettingsCard } from './SettingsCard';
 import { InfoTooltip } from './InfoTooltip';
+import { Checkbox } from '../Checkbox';
 import type { Issuer } from '../../types';
 import { isValidIban, getBankName, isValidBic, formatIban, formatBic, formatPhone, formatTaxId } from '../../utils/iban';
 
@@ -157,22 +158,23 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
           <div className="col-span-2">
             <FieldInput label="Bank" value={localIssuer.bank} onChange={v => updateIssuer('bank', v)} placeholder="Sparkasse Musterstadt" />
           </div>
-          <label className="col-span-2 flex cursor-pointer items-center gap-3 rounded-md border border-divider bg-paper px-3 py-2.5">
-            <input
-              type="checkbox"
+          <div className="col-span-2">
+            <Checkbox
               checked={localIssuer.smallBusiness}
-              onChange={e => {
-                const next = { ...localIssuer, smallBusiness: e.target.checked, vatRate: e.target.checked ? 0 : 19 };
+              onChange={val => {
+                const next = { ...localIssuer, smallBusiness: val, vatRate: val ? 0 : 19 };
                 setLocalIssuer(next);
                 setState(s => s ? { ...s, issuer: next } : null);
               }}
-              className="accent-ink"
+              className="w-full rounded-md border border-divider bg-paper px-3 py-2.5 hover:border-ink/60"
+              label={
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-ink">Kleinunternehmer (§19 UStG)</div>
+                  <div className="text-[11px] text-muted">Keine Umsatzsteuer ausweisen.</div>
+                </div>
+              }
             />
-            <div className="flex-1">
-              <div className="text-sm font-bold text-ink">Kleinunternehmer (§19 UStG)</div>
-              <div className="text-[11px] text-muted">Keine Umsatzsteuer ausweisen.</div>
-            </div>
-          </label>
+          </div>
           {!localIssuer.smallBusiness && (
             <div className="col-span-2 flex items-center gap-3">
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">USt-Satz</label>

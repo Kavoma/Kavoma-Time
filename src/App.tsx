@@ -17,11 +17,16 @@ import { LegalModal } from './components/LegalModal';
 export type ViewKey = 'tracker' | 'customers' | 'projects' | 'statistics' | 'finance' | 'settings';
 
 // Ephemere Navigations-Absicht für Cross-View-Sprünge (z. B. Vertrags-Chip
-// in der Kundenliste → Finanzen-Tab → Verträge mit Kundenfilter).
+// in der Kundenliste → Finanzen-Tab → Verträge mit Kundenfilter, oder
+// Rechnung im Kunden-Drawer → Finanzen → Rechnungs-Drawer).
 // Bewusst NICHT im AppState, weil sie nicht persistiert werden darf.
 export interface NavIntent {
   view: ViewKey;
   finance?: FinanceNavIntent;
+  /** Öffnet beim Ankommen in CustomersView direkt den Detail-Drawer dieses Kunden. */
+  customerId?: number;
+  /** Öffnet beim Ankommen in ProjectsView direkt den Detail-Drawer dieses Projekts. */
+  projectId?: number;
 }
 
 // Montag dieser Woche (00:00)
@@ -261,12 +266,25 @@ export function App() {
                 className="view-section block"
               >
                 {activeView === 'tracker' && <TrackerView />}
-                {activeView === 'customers' && <CustomersView navigateTo={navigateTo} />}
-                {activeView === 'projects' && <ProjectsView />}
+                {activeView === 'customers' && (
+                  <CustomersView
+                    navigateTo={navigateTo}
+                    intentCustomerId={navIntent?.view === 'customers' ? navIntent.customerId : undefined}
+                    onIntentConsumed={() => setNavIntent(null)}
+                  />
+                )}
+                {activeView === 'projects' && (
+                  <ProjectsView
+                    navigateTo={navigateTo}
+                    intentProjectId={navIntent?.view === 'projects' ? navIntent.projectId : undefined}
+                    onIntentConsumed={() => setNavIntent(null)}
+                  />
+                )}
                 {activeView === 'statistics' && <StatisticsView />}
                 {activeView === 'finance' && (
                   <FinanceView
                     intent={navIntent?.view === 'finance' ? navIntent.finance ?? null : null}
+                    navigateTo={navigateTo}
                     onIntentConsumed={() => setNavIntent(null)}
                   />
                 )}

@@ -1,3 +1,5 @@
+export type CustomerStatus = 'active' | 'paused' | 'archived';
+
 export interface Customer {
   id: number;
   name: string;
@@ -12,6 +14,30 @@ export interface Customer {
   email?: string;
   eInvoiceAccepted?: boolean;
   eInvoiceConsentDate?: number;   // Zeitpunkt der Zustimmung (ms)
+
+  // V1.5 — Kundenverwaltung-Erweiterungen
+  status?: CustomerStatus;        // Default 'active'; 'archived' filtert aus Standard-Listen
+  tags?: string[];                // Freie Labels, Farbe deterministisch aus String gehasht
+  industry?: string;              // Branche, frei
+  notes?: string;                 // Markdown-fähig (vorerst Plain-Text)
+  acquisitionDate?: number;       // Wann zum Kunden geworden
+  firstContactDate?: number;      // Optional, Lead-Tracking-Light
+  referredBy?: number;            // Customer.id — wer hat empfohlen
+  createdAt?: number;             // Anlegedatum (für neue Kunden gesetzt; Legacy: id ≈ Date.now())
+}
+
+export type ProjectStatus = 'active' | 'on-hold' | 'completed' | 'archived';
+export type ProjectPriority = 'low' | 'normal' | 'high';
+
+export interface Milestone {
+  id: string;                     // crypto.randomUUID()
+  title: string;
+  description?: string;
+  targetDate?: number;            // Soll-Termin
+  status: 'open' | 'done';
+  estimatedHours?: number;        // optionale Schätzung
+  doneAt?: number;                // gesetzt wenn status='done'
+  createdAt: number;
 }
 
 export interface Project {
@@ -22,6 +48,17 @@ export interface Project {
   hourlyRate?: number;               // überschreibt Customer.hourlyRate
   budgetHours?: number;              // optionales Stundenbudget für Forecasting
   fixedPrice?: number;               // optionaler Pauschalpreis fürs Projekt (Forecasting + Real-Stundensatz)
+
+  // V1.5 — Projektverwaltung-Erweiterungen
+  status?: ProjectStatus;            // Default 'active'
+  tags?: string[];
+  priority?: ProjectPriority;        // Default 'normal' — Sortier-Faktor
+  budgetAmount?: number;             // €-Budget, additiv zu budgetHours
+  startDate?: number;
+  targetEndDate?: number;
+  colorOverride?: string;            // wenn gesetzt: überschreibt Kunden-Farbe in Listen
+  createdAt?: number;
+  milestones?: Milestone[];          // 3.3 — leichte Meilenstein-Liste
 }
 
 export interface TimeEntry {

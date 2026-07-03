@@ -12,6 +12,7 @@ import { TimeEntryPicker } from './TimeEntryPicker';
 import { InvoicePreviewPane } from './InvoicePreviewPane';
 import { RecurringSetupModal } from './RecurringSetupModal';
 import { applyTemplate, computeTotals, inferInvoiceMode, templateFromInvoice } from '../utils/templates';
+import { Checkbox } from './Checkbox';
 
 interface Props {
   open: boolean;
@@ -472,11 +473,11 @@ export function InvoiceCreateModal({
                     <div
                       onClick={() => { setIncludeReport(!includeReport); markDirty(); }}
                       className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-all ${
-                        includeReport ? 'border-blue-500/30 bg-blue-500/5' : 'border-divider bg-surface/50'
+                        includeReport ? 'border-accent/40 bg-paper' : 'border-divider bg-surface/50'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-full ${includeReport ? 'bg-blue-500/20 text-blue-300' : 'bg-muted/10 text-muted'}`}>
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-full ${includeReport ? 'bg-ink/10 text-ink' : 'bg-muted/10 text-muted'}`}>
                           <ClipboardList size={13} />
                         </div>
                         <div>
@@ -484,25 +485,44 @@ export function InvoiceCreateModal({
                           <div className="text-[10px] text-muted">Leistungsnachweis miterzeugen</div>
                         </div>
                       </div>
-                      <div className={`relative h-4 w-7 rounded-full transition-colors ${includeReport ? 'bg-blue-500' : 'bg-muted/30'}`}>
-                        <motion.div
-                          animate={{ x: includeReport ? 14 : 2 }}
-                          initial={false}
-                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                          className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm"
-                        />
-                      </div>
+                      <motion.div
+                        animate={{
+                          backgroundColor: includeReport ? 'var(--color-ink)' : 'var(--color-paper)',
+                          borderColor: includeReport ? 'var(--color-ink)' : 'var(--color-divider)',
+                        }}
+                        transition={{ duration: 0.15 }}
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 border-divider"
+                      >
+                        {includeReport && (
+                          <svg
+                            className="h-3 w-3 text-paper"
+                            viewBox="0 0 12 12"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <motion.path
+                              initial={{ pathLength: 0 }}
+                              animate={{ pathLength: 1 }}
+                              transition={{ duration: 0.2, ease: 'easeOut' }}
+                              d="M2.5 6L5 8.5L9.5 3.5"
+                            />
+                          </svg>
+                        )}
+                      </motion.div>
                     </div>
 
                     {!customer?.eInvoiceAccepted && (
                       <div
                         onClick={() => { setIncludeConsent(!includeConsent); markDirty(); }}
                         className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-all ${
-                          includeConsent ? 'border-purple-500/30 bg-purple-500/5' : 'border-divider bg-surface/50'
+                          includeConsent ? 'border-accent/40 bg-paper' : 'border-divider bg-surface/50'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-7 w-7 items-center justify-center rounded-full ${includeConsent ? 'bg-purple-500/20 text-purple-300' : 'bg-muted/10 text-muted'}`}>
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-full ${includeConsent ? 'bg-ink/10 text-ink' : 'bg-muted/10 text-muted'}`}>
                             <ShieldCheck size={13} />
                           </div>
                           <div>
@@ -510,14 +530,33 @@ export function InvoiceCreateModal({
                             <div className="text-[10px] text-muted">PDF-Versand Erlaubnis</div>
                           </div>
                         </div>
-                        <div className={`relative h-4 w-7 rounded-full transition-colors ${includeConsent ? 'bg-purple-500' : 'bg-muted/30'}`}>
-                          <motion.div
-                            animate={{ x: includeConsent ? 14 : 2 }}
-                            initial={false}
-                            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                            className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm"
-                          />
-                        </div>
+                        <motion.div
+                          animate={{
+                            backgroundColor: includeConsent ? 'var(--color-ink)' : 'var(--color-paper)',
+                            borderColor: includeConsent ? 'var(--color-ink)' : 'var(--color-divider)',
+                          }}
+                          transition={{ duration: 0.15 }}
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 border-divider"
+                        >
+                          {includeConsent && (
+                            <svg
+                              className="h-3 w-3 text-paper"
+                              viewBox="0 0 12 12"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <motion.path
+                                initial={{ pathLength: 0 }}
+                                animate={{ pathLength: 1 }}
+                                transition={{ duration: 0.2, ease: 'easeOut' }}
+                                d="M2.5 6L5 8.5L9.5 3.5"
+                              />
+                            </svg>
+                          )}
+                        </motion.div>
                       </div>
                     )}
                   </div>
