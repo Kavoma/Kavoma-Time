@@ -134,8 +134,11 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
   };
 
   const zoomLabel = zoom === FIT_WIDTH ? 'Auto' : `${zoom}%`;
-  const canZoomOut = zoom !== FIT_WIDTH && zoom > ZOOM_STEPS[0];
-  const canZoomIn = zoom !== FIT_WIDTH && zoom < ZOOM_STEPS[ZOOM_STEPS.length - 1];
+  // Im Auto-Modus verhalten sich zoomIn/zoomOut so, als stünde der Zoom auf 100 % —
+  // die Buttons müssen daher auch dort aktiv bleiben.
+  const effectiveZoom = typeof zoom === 'number' ? zoom : 100;
+  const canZoomOut = effectiveZoom > ZOOM_STEPS[0];
+  const canZoomIn = effectiveZoom < ZOOM_STEPS[ZOOM_STEPS.length - 1];
 
   // Die finale Viewer-URL — nutzt den debounced Zoom, damit der iframe nur ruhig reagiert
   const viewerSrc = useMemo(
@@ -248,7 +251,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                   className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                   title="Original-PDF herunterladen"
                 >
-                  <Download size={12} /> Download
+                  <Download size={12} /> Herunterladen
                 </button>
 
                 {/* Trenner */}

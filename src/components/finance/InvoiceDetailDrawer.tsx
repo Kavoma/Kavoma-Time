@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Download, ClipboardList, ShieldCheck, Ban, Trash2, AlertTriangle,
+  X, Download, ClipboardList, FileCode2, Ban, Trash2, AlertTriangle,
   Edit2, Repeat, Check, ChevronRight, Building2, FolderKanban, FileWarning,
 } from 'lucide-react';
 import type { Invoice } from '../../types';
@@ -15,7 +15,7 @@ interface Props {
   onTogglePaid: (id: string) => void;
   onDownloadPdf: (id: string) => void;
   onDownloadReport: (id: string) => void;
-  onDownloadConsent: (id: string) => void;
+  onDownloadXml: (id: string) => void;
   onDownloadDunning: (id: string) => void;
   onRemoveReminder: (id: string) => void;
   onAddReminder: (id: string) => void;
@@ -45,7 +45,7 @@ function isOverdue(inv: Invoice): boolean {
 
 export function InvoiceDetailDrawer({
   open, invoice, onClose,
-  onTogglePaid, onDownloadPdf, onDownloadReport, onDownloadConsent,
+  onTogglePaid, onDownloadPdf, onDownloadReport, onDownloadXml,
   onDownloadDunning, onRemoveReminder, onAddReminder, onCancelInvoice, onDelete, onEditDraft,
   onNavigateCustomer, onNavigateProject,
 }: Props) {
@@ -351,7 +351,7 @@ export function InvoiceDetailDrawer({
                         <>
                           <ActionButton icon={Download} label="Rechnung-PDF" onClick={() => onDownloadPdf(invoice.id)} />
                           <ActionButton icon={ClipboardList} label="Tätigkeitsbericht" onClick={() => onDownloadReport(invoice.id)} />
-                          <ActionButton icon={ShieldCheck} label="E-Rechnung-Vertrag" onClick={() => onDownloadConsent(invoice.id)} />
+                          <ActionButton icon={FileCode2} label="ZUGFeRD-XML" onClick={() => onDownloadXml(invoice.id)} />
                           {overdue && (
                             <ActionButton icon={AlertTriangle} label="Mahnung verbuchen" onClick={() => onAddReminder(invoice.id)} />
                           )}

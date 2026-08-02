@@ -310,7 +310,10 @@ export function computeFinanceForecast(state: AppState): FinanceForecast {
   // Spiegelbild-Logik: Ø pro Kalendertag × verbleibende Tage
   // (Ausgaben fallen nicht nur an Arbeitstagen an — Kalendertag-Mittel ist hier ehrlicher)
   const dayMs = 86_400_000;
-  const calendarDaysPassed = Math.max(1, Math.round((now - yearStart) / dayMs));
+  // Inklusive Tageszählung: der laufende Tag zählt vom ersten Moment an mit,
+  // sonst wäre der Ø-Satz morgens künstlich zu hoch (Math.round hätte den
+  // laufenden Tag erst ab Mittag mitgezählt).
+  const calendarDaysPassed = Math.max(1, Math.floor((now - yearStart) / dayMs) + 1);
   const dailyExpenseRate = expensesYtd / calendarDaysPassed;
   const expensesForecast = expensesYtd + dailyExpenseRate * fc.daysRemaining;
 

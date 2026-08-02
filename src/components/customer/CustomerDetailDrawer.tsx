@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ShieldCheck, Download, Pipette, Briefcase, Mail, MapPin, FileText,
+  Pipette, Briefcase, Mail, MapPin, FileText,
   TrendingUp, Clock, Euro, AlertCircle, FolderKanban, ScrollText, Tag as TagIcon,
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
@@ -14,8 +14,6 @@ import { CurrencyInput } from '../CurrencyInput';
 import { Tooltip } from '../Tooltip';
 import { KpiBox, DrawerSection, DrawerField, DrawerInput } from '../shared/DrawerParts';
 import { collectTags, tagColors } from '../../utils/tagColor';
-import { downloadContractPdf } from '../../utils/invoicePdf';
-import { Checkbox } from '../Checkbox';
 
 const PALETTE = [
   '#3b82f6', '#6366f1', '#a855f7', '#ec4899',
@@ -78,7 +76,8 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
   const [zip, setZip] = useState('');
   const [city, setCity] = useState('');
   const [email, setEmail] = useState('');
-  const [eInvoiceAccepted, setEInvoiceAccepted] = useState(false);
+  const [country, setCountry] = useState('DE');
+  const [vatId, setVatId] = useState('');
   const [status, setStatus] = useState<CustomerStatus>('active');
   const [tags, setTags] = useState<string[]>([]);
   const [industry, setIndustry] = useState('');
@@ -102,7 +101,8 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
       setZip(customer.zip ?? '');
       setCity(customer.city ?? '');
       setEmail(customer.email ?? '');
-      setEInvoiceAccepted(customer.eInvoiceAccepted ?? false);
+      setCountry(customer.country ?? 'DE');
+      setVatId(customer.vatId ?? '');
       setStatus(customer.status ?? 'active');
       setTags(customer.tags ?? []);
       setIndustry(customer.industry ?? '');
@@ -120,7 +120,8 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
       setZip('');
       setCity('');
       setEmail('');
-      setEInvoiceAccepted(false);
+      setCountry('DE');
+      setVatId('');
       setStatus('active');
       setTags([]);
       setIndustry('');
@@ -186,8 +187,8 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
       city: city.trim() || undefined,
       email: email.trim() || undefined,
       debtorNumber: debtorNumber.trim() || undefined,
-      eInvoiceAccepted,
-      eInvoiceConsentDate: eInvoiceAccepted && !customer?.eInvoiceConsentDate ? Date.now() : customer?.eInvoiceConsentDate,
+      country: country.trim().toUpperCase() || undefined,
+      vatId: vatId.trim().toUpperCase().replace(/\s+/g, '') || undefined,
       status,
       tags,
       industry: industry.trim() || undefined,
@@ -218,11 +219,6 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
         {industry && (
           <span className="inline-flex items-center gap-1 rounded-full border border-divider bg-paper px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-muted">
             <Briefcase size={9} /> {industry}
-          </span>
-        )}
-        {customer.eInvoiceAccepted && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-green-300">
-            <ShieldCheck size={9} /> E-Rechnung
           </span>
         )}
         {tags.length > 0 && (
@@ -363,12 +359,16 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
         <DrawerInput label="Adresszusatz" value={address2} onChange={(v) => { setAddress2(v); markDirty(); }} placeholder="c/o, 2. OG" />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <DrawerInput label="PLZ" value={zip} onChange={(v) => { setZip(v); markDirty(); }} placeholder="12345" tabular />
         <div className="col-span-2">
           <DrawerInput label="Stadt" value={city} onChange={(v) => { setCity(v); markDirty(); }} placeholder="Musterstadt" />
         </div>
+        <DrawerInput label="Land" value={country} onChange={(v) => { setCountry(v.toUpperCase().slice(0, 2)); markDirty(); }} placeholder="DE" tabular />
       </div>
+
+      {/* USt-IdNr. — Pflichtangabe für E-Rechnungen an EU-Kunden (Reverse-Charge) */}
+      <DrawerInput label="USt-IdNr. (optional)" value={vatId} onChange={(v) => { setVatId(v); markDirty(); }} placeholder="DE123456789" tabular />
 
       <div className="grid grid-cols-2 gap-3">
         <DrawerInput label="E-Mail" value={email} onChange={(v) => { setEmail(v); markDirty(); }} placeholder="rechnung@firma.de" type="email" />
@@ -421,39 +421,6 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
           placeholder="Freitext, Markdown wird vorerst als Plain-Text angezeigt"
           className="resize-y rounded-md border border-divider bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-accent"
         />
-      </div>
-
-      {/* E-Rechnung */}
-      <div className="flex items-center gap-2">
-        <Checkbox
-          checked={eInvoiceAccepted}
-          onChange={(val) => { setEInvoiceAccepted(val); markDirty(); }}
-          className={`flex flex-1 flex-row-reverse justify-between cursor-pointer items-center rounded-md border p-3 transition-all ${
-            eInvoiceAccepted ? 'border-green-500/30 bg-green-500/5' : 'border-divider bg-paper hover:border-accent/50'
-          }`}
-          label={
-            <div className="flex items-center gap-3 text-left">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${eInvoiceAccepted ? 'bg-green-500/20 text-green-500' : 'bg-muted/10 text-muted'}`}>
-                <ShieldCheck size={16} />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-ink">E-Rechnung Einverständnis</div>
-                <div className="text-[10px] text-muted">PDF-Versand erlaubt</div>
-              </div>
-            </div>
-          }
-        />
-        {customer && state && (
-          <Tooltip content="Vertragsvorlage herunterladen" position="left">
-            <button
-              type="button"
-              onClick={() => downloadContractPdf(state.issuer, customer)}
-              className="flex h-[54px] w-[54px] cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-muted transition-all hover:border-ink hover:text-ink active:scale-95"
-            >
-              <Download size={18} />
-            </button>
-          </Tooltip>
-        )}
       </div>
 
       {/* Farbe */}

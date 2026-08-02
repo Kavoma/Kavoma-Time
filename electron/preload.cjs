@@ -41,6 +41,13 @@ contextBridge.exposeInMainWorld('api', {
   encryptBackup: (plaintext) => ipcRenderer.invoke('backup-encrypt', plaintext),
   decryptBackup: (payload)   => ipcRenderer.invoke('backup-decrypt', payload),
 
+  // Automatisches Backup
+  autoBackupGetConfig: () => ipcRenderer.invoke('auto-backup-get-config'),
+  autoBackupSetConfig: (patch) => ipcRenderer.invoke('auto-backup-set-config', patch),
+  autoBackupChooseDirectory: () => ipcRenderer.invoke('auto-backup-choose-directory'),
+  autoBackupRunNow: () => ipcRenderer.invoke('auto-backup-run-now'),
+  autoBackupOpenDirectory: () => ipcRenderer.invoke('auto-backup-open-directory'),
+
   // DSGVO Art. 17 — Recht auf Löschung
   wipeAllData: () => ipcRenderer.invoke('wipe-all-data'),
 

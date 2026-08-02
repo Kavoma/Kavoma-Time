@@ -13,6 +13,12 @@ interface Props {
   serviceType: string;
   periodFrom: string; // ISO yyyy-mm-dd
   periodTo: string;
+  /**
+   * Einträge, die bereits auf der Rechnung stehen. Sie werden ausgeblendet,
+   * damit aus ihnen keine zweite Position entsteht — die Positionen werden pro
+   * Projekt aggregiert und lassen sich nachträglich nicht mehr zerlegen.
+   */
+  excludeEntryIds?: number[];
   onConfirm: (items: InvoiceItem[], entryIds: number[]) => void;
   onCancel: () => void;
 }
@@ -35,6 +41,7 @@ export function TimeEntryPicker({
   serviceType,
   periodFrom,
   periodTo,
+  excludeEntryIds,
   onConfirm,
   onCancel,
 }: Props) {
@@ -45,6 +52,8 @@ export function TimeEntryPicker({
   const fromTs = useMemo(() => new Date(periodFrom + 'T00:00:00').getTime(), [periodFrom]);
   const toTs = useMemo(() => new Date(periodTo + 'T23:59:59').getTime(), [periodTo]);
 
+  const excluded = useMemo(() => new Set(excludeEntryIds ?? []), [excludeEntryIds]);
+
   const matched = useMemo(
     () =>
       entries
@@ -53,10 +62,11 @@ export function TimeEntryPicker({
             e.customerId === customerId &&
             (projectId === 0 || e.projectId === projectId) &&
             e.startedAt >= fromTs &&
-            e.startedAt <= toTs,
+            e.startedAt <= toTs &&
+            !excluded.has(e.id),
         )
         .sort((a, b) => a.startedAt - b.startedAt),
-    [entries, customerId, projectId, fromTs, toTs],
+    [entries, customerId, projectId, fromTs, toTs, excluded],
   );
 
   useEffect(() => {

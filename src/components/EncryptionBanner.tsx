@@ -14,7 +14,9 @@ export function EncryptionBanner() {
       // Banner zeigen wenn entweder DPAPI/safeStorage nicht verfügbar ODER kein
       // Schlüssel geladen wurde — beide Fälle führen zu Klartext-Persistenz.
       .then((status) => setEncryptionActive(Boolean(status?.available && status?.active)))
-      .catch(() => setEncryptionActive(true));
+      // Fail-closed: lässt sich der Status nicht ermitteln, ist unklar ob
+      // verschlüsselt wird — dann warnen statt die Warnung zu verstecken.
+      .catch(() => setEncryptionActive(false));
   }, []);
 
   if (encryptionActive !== false) return null;

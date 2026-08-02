@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Hash, Bookmark, FileText, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useEffect, useId, useState } from 'react';
+import { Hash, Bookmark, FileText, FileCode2, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
 import { NumberInput } from '../NumberInput';
 import { SettingsCard } from './SettingsCard';
@@ -7,6 +7,7 @@ import { InfoTooltip } from './InfoTooltip';
 import { Checkbox } from '../Checkbox';
 import type { Issuer } from '../../types';
 import { isValidIban, getBankName, isValidBic, formatIban, formatBic, formatPhone, formatTaxId } from '../../utils/iban';
+import { collectEInvoiceIssues } from '../../utils/eInvoiceXml';
 
 interface FieldInputProps {
   label: string;
@@ -18,12 +19,13 @@ interface FieldInputProps {
 }
 
 function FieldInput({ label, value, onChange, placeholder, type = 'text', isValid }: FieldInputProps) {
+  const inputId = useId();
   const showValidity = isValid !== undefined && value.length > 0;
   const isTabular = type === 'tel' || label.includes('IBAN') || label.includes('BIC');
   return (
     <div className="flex flex-col">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</label>
+        <label htmlFor={inputId} className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</label>
         {showValidity && (
           isValid
             ? <CheckCircle2 size={12} className="text-green-500" aria-label="gültig" />
@@ -31,6 +33,7 @@ function FieldInput({ label, value, onChange, placeholder, type = 'text', isVali
         )}
       </div>
       <input
+        id={inputId}
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
@@ -72,6 +75,7 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
     if (field === 'bic') formatted = formatBic(value);
     if (field === 'phone') formatted = formatPhone(value);
     if (field === 'taxId') formatted = formatTaxId(value);
+    if (field === 'vatId') formatted = formatTaxId(value);
 
     const next = { ...localIssuer, [field]: formatted };
 
@@ -85,6 +89,9 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
   };
 
   const previewNumber = `${(state.invoicePrefix || 'YYYY-').replace('YYYY', String(new Date().getFullYear()))}${String(state.nextInvoiceCounter).padStart(3, '0')}`;
+
+  // Nur die Absender-Stammdaten prüfen — Kundendaten hängen an der jeweiligen Rechnung
+  const eInvoiceIssues = collectEInvoiceIssues(localIssuer);
 
   return (
     <div className="flex flex-col gap-6">
@@ -151,8 +158,10 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
           </div>
           <FieldInput label="PLZ" value={localIssuer.zip ?? ''} onChange={v => updateIssuer('zip', v)} placeholder="12345" />
           <FieldInput label="Stadt" value={localIssuer.city ?? ''} onChange={v => updateIssuer('city', v)} placeholder="Musterstadt" />
+          <FieldInput label="Land" value={localIssuer.country ?? 'DE'} onChange={v => updateIssuer('country', v.toUpperCase().slice(0, 2))} placeholder="DE" />
           <FieldInput label="Telefon" value={localIssuer.phone} onChange={v => updateIssuer('phone', v)} placeholder="+49 …" />
-          <FieldInput label="Steuer-Nr. / USt-IdNr." value={localIssuer.taxId} onChange={v => updateIssuer('taxId', v)} placeholder="DE123456789" />
+          <FieldInput label="Steuernummer" value={localIssuer.taxId} onChange={v => updateIssuer('taxId', v)} placeholder="12/345/67890" />
+          <FieldInput label="USt-IdNr." value={localIssuer.vatId ?? ''} onChange={v => updateIssuer('vatId', v)} placeholder="DE123456789" />
           <FieldInput label="IBAN" value={localIssuer.iban} onChange={v => updateIssuer('iban', v)} placeholder="DE89 …" isValid={isValidIban(localIssuer.iban)} />
           <FieldInput label="BIC" value={localIssuer.bic} onChange={v => updateIssuer('bic', v)} placeholder="GENODEF1…" isValid={isValidBic(localIssuer.bic)} />
           <div className="col-span-2">
@@ -180,6 +189,38 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
               <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">USt-Satz</label>
               <NumberInput min={0} max={30} value={localIssuer.vatRate} onChange={v => updateIssuer('vatRate', v)} className="w-24" />
               <span className="text-sm text-muted">%</span>
+            </div>
+          )}
+        </div>
+      </SettingsCard>
+
+      {/* E-Rechnung */}
+      <SettingsCard icon={FileCode2} title="E-Rechnung (ZUGFeRD)">
+        <div className="flex flex-col gap-3">
+          <Checkbox
+            checked={state.eInvoiceEnabled !== false}
+            onChange={val => setState(s => s ? { ...s, eInvoiceEnabled: val } : null)}
+            className="w-full rounded-md border border-divider bg-paper px-3 py-2.5 hover:border-ink/60"
+            label={
+              <div className="flex-1">
+                <div className="text-sm font-bold text-ink">XML in Rechnungs-PDFs einbetten</div>
+                <div className="text-[11px] text-muted">
+                  Profil EN 16931 (ZUGFeRD 2.x / Factur-X). Das PDF bleibt für Menschen lesbar und
+                  enthält zusätzlich die maschinenlesbare Rechnung.
+                </div>
+              </div>
+            }
+          />
+
+          {state.eInvoiceEnabled !== false && eInvoiceIssues.length > 0 && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2.5">
+              <div className="mb-1 flex items-center gap-2 text-[11px] font-bold text-amber-300">
+                <AlertCircle size={12} />
+                Stammdaten unvollständig — es wird nur ein reines PDF erzeugt
+              </div>
+              <ul className="ml-5 list-disc text-[11px] text-muted">
+                {eInvoiceIssues.map(issue => <li key={issue}>{issue}</li>)}
+              </ul>
             </div>
           )}
         </div>

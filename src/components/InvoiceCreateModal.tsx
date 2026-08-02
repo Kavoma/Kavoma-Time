@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, ShieldCheck, ClipboardList, ChevronDown, Bookmark, Save, X, Repeat, Eye, EyeOff } from 'lucide-react';
+import { FileText, FileCode2, ClipboardList, ChevronDown, Bookmark, Save, X, Repeat, Eye, EyeOff } from 'lucide-react';
 import type {
   Customer, Project, TimeEntry, Invoice, Issuer, InvoiceItem,
   InvoiceTemplate, RecurringInvoice,
@@ -12,7 +12,7 @@ import { TimeEntryPicker } from './TimeEntryPicker';
 import { InvoicePreviewPane } from './InvoicePreviewPane';
 import { RecurringSetupModal } from './RecurringSetupModal';
 import { applyTemplate, computeTotals, inferInvoiceMode, templateFromInvoice } from '../utils/templates';
-import { Checkbox } from './Checkbox';
+import { collectEInvoiceIssues } from '../utils/eInvoiceXml';
 
 interface Props {
   open: boolean;
@@ -24,7 +24,7 @@ interface Props {
   invoicePrefix: string;
   templates: InvoiceTemplate[];
   editingDraft?: Invoice | null;        // nicht-null = Draft-Edit-Modus
-  onSave: (invoice: Invoice, options: { includeReport: boolean; includeConsent: boolean }) => void;
+  onSave: (invoice: Invoice, options: { includeReport: boolean }) => void;
   onSaveDraft: (invoice: Invoice) => void;
   onCreateTemplate: (template: InvoiceTemplate) => void;
   onCreateRecurring: (recurring: RecurringInvoice) => void;
@@ -105,7 +105,6 @@ export function InvoiceCreateModal({
   const [createdAt, setCreatedAt] = useState(todayISO());
   const [dueDate, setDueDate] = useState(addDaysISO(todayISO(), 14));
   const [includeReport, setIncludeReport] = useState(true);
-  const [includeConsent, setIncludeConsent] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -150,7 +149,6 @@ export function InvoiceCreateModal({
       setCreatedAt(isoFromTs(editingDraft.createdAt));
       setDueDate(isoFromTs(editingDraft.dueDate));
       setIncludeReport(editingDraft.entryIds.length > 0);
-      setIncludeConsent(false);
     } else {
       setCustomerId(customers[0]?.id ?? 0);
       setProjectId(0);
@@ -165,7 +163,6 @@ export function InvoiceCreateModal({
       setCreatedAt(todayISO());
       setDueDate(addDaysISO(todayISO(), 14));
       setIncludeReport(true);
-      setIncludeConsent(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editingDraft]);
@@ -180,6 +177,12 @@ export function InvoiceCreateModal({
   // VAT-Satz aus Issuer
   const vatRate = issuer.smallBusiness ? 0 : issuer.vatRate;
   const totals = useMemo(() => computeTotals(items, vatRate), [items, vatRate]);
+
+  // Fehlende Pflichtangaben für die E-Rechnung (Absender + gewählter Kunde)
+  const eInvoiceIssues = useMemo(
+    () => collectEInvoiceIssues(issuer, customer),
+    [issuer, customer],
+  );
 
   // Aktuelles Invoice-Objekt für die Preview + zum Speichern
   const buildInvoice = (status: 'active' | 'draft', explicitId?: string): Invoice => ({
@@ -231,7 +234,6 @@ export function InvoiceCreateModal({
     const finalInvoice = buildInvoice('active');
     onSave(finalInvoice, {
       includeReport: includeReport && entryIds.length > 0,
-      includeConsent: includeConsent && !customer?.eInvoiceAccepted,
     });
   };
 
@@ -514,51 +516,30 @@ export function InvoiceCreateModal({
                       </motion.div>
                     </div>
 
-                    {!customer?.eInvoiceAccepted && (
-                      <div
-                        onClick={() => { setIncludeConsent(!includeConsent); markDirty(); }}
-                        className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-all ${
-                          includeConsent ? 'border-accent/40 bg-paper' : 'border-divider bg-surface/50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`flex h-7 w-7 items-center justify-center rounded-full ${includeConsent ? 'bg-ink/10 text-ink' : 'bg-muted/10 text-muted'}`}>
-                            <ShieldCheck size={13} />
-                          </div>
-                          <div>
-                            <div className="text-[12px] font-bold text-ink">E-Rechnung Einverständnis</div>
-                            <div className="text-[10px] text-muted">PDF-Versand Erlaubnis</div>
-                          </div>
-                        </div>
-                        <motion.div
-                          animate={{
-                            backgroundColor: includeConsent ? 'var(--color-ink)' : 'var(--color-paper)',
-                            borderColor: includeConsent ? 'var(--color-ink)' : 'var(--color-divider)',
-                          }}
-                          transition={{ duration: 0.15 }}
-                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-2 border-divider"
-                        >
-                          {includeConsent && (
-                            <svg
-                              className="h-3 w-3 text-paper"
-                              viewBox="0 0 12 12"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <motion.path
-                                initial={{ pathLength: 0 }}
-                                animate={{ pathLength: 1 }}
-                                transition={{ duration: 0.2, ease: 'easeOut' }}
-                                d="M2.5 6L5 8.5L9.5 3.5"
-                              />
-                            </svg>
-                          )}
-                        </motion.div>
+                    {/* ZUGFeRD-Status — kein Schalter, die Einbettung wird global in den
+                        Einstellungen gesteuert; hier zählt nur, ob sie greifen kann. */}
+                    <div className={`flex items-start gap-3 rounded-lg border p-3 ${
+                      eInvoiceIssues.length > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-divider bg-surface/50'
+                    }`}>
+                      <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                        eInvoiceIssues.length > 0 ? 'bg-amber-500/20 text-amber-300' : 'bg-ink/10 text-ink'
+                      }`}>
+                        <FileCode2 size={13} />
                       </div>
-                    )}
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-bold text-ink">E-Rechnung (ZUGFeRD)</div>
+                        {eInvoiceIssues.length > 0 ? (
+                          <div className="text-[10px] text-muted">
+                            Stammdaten unvollständig — es wird nur ein reines PDF erzeugt:{' '}
+                            {eInvoiceIssues.join(', ')}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-muted">
+                            XML nach EN 16931 wird ins PDF eingebettet
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </Section>
 
@@ -676,14 +657,11 @@ export function InvoiceCreateModal({
             serviceType={serviceType}
             periodFrom={from}
             periodTo={to}
+            excludeEntryIds={entryIds}
             onConfirm={(newItems, newEntryIds) => {
-              // Schutz gegen Doppel-Abrechnung: wenn ALLE ausgewählten Zeit-
-              // Einträge bereits in dieser Rechnung sind, kein Append (sonst
-              // würden Stunden doppelt entstehen). Andernfalls anhängen und die
-              // entryId-Liste dedupen (Items sind pro Projekt gruppiert und
-              // lassen sich nicht zerlegen — eine entry-Doppelung in der Item-
-              // Liste ist visuell sichtbar und vom User korrigierbar; eine
-              // entryId-Doppelung in der unsichtbaren Belegliste ist es nicht).
+              // Bereits abgerechnete Einträge blendet der Picker aus, die
+              // gelieferten Positionen enthalten also ausschließlich neue
+              // Stunden. Der Set-Filter bleibt als Sicherheitsnetz.
               const existing = new Set(entryIds);
               const freshIds = newEntryIds.filter((id) => !existing.has(id));
               if (freshIds.length === 0) {

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Download, Plus, FileText, Trash2, Check, Files, Search, ShieldCheck, ClipboardList, FileSpreadsheet, Ban, AlertTriangle, Repeat, Edit2, Wand2, Eye } from 'lucide-react';
+import { Download, Plus, FileText, Trash2, Check, Files, Search, FileCode2, ClipboardList, FileSpreadsheet, Ban, AlertTriangle, Repeat, Edit2, Wand2, Eye } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
 import { Invoice, DunningReminder, InvoiceTemplate, RecurringInvoice } from '../types';
 import { InvoiceCreateModal } from '../components/InvoiceCreateModal';
@@ -8,7 +8,7 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { ContextMenu } from '../components/ContextMenu';
 import { CancelInvoiceModal } from '../components/CancelInvoiceModal';
 import { DunningModal } from '../components/DunningModal';
-import { downloadInvoicePdf, downloadServiceReportPdf, downloadContractPdf } from '../utils/invoicePdf';
+import { downloadInvoicePdf, downloadServiceReportPdf, downloadEInvoiceXml } from '../utils/invoicePdf';
 import { downloadDunningPdf } from '../utils/dunningPdf';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { createCancellationInvoice } from '../utils/analytics';
@@ -144,6 +144,9 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     document.body.removeChild(link);
   };
 
+  // Einbettung des ZUGFeRD-XML ist per Default an, in den Einstellungen abschaltbar
+  const eInvoiceOptions = { embedXml: state.eInvoiceEnabled !== false };
+
   const bulkDownload = async () => {
     const toExport = selectedIds.length > 0 
       ? state.invoices.filter(inv => selectedIds.includes(String(inv.id)))
@@ -154,7 +157,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     for (const inv of toExport) {
       const customer = state.customers.find(c => c.id === inv.customerId);
       if (customer) {
-        downloadInvoicePdf(inv, state.issuer, customer);
+        await downloadInvoicePdf(inv, state.issuer, customer, undefined, eInvoiceOptions);
         await new Promise(r => setTimeout(r, 600));
       }
     }
@@ -177,7 +180,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     ? state.invoices.find(i => i.id === editingDraftId && i.status === 'draft') ?? null
     : null;
 
-  const handleCreate = async (invoice: Invoice, options: { includeReport: boolean; includeConsent: boolean }) => {
+  const handleCreate = async (invoice: Invoice, options: { includeReport: boolean }) => {
     const customer = state.customers.find(c => c.id === invoice.customerId);
     if (!customer) return;
     // Beim Finalisieren eines bestehenden Drafts ersetzen wir die existierende Invoice
@@ -200,12 +203,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     });
 
     // Paket-Download (Kombiniert PDF wenn includeReport gewählt wurde)
-    downloadInvoicePdf(invoice, state.issuer, customer, options.includeReport ? state.entries : undefined);
-
-    if (options.includeConsent) {
-      await new Promise(r => setTimeout(r, 600));
-      downloadContractPdf(state.issuer, customer);
-    }
+    await downloadInvoicePdf(invoice, state.issuer, customer, options.includeReport ? state.entries : undefined, eInvoiceOptions);
 
     setCreateOpen(false);
     setEditingDraftId(null);
@@ -260,7 +258,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         ...s,
         invoices: s.invoices.map(i => i.id === d.id ? final : i),
       } : null);
-      downloadInvoicePdf(final, state.issuer, customer, d.entryIds.length > 0 ? state.entries : undefined);
+      await downloadInvoicePdf(final, state.issuer, customer, d.entryIds.length > 0 ? state.entries : undefined, eInvoiceOptions);
       await new Promise(r => setTimeout(r, 500));
     }
     setIsFinalizing(false);
@@ -281,7 +279,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     const customer = inv && state.customers.find(c => c.id === inv.customerId);
     if (inv && customer) {
       // Beim erneuten Download hängen wir den Bericht mit an, wenn Zeiteinträge verknüpft sind
-      downloadInvoicePdf(inv, state.issuer, customer, inv.entryIds.length > 0 ? state.entries : undefined);
+      void downloadInvoicePdf(inv, state.issuer, customer, inv.entryIds.length > 0 ? state.entries : undefined, eInvoiceOptions);
     }
   };
 
@@ -291,10 +289,10 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     if (inv && customer) downloadServiceReportPdf(inv, state.issuer, customer, state.entries);
   };
 
-  const downloadConsent = (id: string) => {
+  const downloadXml = (id: string) => {
     const inv = state.invoices.find(i => i.id === id);
     const customer = inv && state.customers.find(c => c.id === inv.customerId);
-    if (customer) downloadContractPdf(state.issuer, customer);
+    if (inv && customer) downloadEInvoiceXml(inv, state.issuer, customer);
   };
 
   const remove = (id: string) => {
@@ -336,7 +334,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
 
     // Storno-PDF direkt herunterladen
     const customer = state.customers.find(c => c.id === original.customerId);
-    if (customer) downloadInvoicePdf(stornoInv, state.issuer, customer);
+    if (customer) void downloadInvoicePdf(stornoInv, state.issuer, customer, undefined, eInvoiceOptions);
 
     setCancellingId(null);
   };
@@ -807,7 +805,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
             { type: 'separator' },
             { label: 'Rechnung (PDF)',     icon: <Download size={13} />, onClick: () => redownload(menu.invoiceId) },
             { label: 'Tätigkeitsbericht',  icon: <ClipboardList size={13} />, onClick: () => downloadReport(menu.invoiceId) },
-            { label: 'E-Rechnung Vertrag', icon: <ShieldCheck size={13} />, onClick: () => downloadConsent(menu.invoiceId) },
+            { label: 'ZUGFeRD-XML',        icon: <FileCode2 size={13} />, onClick: () => downloadXml(menu.invoiceId) },
           ];
           if (hasReminders) {
             items.push({ label: 'Mahnung (PDF)', icon: <Download size={13} />, onClick: () => {
@@ -864,7 +862,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         onTogglePaid={(id) => togglePaid(id)}
         onDownloadPdf={(id) => redownload(id)}
         onDownloadReport={(id) => downloadReport(id)}
-        onDownloadConsent={(id) => downloadConsent(id)}
+        onDownloadXml={(id) => downloadXml(id)}
         onDownloadDunning={(id) => {
           const inv = state.invoices.find(i => i.id === id);
           const customer = inv && state.customers.find(c => c.id === inv.customerId);

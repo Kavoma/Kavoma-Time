@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Users, Plus, Search, ShieldCheck, LayoutGrid, List, FileSignature,
+  Users, Plus, Search, LayoutGrid, List, FileSignature,
   Trash2, Tag as TagIcon, CheckSquare, Square, X, Pause, Archive, CheckCircle2,
 } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
@@ -577,15 +577,11 @@ function CustomerRow({
           </div>
         )}
       </div>
-      {customer.eInvoiceAccepted && (
-        <Tooltip content="E-Rechnung Einverständnis liegt vor">
-          <span className="shrink-0"><ShieldCheck size={13} className="text-green-500/80" /></span>
-        </Tooltip>
-      )}
       {contractCount > 0 && (
         <Tooltip content="Zu Verträgen springen">
           <button
             type="button"
+            aria-label={`${contractCount} ${contractCount === 1 ? 'Vertrag' : 'Verträge'} — zu den Verträgen springen`}
             onClick={(e) => { e.stopPropagation(); onJumpContracts(); }}
             className="shrink-0 flex cursor-pointer items-center gap-1 rounded-full border border-divider bg-paper px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-muted transition-colors hover:border-ink hover:text-ink"
           >
@@ -655,9 +651,6 @@ function CustomerCard({
         <span className={`rounded-full border px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider ${STATUS_COLOR[status]}`}>
           {STATUS_LABEL[status]}
         </span>
-        {customer.eInvoiceAccepted && (
-          <ShieldCheck size={11} className="text-green-500/80" />
-        )}
       </div>
 
       <div className="grid grid-cols-3 gap-1.5 border-t border-divider pt-2">
