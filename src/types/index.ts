@@ -11,9 +11,9 @@ export interface Customer {
   zip?: string;
   city?: string;
   address?: string;     // Legacy / Fallback
+  country?: string;     // ISO-3166-1 alpha-2, Default 'DE' — Pflichtangabe für E-Rechnung (BT-55)
   email?: string;
-  eInvoiceAccepted?: boolean;
-  eInvoiceConsentDate?: number;   // Zeitpunkt der Zustimmung (ms)
+  vatId?: string;       // USt-IdNr. des Kunden (BT-48) — nur für EU-Fälle/Reverse-Charge nötig
 
   // V1.5 — Kundenverwaltung-Erweiterungen
   status?: CustomerStatus;        // Default 'active'; 'archived' filtert aus Standard-Listen
@@ -77,12 +77,14 @@ export interface Issuer {
   address2?: string;      // Adresszusatz
   zip: string;
   city: string;
+  country?: string;       // ISO-3166-1 alpha-2, Default 'DE' (BT-40)
   email: string;
   phone: string;
   iban: string;
   bic: string;
   bank: string;
-  taxId: string;          // Steuer-Nr. / USt-IdNr.
+  taxId: string;          // Steuernummer (BT-32, schemeID 'FC')
+  vatId?: string;         // USt-IdNr. (BT-31, schemeID 'VA') — z. B. DE123456789
   smallBusiness: boolean; // §19 UStG Kleinunternehmer
   vatRate: number;        // % — 0 falls Kleinunternehmer
 }
@@ -251,6 +253,26 @@ export interface AppState {
   recurringInvoices: RecurringInvoice[];
   nextTemplateId?: number;
   nextRecurringId?: number;
+
+  // === E-Rechnung (ZUGFeRD / Factur-X, Profil EN 16931) ===
+  /** Default true — bettet das CII-XML in jedes Rechnungs-PDF ein. */
+  eInvoiceEnabled?: boolean;
+}
+
+/**
+ * Konfiguration des automatischen Backups. Liegt NICHT im AppState, sondern
+ * im electron-store unter eigenem Schlüssel — der Main-Prozess muss ohne
+ * geöffnetes Fenster darauf zugreifen können.
+ */
+export interface AutoBackupConfig {
+  enabled: boolean;
+  intervalHours: number;
+  directory: string | null;
+  /** Wie viele Backups im Zielordner behalten werden. */
+  keep: number;
+  lastRunAt: number;
+  lastError?: string | null;
+  lastFile?: string | null;
 }
 
 declare global {
@@ -274,6 +296,11 @@ declare global {
       setStartPauseShortcut: (accelerator: string) => Promise<void>;
       encryptBackup: (plaintext: string) => Promise<any>;
       decryptBackup: (payload: any) => Promise<string>;
+      autoBackupGetConfig: () => Promise<AutoBackupConfig>;
+      autoBackupSetConfig: (patch: Partial<AutoBackupConfig>) => Promise<AutoBackupConfig>;
+      autoBackupChooseDirectory: () => Promise<string | null>;
+      autoBackupRunNow: () => Promise<{ ok: boolean; file?: string; removed?: number; error?: string }>;
+      autoBackupOpenDirectory: () => Promise<boolean>;
       wipeAllData: () => Promise<boolean>;
       attachmentWrite: (id: string, base64Plain: string) => Promise<{ sizeBytes: number }>;
       attachmentRead: (id: string) => Promise<string>;

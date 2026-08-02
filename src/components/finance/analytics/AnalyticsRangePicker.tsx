@@ -27,16 +27,25 @@ const MODE_LABELS: Record<RangeMode, string> = {
   custom: 'Frei',
 };
 
+// Parst 'YYYY-MM-DD' als LOKALE Mitternacht.
+// new Date('2026-01-01') würde als UTC interpretiert — in Zeitzonen östlich von
+// Greenwich verschiebt sich der Zeitraum dadurch um einen Tag.
+function parseLocalDate(iso: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? '');
+  if (!m) return null;
+  const ts = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime();
+  return Number.isFinite(ts) ? ts : null;
+}
+
 // Ermittelt die effektive DateRange anhand AnalyticsRange.
 // Wird auch aus AnalyticsTab importiert – daher exported.
 export function resolveRange(r: AnalyticsRange): DateRange {
   if (r.mode === 'year') return rangeForYear(r.year);
   if (r.mode === 'quarter') return rangeForQuarter(r.year, r.quarter);
-  const from = new Date(r.customFrom);
-  const to   = new Date(r.customTo);
-  const fromTs = Number.isFinite(from.getTime()) ? from.getTime() : 0;
+  const fromTs = parseLocalDate(r.customFrom) ?? 0;
+  const toDay  = parseLocalDate(r.customTo);
   // to ist exklusiv -> +1 Tag, damit der Endtag selbst noch zählt
-  const toTs = Number.isFinite(to.getTime()) ? to.getTime() + 86_400_000 : 0;
+  const toTs = toDay !== null ? toDay + 86_400_000 : 0;
   return { from: Math.min(fromTs, toTs), to: Math.max(fromTs, toTs) };
 }
 

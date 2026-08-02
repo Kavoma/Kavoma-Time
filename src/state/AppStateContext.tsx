@@ -19,6 +19,8 @@ const DEFAULT_ISSUER = {
   bic: '',
   bank: '',
   taxId: '',
+  vatId: '',
+  country: 'DE',
   smallBusiness: true,
   vatRate: 19,
 };
@@ -53,6 +55,7 @@ const SEED_STATE: AppState = {
   recurringInvoices: [],
   nextTemplateId: 1,
   nextRecurringId: 1,
+  eInvoiceEnabled: true,
 };
 
 interface ContextValue {
@@ -109,6 +112,21 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
   if (typeof migrated.nextTemplateId !== 'number') migrated.nextTemplateId = 1;
   if (typeof migrated.nextRecurringId !== 'number') migrated.nextRecurringId = 1;
 
+  // ZUGFeRD — Einbettung ist Default an
+  if (typeof migrated.eInvoiceEnabled !== 'boolean') migrated.eInvoiceEnabled = true;
+
+  // E-Rechnung: `taxId` war früher ein Sammelfeld für Steuernummer UND USt-IdNr.
+  // Sah es wie eine USt-IdNr. aus (Ländercode + Ziffern), übernehmen wir es
+  // einmalig in das neue, für das XML nötige `vatId`-Feld.
+  if (migrated.issuer && !migrated.issuer.vatId && typeof migrated.issuer.taxId === 'string') {
+    const compact = migrated.issuer.taxId.replace(/\s+/g, '').toUpperCase();
+    if (/^[A-Z]{2}[0-9A-Z]{6,}$/.test(compact)) {
+      migrated.issuer.vatId = compact;
+      migrated.issuer.taxId = '';
+    }
+  }
+  if (migrated.issuer && !migrated.issuer.country) migrated.issuer.country = 'DE';
+
   // InvoiceItem.kind aus 'unit' ableiten für alte Daten (nicht-destruktiv,
   // wird nur als Default gesetzt, falls fehlend — Backups bleiben gültig)
   migrated.invoices?.forEach((inv: any) => {
@@ -137,6 +155,13 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
       c.debtorNumber = String(migrated.nextDebtorNumber);
       migrated.nextDebtorNumber++;
     }
+    // E-Rechnung: Land ist Pflichtangabe im XML
+    if (!c.country) c.country = 'DE';
+    // Die alte Einverständnis-Spur für PDF-Rechnungen ist mit der
+    // E-Rechnungspflicht hinfällig — Felder aus Alt-Backups entfernen.
+    delete c.eInvoiceAccepted;
+    delete c.eInvoiceConsentDate;
+
     // V1.5 — neue Customer-Felder mit Defaults
     if (!c.status) c.status = 'active';
     if (!Array.isArray(c.tags)) c.tags = [];

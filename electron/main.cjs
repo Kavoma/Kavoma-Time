@@ -5,6 +5,7 @@
 const { app, BrowserWindow, dialog, nativeTheme, ipcMain, Tray, Menu, globalShortcut, nativeImage, safeStorage, screen, powerMonitor, shell } = require('electron');
 const path = require('node:path');
 const fs   = require('node:fs');
+const fsp  = require('node:fs/promises');
 const crypto = require('node:crypto');
 const Store = require('electron-store').default || require('electron-store');
 const { autoUpdater } = require('electron-updater');
@@ -85,7 +86,7 @@ ipcMain.handle('store-set', (event, key, data) => {
 });
 
 // === Backup-Verschlüsselung (AES-256-GCM mit dem App-Schlüssel) ===
-ipcMain.handle('backup-encrypt', (_event, plaintext) => {
+function encryptBackupPayload(plaintext) {
   if (!currentEncryptionKey) {
     throw new Error('Verschlüsselung nicht verfügbar — Backup wurde abgebrochen, um zu verhindern, dass Daten unverschlüsselt geschrieben werden.');
   }
@@ -102,7 +103,9 @@ ipcMain.handle('backup-encrypt', (_event, plaintext) => {
     authTag:   tag.toString('base64'),
     data:      enc.toString('base64'),
   };
-});
+}
+
+ipcMain.handle('backup-encrypt', (_event, plaintext) => encryptBackupPayload(plaintext));
 
 ipcMain.handle('backup-decrypt', (_event, payload) => {
   if (!currentEncryptionKey) throw new Error('Kein Schlüssel verfügbar');
@@ -123,6 +126,151 @@ ipcMain.handle('get-encryption-status', () => {
     available: safeStorage.isEncryptionAvailable(),
     active: Boolean(currentEncryptionKey),
   };
+});
+
+// === Automatisches Backup ==================================================
+// Läuft komplett im Main-Prozess: nur hier liegen Schlüssel, Store und
+// Dateisystem-Zugriff. Backups werden mit demselben AES-256-GCM-Verfahren
+// geschrieben wie der manuelle Export — bei fehlendem Schlüssel wird
+// abgebrochen statt Klartext zu schreiben.
+const AUTO_BACKUP_KEY = 'auto_backup_config';
+const AUTO_BACKUP_PREFIX = 'kavoma-time-autobackup-';
+const AUTO_BACKUP_EXT = '.kvbak';
+/** Wie oft geprüft wird, ob ein Backup fällig ist. */
+const AUTO_BACKUP_TICK_MS = 5 * 60 * 1000;
+
+const AUTO_BACKUP_DEFAULTS = {
+  enabled: false,
+  intervalHours: 24,
+  directory: null,
+  keep: 10,
+  lastRunAt: 0,
+};
+
+let autoBackupTimer = null;
+/** Letztes Ergebnis für die Anzeige in den Einstellungen. */
+let autoBackupLastError = null;
+let autoBackupLastFile = null;
+
+function getAutoBackupConfig() {
+  const stored = (store && store.get(AUTO_BACKUP_KEY)) || {};
+  const cfg = { ...AUTO_BACKUP_DEFAULTS, ...stored };
+  cfg.intervalHours = Math.min(24 * 7, Math.max(1, Number(cfg.intervalHours) || 24));
+  cfg.keep = Math.min(100, Math.max(1, Number(cfg.keep) || 10));
+  cfg.enabled = Boolean(cfg.enabled) && Boolean(cfg.directory);
+  return cfg;
+}
+
+function saveAutoBackupConfig(patch) {
+  const next = { ...getAutoBackupConfig(), ...patch };
+  store?.set(AUTO_BACKUP_KEY, next);
+  return next;
+}
+
+function backupFileName(date) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${AUTO_BACKUP_PREFIX}${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
+    + `_${p(date.getHours())}${p(date.getMinutes())}${p(date.getSeconds())}${AUTO_BACKUP_EXT}`;
+}
+
+/** Behält die N neuesten Auto-Backups, löscht den Rest. */
+async function rotateAutoBackups(directory, keep) {
+  const files = (await fsp.readdir(directory))
+    .filter((f) => f.startsWith(AUTO_BACKUP_PREFIX) && f.endsWith(AUTO_BACKUP_EXT))
+    .sort();                       // Dateiname ist chronologisch sortierbar
+  const stale = files.slice(0, Math.max(0, files.length - keep));
+  for (const f of stale) {
+    try {
+      await fsp.unlink(path.join(directory, f));
+    } catch (e) {
+      console.warn('Altes Auto-Backup konnte nicht gelöscht werden:', f, e.message);
+    }
+  }
+  return stale.length;
+}
+
+async function runAutoBackup() {
+  const cfg = getAutoBackupConfig();
+  if (!cfg.directory) throw new Error('Kein Zielordner gewählt.');
+  if (!store) throw new Error('Datenspeicher noch nicht bereit.');
+
+  const data = store.get('kavoma_time');
+  if (!data) throw new Error('Keine Daten zum Sichern vorhanden.');
+
+  // Wirft, wenn kein Schlüssel da ist — bewusst kein Klartext-Fallback
+  const payload = encryptBackupPayload(JSON.stringify(data));
+
+  await fsp.mkdir(cfg.directory, { recursive: true });
+  const now = new Date();
+  const file = path.join(cfg.directory, backupFileName(now));
+  await fsp.writeFile(file, JSON.stringify({ kavoma: 'backup', ...payload }, null, 2), 'utf8');
+
+  const removed = await rotateAutoBackups(cfg.directory, cfg.keep);
+  saveAutoBackupConfig({ lastRunAt: now.getTime() });
+  autoBackupLastError = null;
+  autoBackupLastFile = file;
+  return { file, removed };
+}
+
+async function maybeRunAutoBackup() {
+  const cfg = getAutoBackupConfig();
+  if (!cfg.enabled) return;
+  const due = Date.now() - (cfg.lastRunAt || 0) >= cfg.intervalHours * 3600_000;
+  if (!due) return;
+  try {
+    await runAutoBackup();
+  } catch (e) {
+    autoBackupLastError = e.message;
+    console.error('Auto-Backup fehlgeschlagen:', e.message);
+  }
+}
+
+function scheduleAutoBackup() {
+  if (autoBackupTimer) clearInterval(autoBackupTimer);
+  autoBackupTimer = setInterval(maybeRunAutoBackup, AUTO_BACKUP_TICK_MS);
+  // Direkt nach dem Start einmal prüfen (mit kurzem Versatz, damit der
+  // Store-Load und das erste Rendern nicht konkurrieren)
+  setTimeout(maybeRunAutoBackup, 20_000);
+}
+
+ipcMain.handle('auto-backup-get-config', () => ({
+  ...getAutoBackupConfig(),
+  lastError: autoBackupLastError,
+  lastFile: autoBackupLastFile,
+}));
+
+ipcMain.handle('auto-backup-set-config', (_event, patch) => {
+  const next = saveAutoBackupConfig(patch || {});
+  scheduleAutoBackup();
+  return { ...getAutoBackupConfig(), lastError: autoBackupLastError, lastFile: autoBackupLastFile };
+});
+
+ipcMain.handle('auto-backup-choose-directory', async () => {
+  const result = await dialog.showOpenDialog({
+    title: 'Zielordner für automatische Backups',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (result.canceled || !result.filePaths[0]) return null;
+  saveAutoBackupConfig({ directory: result.filePaths[0] });
+  scheduleAutoBackup();
+  return result.filePaths[0];
+});
+
+ipcMain.handle('auto-backup-run-now', async () => {
+  try {
+    const { file, removed } = await runAutoBackup();
+    return { ok: true, file, removed };
+  } catch (e) {
+    autoBackupLastError = e.message;
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('auto-backup-open-directory', () => {
+  const cfg = getAutoBackupConfig();
+  if (!cfg.directory) return false;
+  shell.openPath(cfg.directory);
+  return true;
 });
 
 ipcMain.handle('get-app-info', () => {
@@ -915,6 +1063,7 @@ app.whenReady().then(() => {
   registerHotkeys();
   startAfkPauseWatcher();
   configureAutoUpdater();
+  scheduleAutoBackup();
   updateOverlayVisibility();
   setTimeout(() => checkForUpdates(false), 4_000);
   screen.on('display-added', () => positionOverlay());

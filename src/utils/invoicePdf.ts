@@ -1,6 +1,14 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Invoice, Issuer, Customer } from '../types';
+import { buildFacturXXml, collectEInvoiceIssues } from './eInvoiceXml';
+import { attachFacturX } from './zugferdPdf';
+
+/** Steuert, ob dem PDF das ZUGFeRD-XML beigelegt wird. */
+export interface EInvoiceOptions {
+  /** Default true — abschaltbar über die Einstellungen. */
+  embedXml?: boolean;
+}
 
 const fmtEuro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -23,6 +31,54 @@ export function generateInvoicePdf(invoice: Invoice, issuer: Issuer, customer: C
     renderServiceReportOnDoc(doc, invoice, issuer, customer, entries);
   }
   return doc.output('blob');
+}
+
+/**
+ * Rechnungs-PDF inklusive eingebettetem ZUGFeRD-XML (Profil EN 16931).
+ *
+ * Fällt bewusst auf das reine PDF zurück, wenn die Einbettung abgeschaltet ist
+ * oder Pflicht-Stammdaten fehlen — eine E-Rechnung mit Lücken wäre für den
+ * Empfänger schlimmer als gar keine.
+ */
+export async function generateEInvoicePdf(
+  invoice: Invoice,
+  issuer: Issuer,
+  customer: Customer,
+  entries?: any[],
+  options?: EInvoiceOptions,
+): Promise<Blob> {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  renderInvoiceOnDoc(doc, invoice, issuer, customer);
+  if (entries && entries.length > 0) {
+    doc.addPage();
+    renderServiceReportOnDoc(doc, invoice, issuer, customer, entries);
+  }
+
+  const embed = options?.embedXml !== false;
+  if (!embed || collectEInvoiceIssues(issuer, customer).length > 0) {
+    return doc.output('blob');
+  }
+
+  try {
+    const xml = buildFacturXXml(invoice, issuer, customer);
+    const enriched = await attachFacturX(
+      doc.output('arraybuffer'),
+      xml,
+      invoice.number,
+      new Date(invoice.createdAt),
+    );
+    return new Blob([enriched as unknown as BlobPart], { type: 'application/pdf' });
+  } catch (err) {
+    // Lieber ein reines PDF ausliefern als gar keins — der Fehler ist im
+    // Log sichtbar, die Rechnung bleibt versendbar.
+    console.error('ZUGFeRD-Einbettung fehlgeschlagen, exportiere reines PDF:', err);
+    return doc.output('blob');
+  }
+}
+
+/** Reines Factur-X-XML ohne PDF-Hülle — für den separaten XML-Export. */
+export function generateEInvoiceXml(invoice: Invoice, issuer: Issuer, customer: Customer): string {
+  return buildFacturXXml(invoice, issuer, customer);
 }
 
 function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, customer: Customer) {
@@ -179,10 +235,13 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
   // === Footer (Steuernummer etc.) ===
   doc.setFontSize(7);
   doc.setTextColor(140);
+  const taxParts = [
+    issuer.taxId ? `Steuer-Nr.: ${issuer.taxId}` : '',
+    issuer.vatId ? `USt-IdNr.: ${issuer.vatId}` : '',
+  ].filter(Boolean);
   const footerLines = [
-    `${issuer.name}${issuer.taxId ? ` · Steuer-Nr./USt-IdNr.: ${issuer.taxId}` : ''}`,
+    `${issuer.name}${taxParts.length ? ` · ${taxParts.join(' · ')}` : ''}`,
     issuer.email,
-    'Dieses Dokument ist ein PDF (Hinweis: E-Rechnungs-Pflicht ab 2025/2026 beachten).',
   ].filter(Boolean) as string[];
   footerLines.forEach((line, i) => {
     doc.text(line, W / 2, 284 + i * 4, { align: 'center' });
@@ -240,50 +299,6 @@ export function generateServiceReportPdf(invoice: Invoice, issuer: Issuer, custo
 }
 
 /**
- * Erzeugt eine Einverständniserklärung für den Erhalt von PDF-Rechnungen
- */
-export function generateContractPdf(issuer: Issuer, customer: Customer): Blob {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Einverständniserklärung zum elektronischen Rechnungserhalt', 20, 30);
-  
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  let y = 50;
-  const text = `
-Hiermit erklärt sich der Kunde:
-${customer.name}
-${getAddr(customer).join('\n')}
-
-damit einverstanden, Rechnungen von:
-${issuer.name}
-${getAddr(issuer).join('\n')}
-
-künftig ausschließlich in elektronischer Form (als PDF-Datei via E-Mail) zu erhalten. 
-Dies geschieht im Hinblick auf die gesetzlichen Anforderungen zur E-Rechnungspflicht ab 2025/2026.
-
-Der Kunde stellt sicher, dass der Empfang der Rechnungen unter der folgenden E-Mail-Adresse möglich ist:
-${customer.email || '__________________________'}
-
-Diese Vereinbarung gilt bis auf Widerruf.
-  `.trim();
-
-  const lines = doc.splitTextToSize(text, 170);
-  doc.text(lines, 20, y);
-  
-  y += lines.length * 5 + 30;
-  doc.text('__________________________', 20, y);
-  doc.text('Ort, Datum', 20, y + 5);
-  
-  doc.text('__________________________', 110, y);
-  doc.text('Unterschrift Kunde', 110, y + 5);
-
-  return doc.output('blob');
-}
-
-/**
  * Phase 1.5 — Live-Preview im InvoiceCreateModal.
  * Verwendet die identische Build-Pipeline wie der finale Download,
  * gibt aber statt einem Blob eine data:application/pdf;base64-URL zurück.
@@ -304,19 +319,27 @@ export function renderInvoicePreviewDataUrl(
   return doc.output('dataurlstring');
 }
 
-export function downloadInvoicePdf(invoice: Invoice, issuer: Issuer, customer: Customer, entries?: any[]) {
-  const blob = generateInvoicePdf(invoice, issuer, customer, entries);
+export async function downloadInvoicePdf(
+  invoice: Invoice,
+  issuer: Issuer,
+  customer: Customer,
+  entries?: any[],
+  options?: EInvoiceOptions,
+) {
+  const blob = await generateEInvoicePdf(invoice, issuer, customer, entries, options);
   saveAs(blob, `Rechnung-${invoice.number}-${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+}
+
+/** Exportiert nur das Factur-X-XML — z. B. für Portale, die kein PDF annehmen. */
+export function downloadEInvoiceXml(invoice: Invoice, issuer: Issuer, customer: Customer) {
+  const xml = generateEInvoiceXml(invoice, issuer, customer);
+  const blob = new Blob([xml], { type: 'application/xml' });
+  saveAs(blob, `factur-x-${invoice.number.replace(/[^a-zA-Z0-9-]/g, '_')}.xml`);
 }
 
 export function downloadServiceReportPdf(invoice: Invoice, issuer: Issuer, customer: Customer, entries: any[]) {
   const blob = generateServiceReportPdf(invoice, issuer, customer, entries);
   saveAs(blob, `Taetigkeitsbericht-${invoice.number}.pdf`);
-}
-
-export function downloadContractPdf(issuer: Issuer, customer: Customer) {
-  const blob = generateContractPdf(issuer, customer);
-  saveAs(blob, `Einverstaendnis_PDF_Rechnung_${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 }
 
 function saveAs(blob: Blob, filename: string) {
