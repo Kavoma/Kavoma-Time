@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, Trash2, Plus, ChevronRight, Search, X } from 'lucide-react';
+import { Pencil, Trash2, Plus, ChevronRight, Search, X, ListChecks } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
 import { CustomAutocomplete } from '../components/CustomAutocomplete';
+import { Checkbox } from '../components/Checkbox';
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { DeleteModal } from '../components/DeleteModal';
 import { EditModal } from '../components/EditModal';
 import { NewEntryModal } from '../components/NewEntryModal';
@@ -25,6 +27,11 @@ export function TrackerView() {
   const [entryView, setEntryView] = useState<'date' | 'project'>('date');
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Auswahlmodus für Mehrfach-Löschung
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   // === Helpers ===
   const formatHMS = (totalSeconds: number) => {
@@ -118,6 +125,40 @@ export function TrackerView() {
       return { ...s, entries: s.entries.filter(e => e.id !== id) };
     });
     setDeleteModalEntryId(null);
+  };
+
+  const toggleSelected = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const setGroupSelected = (groupEntries: TimeEntry[], checked: boolean) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      for (const e of groupEntries) {
+        if (checked) next.add(e.id);
+        else next.delete(e.id);
+      }
+      return next;
+    });
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkDelete = () => {
+    setState(s => {
+      if (!s) return null;
+      return { ...s, entries: s.entries.filter(e => !selectedIds.has(e.id)) };
+    });
+    setBulkDeleteOpen(false);
+    exitSelectMode();
   };
 
   const handleAddManualEntry = (entry: TimeEntry) => {
@@ -268,14 +309,21 @@ export function TrackerView() {
           const customer = customers.find(c => c.id === entry.customerId);
           const project = projects.find(p => p.id === entry.projectId);
           const d = new Date(entry.startedAt);
+          const selected = selectedIds.has(entry.id);
           return (
             <li
               key={entry.id}
-              onContextMenu={(e) => handleContextMenu(e, entry.id)}
-              onDoubleClick={() => setEditModalEntryId(entry.id)}
-              className="group flex items-center gap-3 rounded-md border-l-[3px] bg-surface px-3 py-2.5 transition-colors hover:bg-divider cursor-pointer"
+              onContextMenu={selectMode ? undefined : (e) => handleContextMenu(e, entry.id)}
+              onDoubleClick={selectMode ? undefined : () => setEditModalEntryId(entry.id)}
+              onClick={selectMode ? () => toggleSelected(entry.id) : undefined}
+              className={`group flex items-center gap-3 rounded-md border-l-[3px] px-3 py-2.5 transition-colors cursor-pointer ${selected ? 'bg-divider ring-1 ring-ink/25' : 'bg-surface hover:bg-divider'}`}
               style={{ borderLeftColor: customer?.color || '#525252' }}
             >
+              {selectMode && (
+                <span onClick={(e) => e.stopPropagation()}>
+                  <Checkbox checked={selected} onChange={() => toggleSelected(entry.id)} />
+                </span>
+              )}
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <div className="truncate text-xs font-bold text-ink">{entry.description || '(ohne Beschreibung)'}</div>
                 <div className="truncate text-[11px] text-muted">{customer?.name} · {project?.name}</div>
@@ -317,12 +365,26 @@ export function TrackerView() {
                   ))}
                 </div>
               </div>
-              <button
-                onClick={() => setNewEntryOpen(true)}
-                className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-muted transition-colors hover:border-ink hover:text-ink"
-              >
-                <Plus size={12} /> Nachtragen
-              </button>
+              <div className="flex items-center gap-2">
+                {state.entries.length > 0 && (
+                  <button
+                    onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest transition-colors ${selectMode
+                      ? 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink'
+                      : 'border-divider text-muted hover:border-ink hover:text-ink'
+                      }`}
+                  >
+                    {selectMode ? <X size={12} /> : <ListChecks size={12} />}
+                    {selectMode ? 'Fertig' : 'Auswählen'}
+                  </button>
+                )}
+                <button
+                  onClick={() => setNewEntryOpen(true)}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-muted transition-colors hover:border-ink hover:text-ink"
+                >
+                  <Plus size={12} /> Nachtragen
+                </button>
+              </div>
             </div>
 
             {state.entries.length > 5 && (
@@ -354,8 +416,16 @@ export function TrackerView() {
               <div className="flex flex-col gap-6">
                 {dateGroups.map(g => (
                   <div key={g.key}>
-                    <div className="mb-2 flex items-baseline justify-between">
-                      <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{g.label}</h3>
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {selectMode && (
+                          <Checkbox
+                            checked={g.entries.every(e => selectedIds.has(e.id))}
+                            onChange={(checked) => setGroupSelected(g.entries, checked)}
+                          />
+                        )}
+                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{g.label}</h3>
+                      </div>
                       <span className="text-[11px] tabular-nums text-muted">{formatHM(g.total)} Std.</span>
                     </div>
                     <ul className="flex list-none flex-col gap-2">
@@ -374,6 +444,14 @@ export function TrackerView() {
                         onClick={() => toggleProject(g.projectId)}
                         className="flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-divider"
                       >
+                        {selectMode && (
+                          <span onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={g.entries.every(e => selectedIds.has(e.id))}
+                              onChange={(checked) => setGroupSelected(g.entries, checked)}
+                            />
+                          </span>
+                        )}
                         <ChevronRight size={14} className={`shrink-0 text-muted transition-transform ${expanded ? 'rotate-90' : ''}`} />
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                           <div className="truncate text-xs font-bold text-ink">{g.project?.name ?? 'Unbekannt'}</div>
@@ -401,6 +479,40 @@ export function TrackerView() {
                 })}
               </ul>
             )}
+
+            <AnimatePresence>
+              {selectMode && (
+                <motion.div
+                  className="pointer-events-none fixed inset-x-0 bottom-6 z-40 flex justify-center"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 16 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                >
+                  <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-divider bg-surface px-4 py-2.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-muted tabular-nums">
+                      {selectedIds.size} ausgewählt
+                    </span>
+                    <span className="h-4 w-px bg-divider" />
+                    <button
+                      onClick={() => setGroupSelected(sorted, sorted.length > 0 && !sorted.every(e => selectedIds.has(e.id)))}
+                      className="cursor-pointer text-[11px] font-bold uppercase tracking-widest text-muted transition-colors hover:text-ink"
+                    >
+                      {sorted.length > 0 && sorted.every(e => selectedIds.has(e.id)) ? 'Keine' : 'Alle'}
+                    </button>
+                    <span className="h-4 w-px bg-divider" />
+                    <button
+                      onClick={() => setBulkDeleteOpen(true)}
+                      disabled={selectedIds.size === 0}
+                      className="flex cursor-pointer items-center gap-1.5 rounded-md bg-red-500/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-red-400 transition-all hover:bg-red-500 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-500/15 disabled:hover:text-red-400"
+                    >
+                      <Trash2 size={12} />
+                      Löschen{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </section>
         );
       })()}
@@ -438,6 +550,16 @@ export function TrackerView() {
         entry={state.entries.find(e => e.id === deleteModalEntryId) || null}
         onConfirm={() => deleteModalEntryId && handleDeleteEntry(deleteModalEntryId)}
         onCancel={() => setDeleteModalEntryId(null)}
+      />
+
+      <ConfirmDeleteModal
+        open={bulkDeleteOpen}
+        title={selectedIds.size === 1 ? 'Eintrag löschen?' : `${selectedIds.size} Einträge löschen?`}
+        description={selectedIds.size === 1
+          ? 'Der ausgewählte Eintrag wird unwiderruflich gelöscht.'
+          : `Die ${selectedIds.size} ausgewählten Einträge werden unwiderruflich gelöscht.`}
+        onConfirm={handleBulkDelete}
+        onCancel={() => setBulkDeleteOpen(false)}
       />
 
       <EditModal

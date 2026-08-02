@@ -5,6 +5,7 @@ import { ExportView } from './ExportView';
 import { VendorInvoicesTab } from '../components/finance/VendorInvoicesTab';
 import { ContractsTab } from '../components/finance/ContractsTab';
 import { AnalyticsTab } from '../components/finance/AnalyticsTab';
+import type { NavIntent, ViewKey } from '../App';
 
 export type FinanceTab = 'invoices' | 'vendor' | 'contracts' | 'analytics';
 
@@ -18,16 +19,20 @@ const TABS: { id: FinanceTab; label: string; icon: typeof Receipt }[] = [
 export interface FinanceNavIntent {
   tab?: FinanceTab;
   customerFilter?: number;
+  /** Öffnet im Rechnungen-Tab direkt den Detail-Drawer dieser Rechnung. */
+  invoiceId?: string;
 }
 
 interface Props {
   intent?: FinanceNavIntent | null;
+  navigateTo?: (view: ViewKey, intent?: NavIntent) => void;
   onIntentConsumed?: () => void;
 }
 
-export function FinanceView({ intent, onIntentConsumed }: Props = {}) {
+export function FinanceView({ intent, navigateTo, onIntentConsumed }: Props = {}) {
   const [tab, setTab] = useState<FinanceTab>('invoices');
   const [pendingCustomerFilter, setPendingCustomerFilter] = useState<number | undefined>(undefined);
+  const [pendingInvoiceId, setPendingInvoiceId] = useState<string | undefined>(undefined);
 
   // Intent konsumieren (nur einmal pro Intent-Ref-Wechsel)
   useEffect(() => {
@@ -35,6 +40,9 @@ export function FinanceView({ intent, onIntentConsumed }: Props = {}) {
     if (intent.tab) setTab(intent.tab);
     if (typeof intent.customerFilter === 'number') {
       setPendingCustomerFilter(intent.customerFilter);
+    }
+    if (typeof intent.invoiceId === 'string') {
+      setPendingInvoiceId(intent.invoiceId);
     }
     onIntentConsumed?.();
   }, [intent, onIntentConsumed]);
@@ -77,7 +85,13 @@ export function FinanceView({ intent, onIntentConsumed }: Props = {}) {
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.18 }}
         >
-          {tab === 'invoices' && <ExportView />}
+          {tab === 'invoices' && (
+            <ExportView
+              navigateTo={navigateTo}
+              initialInvoiceId={pendingInvoiceId}
+              onInitialInvoiceConsumed={() => setPendingInvoiceId(undefined)}
+            />
+          )}
           {tab === 'vendor' && <VendorInvoicesTab />}
           {tab === 'contracts' && (
             <ContractsTab

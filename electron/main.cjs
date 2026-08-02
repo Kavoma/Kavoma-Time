@@ -2,7 +2,7 @@
 // Electron Main-Process
 // ============================================================
 
-const { app, BrowserWindow, dialog, nativeTheme, ipcMain, Tray, Menu, globalShortcut, nativeImage, safeStorage, screen, powerMonitor } = require('electron');
+const { app, BrowserWindow, dialog, nativeTheme, ipcMain, Tray, Menu, globalShortcut, nativeImage, safeStorage, screen, powerMonitor, shell } = require('electron');
 const path = require('node:path');
 const fs   = require('node:fs');
 const crypto = require('node:crypto');
@@ -303,6 +303,27 @@ let updateStatus = {
 // MAIN WINDOW
 // ============================================================
 
+function handleExternalLinks(webContents) {
+  webContents.on('will-navigate', (event, url) => {
+    if (url.startsWith('http:') || url.startsWith('https:') || url.startsWith('mailto:') || url.startsWith('tel:')) {
+      if (!url.startsWith(DEV_URL)) {
+        event.preventDefault();
+        shell.openExternal(url).catch((err) => console.error('Failed to open external link:', err));
+      }
+    }
+  });
+
+  webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http:') || url.startsWith('https:') || url.startsWith('mailto:') || url.startsWith('tel:')) {
+      if (!url.startsWith(DEV_URL)) {
+        shell.openExternal(url).catch((err) => console.error('Failed to open external link:', err));
+        return { action: 'deny' };
+      }
+    }
+    return { action: 'allow' };
+  });
+}
+
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -326,6 +347,8 @@ function createMainWindow() {
       nodeIntegration: false,
     },
   });
+
+  handleExternalLinks(mainWindow.webContents);
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.maximize();
@@ -454,6 +477,8 @@ function createOverlayWindow() {
       nodeIntegration: false,
     },
   });
+
+  handleExternalLinks(overlayWindow.webContents);
 
   overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
   overlayWindow.setAlwaysOnTop(true, 'floating');

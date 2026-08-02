@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
-import { Download, Plus, FileText, Trash2, Check, Files, Search, ShieldCheck, ClipboardList, FileSpreadsheet, Ban, AlertTriangle, Repeat, Edit2, Wand2 } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Download, Plus, FileText, Trash2, Check, Files, Search, ShieldCheck, ClipboardList, FileSpreadsheet, Ban, AlertTriangle, Repeat, Edit2, Wand2, Eye } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
 import { Invoice, DunningReminder, InvoiceTemplate, RecurringInvoice } from '../types';
 import { InvoiceCreateModal } from '../components/InvoiceCreateModal';
+import { InvoiceDetailDrawer } from '../components/finance/InvoiceDetailDrawer';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { ContextMenu } from '../components/ContextMenu';
 import { CancelInvoiceModal } from '../components/CancelInvoiceModal';
@@ -12,8 +13,16 @@ import { downloadDunningPdf } from '../utils/dunningPdf';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { createCancellationInvoice } from '../utils/analytics';
 import { Tooltip } from '../components/Tooltip';
+import type { NavIntent, ViewKey } from '../App';
 
-export function ExportView() {
+interface ExportViewProps {
+  navigateTo?: (view: ViewKey, intent?: NavIntent) => void;
+  /** Wenn gesetzt: öffnet beim Mounten direkt den Detail-Drawer dieser Rechnung. */
+  initialInvoiceId?: string;
+  onInitialInvoiceConsumed?: () => void;
+}
+
+export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsumed }: ExportViewProps = {}) {
   const { state, setState } = useAppState();
   const [createOpen, setCreateOpen] = useState(false);
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
@@ -27,7 +36,17 @@ export function ExportView() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [dunningId, setDunningId] = useState<string | null>(null);
+  const [drawerInvoiceId, setDrawerInvoiceId] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{ key: 'createdAt' | 'total' | 'status', direction: 'asc' | 'desc' }>({ key: 'createdAt', direction: 'desc' });
+
+  // Cross-View-Intent: kommt eine Rechnungs-ID rein (z. B. aus dem Kunden-Drawer),
+  // öffnen wir direkt den Detail-Drawer dieser Rechnung.
+  useEffect(() => {
+    if (initialInvoiceId) {
+      setDrawerInvoiceId(initialInvoiceId);
+      onInitialInvoiceConsumed?.();
+    }
+  }, [initialInvoiceId, onInitialInvoiceConsumed]);
   
   // Helper to check if an invoice is overdue (due today or in the past)
   const isOverdue = (invoice: Invoice) => {
@@ -645,26 +664,33 @@ export function ExportView() {
               <div
                 key={inv.id}
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, invoiceId: inv.id }); }}
-                onClick={(e) => {
-                  if (isDraft && !e.shiftKey) {
-                    // Linksklick auf Draft → Edit-Mode; Shift+Click bleibt Selection-Toggle
-                    setEditingDraftId(inv.id);
-                    setCreateOpen(true);
-                  } else {
-                    setSelectedIds(prev => prev.includes(String(inv.id)) ? prev.filter(id => id !== String(inv.id)) : [...prev, String(inv.id)]);
-                  }
-                }}
+                onClick={() => setDrawerInvoiceId(inv.id)}
                 className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border p-5 transition-all hover:shadow-2xl hover:shadow-black/20 cursor-pointer ${
                   isSelected ? 'border-ink bg-ink/[0.03]'
                   : isDraft ? 'border-amber-500/30 bg-amber-500/[0.02] hover:border-amber-400/60'
                   : 'border-divider bg-surface hover:border-accent/40'
                 }`}
-                title={isDraft ? 'Klick zum Bearbeiten · Shift+Klick zum Auswählen' : undefined}
+                title="Klick öffnet die Detail-Ansicht · Rechtsklick für Schnellaktionen"
               >
                 {/* Accent line */}
                 <div className="absolute left-0 top-0 h-full w-1 transition-all group-hover:w-1.5" style={{ background: customer?.color || '#525252' }} />
 
-                <div className="mb-4 flex items-start justify-between">
+                {/* Multi-Select-Checkbox */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedIds(prev => prev.includes(String(inv.id)) ? prev.filter(id => id !== String(inv.id)) : [...prev, String(inv.id)]);
+                  }}
+                  className={`absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded border transition-all ${
+                    isSelected ? 'border-ink bg-ink text-paper' : 'border-divider bg-surface opacity-0 group-hover:opacity-100'
+                  }`}
+                  title={isSelected ? 'Auswahl entfernen' : 'Auswählen'}
+                  aria-label={isSelected ? 'Auswahl entfernen' : 'Auswählen'}
+                >
+                  {isSelected && <Check size={12} strokeWidth={3} />}
+                </button>
+
+                <div className="mb-4 flex items-start justify-between gap-2 pr-7">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`font-display text-lg font-bold tabular-nums ${inv.status === 'cancelled' ? 'text-muted line-through' : isDraft ? 'text-amber-100' : 'text-ink'}`}>{inv.number}</span>
@@ -686,26 +712,6 @@ export function ExportView() {
                     </div>
                     <div className="mt-1 truncate text-[11px] font-medium text-muted">{customer?.name}</div>
                   </div>
-
-                  {/* Interactive Status Chip — bei Drafts deaktiviert */}
-                  {!isDraft ? (
-                    <div
-                      onClick={(e) => { e.stopPropagation(); togglePaid(inv.id); }}
-                      className={`flex h-6 items-center gap-1.5 rounded-full px-2.5 transition-all hover:scale-105 active:scale-95 ${
-                        inv.paid
-                          ? 'bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-paper'
-                          : 'bg-divider text-muted hover:bg-ink hover:text-paper'
-                      }`}
-                    >
-                      <Check size={10} strokeWidth={3} />
-                      <span className="text-[9px] font-black uppercase tracking-wider">{inv.paid ? 'Bezahlt' : 'Offen'}</span>
-                    </div>
-                  ) : (
-                    <div className="flex h-6 items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 text-amber-200">
-                      <Edit2 size={10} />
-                      <span className="text-[9px] font-black uppercase tracking-wider">Klick zum Bearbeiten</span>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex items-end justify-between">
@@ -714,11 +720,30 @@ export function ExportView() {
                       Erstellt: {fmtDate(inv.createdAt)}<br />
                       Fällig: {fmtDate(inv.dueDate)}
                     </div>
-                    {/* Selection Indicator moved to bottom */}
-                    <div className={`flex h-4 items-center gap-1.5 transition-all ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'}`}>
-                      <div className={`h-2.5 w-2.5 rounded-full ${isSelected ? 'bg-ink' : 'bg-muted'}`} />
-                      <span className="text-[8px] font-bold uppercase tracking-tighter text-muted">{isSelected ? 'Ausgewählt' : 'Auswählen'}</span>
-                    </div>
+                    {/* Status-Chip — bei aktiven Rechnungen togglebar */}
+                    {!isDraft ? (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); togglePaid(inv.id); }}
+                        className={`flex h-6 w-fit items-center gap-1.5 rounded-full px-2.5 transition-all hover:scale-105 active:scale-95 ${
+                          inv.paid
+                            ? 'bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-paper'
+                            : overdue
+                              ? 'bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-paper'
+                              : 'bg-divider text-muted hover:bg-ink hover:text-paper'
+                        }`}
+                        title="Klick wechselt den Zahlungsstatus"
+                      >
+                        <Check size={10} strokeWidth={3} />
+                        <span className="text-[9px] font-black uppercase tracking-wider">
+                          {inv.paid ? 'Bezahlt' : overdue ? 'Überfällig' : 'Offen'}
+                        </span>
+                      </button>
+                    ) : (
+                      <span className="flex h-6 w-fit items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 text-amber-200">
+                        <Edit2 size={10} />
+                        <span className="text-[9px] font-black uppercase tracking-wider">Entwurf</span>
+                      </span>
+                    )}
                   </div>
                   <div className="text-right tabular-nums">
                     <div className="text-xl font-bold text-ink">{fmtEuro(displayTotal)}</div>
@@ -770,6 +795,7 @@ export function ExportView() {
           // Drafts: eigenes, schlankes Menü — kein PDF (gibt es noch nicht), keine Stornierung
           if (isDraft) {
             return [
+              { label: 'Details öffnen', icon: <Eye size={13} />, onClick: () => setDrawerInvoiceId(menu.invoiceId) },
               { label: 'Bearbeiten', icon: <Edit2 size={13} />, onClick: () => { setEditingDraftId(menu.invoiceId); setCreateOpen(true); } },
               { type: 'separator' },
               { label: 'Entwurf verwerfen', icon: <Trash2 size={13} />, danger: true, onClick: () => setDeletingId(menu.invoiceId) },
@@ -777,6 +803,8 @@ export function ExportView() {
           }
 
           const items: any[] = [
+            { label: 'Details öffnen',     icon: <Eye size={13} />, onClick: () => setDrawerInvoiceId(menu.invoiceId) },
+            { type: 'separator' },
             { label: 'Rechnung (PDF)',     icon: <Download size={13} />, onClick: () => redownload(menu.invoiceId) },
             { label: 'Tätigkeitsbericht',  icon: <ClipboardList size={13} />, onClick: () => downloadReport(menu.invoiceId) },
             { label: 'E-Rechnung Vertrag', icon: <ShieldCheck size={13} />, onClick: () => downloadConsent(menu.invoiceId) },
@@ -827,6 +855,34 @@ export function ExportView() {
         invoice={state.invoices.find(i => i.id === dunningId) || null}
         onConfirm={addReminder}
         onCancel={() => setDunningId(null)}
+      />
+
+      <InvoiceDetailDrawer
+        open={drawerInvoiceId !== null && state.invoices.some(i => i.id === drawerInvoiceId)}
+        invoice={state.invoices.find(i => i.id === drawerInvoiceId) ?? null}
+        onClose={() => setDrawerInvoiceId(null)}
+        onTogglePaid={(id) => togglePaid(id)}
+        onDownloadPdf={(id) => redownload(id)}
+        onDownloadReport={(id) => downloadReport(id)}
+        onDownloadConsent={(id) => downloadConsent(id)}
+        onDownloadDunning={(id) => {
+          const inv = state.invoices.find(i => i.id === id);
+          const customer = inv && state.customers.find(c => c.id === inv.customerId);
+          if (inv && customer) downloadDunningPdf(inv, state.issuer, customer);
+        }}
+        onRemoveReminder={(id) => removeReminder(id)}
+        onAddReminder={(id) => { setDrawerInvoiceId(null); setDunningId(id); }}
+        onCancelInvoice={(id) => { setDrawerInvoiceId(null); setCancellingId(id); }}
+        onDelete={(id) => { setDrawerInvoiceId(null); remove(id); }}
+        onEditDraft={(id) => { setDrawerInvoiceId(null); setEditingDraftId(id); setCreateOpen(true); }}
+        onNavigateCustomer={(customerId) => {
+          setDrawerInvoiceId(null);
+          navigateTo?.('customers', { view: 'customers', customerId });
+        }}
+        onNavigateProject={(projectId) => {
+          setDrawerInvoiceId(null);
+          navigateTo?.('projects', { view: 'projects', projectId });
+        }}
       />
     </>
   );

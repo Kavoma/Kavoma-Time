@@ -137,6 +137,25 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
       c.debtorNumber = String(migrated.nextDebtorNumber);
       migrated.nextDebtorNumber++;
     }
+    // V1.5 — neue Customer-Felder mit Defaults
+    if (!c.status) c.status = 'active';
+    if (!Array.isArray(c.tags)) c.tags = [];
+    if (typeof c.notes !== 'string') c.notes = '';
+    if (typeof c.createdAt !== 'number') {
+      // Legacy: id war Date.now() bei Anlage → als Fallback nutzen
+      c.createdAt = typeof c.id === 'number' && c.id > 1000000000000 ? c.id : 0;
+    }
+  });
+
+  // V1.5 — neue Project-Felder mit Defaults
+  migrated.projects?.forEach((p: any) => {
+    if (!p.status) p.status = 'active';
+    if (!Array.isArray(p.tags)) p.tags = [];
+    if (!p.priority) p.priority = 'normal';
+    if (!Array.isArray(p.milestones)) p.milestones = [];
+    if (typeof p.createdAt !== 'number') {
+      p.createdAt = typeof p.id === 'number' && p.id > 1000000000000 ? p.id : 0;
+    }
   });
 
   // Migration: Invoice-Status + Mahn-Array
