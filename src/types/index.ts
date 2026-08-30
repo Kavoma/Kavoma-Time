@@ -219,6 +219,13 @@ export interface Contract {
   createdAt: number;
 }
 
+/** Vom Main-Prozess erkannte Abwesenheit, über die entschieden werden muss. */
+export interface DetectedPause {
+  began: number;
+  ended: number;
+  reason: 'idle' | 'sleep' | 'lock';
+}
+
 export interface AppState {
   isRunning: boolean;
   startedAt: number | null;
@@ -240,6 +247,12 @@ export interface AppState {
   timerOverlayEnabled?: boolean;
   afkPauseEnabled?: boolean;
   afkTimeoutMinutes?: number;
+  /** Laufende Erfassung beim Herunterfahren/Abmelden automatisch beenden. */
+  stopOnShutdownEnabled?: boolean;
+  /** Abends einmal erinnern, falls noch etwas läuft. */
+  endOfDayReminderEnabled?: boolean;
+  endOfDayReminderHour?: number;
+  endOfDayReminderMinute?: number;
 
   // === Anhänge und dokumentierte Belege/Verträge ===
   attachments: Attachment[];
@@ -278,10 +291,17 @@ export interface AutoBackupConfig {
 declare global {
   interface Window {
     api?: {
+      /** 'darwin' | 'win32' | 'linux' — für plattformabhängiges UI-Layout. */
+      platform: string;
+      /** Ob dieses System das schwebende Timer-Overlay anbietet (macOS: nein). */
+      overlaySupported: boolean;
       saveData: (key: string, data: any) => Promise<void>;
       loadData: (key: string) => Promise<any>;
       onHotkeyToggle: (cb: () => void) => () => void;
       onStoreUpdated: (cb: (key: string, data: any) => void) => () => void;
+      onNavigateToView: (cb: (view: string) => void) => () => void;
+      onViewSwipe: (cb: (direction: 'left' | 'right') => void) => () => void;
+      onTimerQuickStart: (cb: (target: { customerId: number; projectId: number; description: string }) => void) => () => void;
       onTimerCommand: (cb: (command: 'toggle' | 'start' | 'pause' | 'stop', effectiveNow?: number) => void) => () => void;
       sendTimerOverlayCommand: (command: 'toggle' | 'start' | 'pause' | 'stop') => Promise<void>;
       getOverlayBounds: () => Promise<{ x: number; y: number; width: number; height: number } | null>;
@@ -294,6 +314,9 @@ declare global {
       showMainWindowFromOverlay: () => Promise<void>;
       setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => void;
       setStartPauseShortcut: (accelerator: string) => Promise<void>;
+      onAfkPauseDetected: (cb: (pause: DetectedPause) => void) => () => void;
+      getPendingAfkPause: () => Promise<DetectedPause | null>;
+      resolveAfkPause: () => Promise<void>;
       encryptBackup: (plaintext: string) => Promise<any>;
       decryptBackup: (payload: any) => Promise<string>;
       autoBackupGetConfig: () => Promise<AutoBackupConfig>;

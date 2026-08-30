@@ -1,6 +1,6 @@
 {
   "name": "kavoma-time",
-  "version": "1.0.13",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -19,9 +19,13 @@
     "preview": "vite preview",
     "electron": "electron .",
     "electron:dev": "concurrently --kill-others --names \"VITE,ELECTRON\" --prefix-colors \"cyan,magenta\" \"pnpm dev\" \"wait-on http://localhost:5173 && pnpm electron\"",
-    "dist": "pnpm build && electron-builder --win nsis",
-    "dist:publish": "pnpm build && electron-builder --win nsis --publish always",
-    "dist:portable": "pnpm build && electron-builder --win portable",
+    "dist": "pnpm build && electron-builder",
+    "dist:mac": "pnpm build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac",
+    "dist:mac:signed": "pnpm build && electron-builder --mac",
+    "dist:win": "pnpm build && electron-builder --win --x64",
+    "dist:portable": "pnpm build && electron-builder --win portable --x64",
+    "dist:publish": "pnpm build && electron-builder --win nsis --x64 --publish always",
+    "dist:publish:mac": "pnpm build && electron-builder --mac --publish always",
     "version-set": "npm version --no-git-tag-version",
     "lint": "eslint . --report-unused-disable-directives"
   },
@@ -63,7 +67,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Kavoma Time",
-      "license": "LICENSE"
+      "license": "LICENSE",
+      "artifactName": "Kavoma-Time-Setup-${version}-${arch}.${ext}"
     },
     "files": [
       "dist/**/*",
@@ -72,7 +77,60 @@
       "LICENSE",
       "NOTICE"
     ],
-    "asar": true
+    "asar": true,
+    "artifactName": "Kavoma-Time-${version}-${os}-${arch}.${ext}",
+    "mac": {
+      "icon": "build/icons/mac/icon.icns",
+      "category": "public.app-category.productivity",
+      "minimumSystemVersion": "11.0",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "extendInfo": {
+        "NSHumanReadableCopyright": "Copyright (C) 2026 Artjom Kaufmann",
+        "LSMultipleInstancesProhibited": true
+      }
+    },
+    "dmg": {
+      "title": "Kavoma Time ${version}",
+      "icon": "build/icons/mac/icon.icns",
+      "contents": [
+        {
+          "x": 140,
+          "y": 200,
+          "type": "file"
+        },
+        {
+          "x": 400,
+          "y": 200,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "Kavoma-Time-Portable-${version}-${arch}.${ext}"
+    },
+    "afterPack": "build/afterPack.cjs"
   },
   "dependencies": {
     "electron-store": "^11.0.2",
@@ -93,7 +151,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^9.2.1",
     "electron": "^42.0.1",
-    "electron-builder": "^26.8.1",
+    "electron-builder": "^26.15.3",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
@@ -107,12 +165,5 @@
     "typescript-eslint": "^8.59.3",
     "vite": "^8.0.13",
     "wait-on": "^9.0.10"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron",
-      "electron-builder",
-      "electron-winstaller"
-    ]
   }
 }

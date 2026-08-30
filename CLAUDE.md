@@ -16,11 +16,30 @@ pnpm electron:dev     # Vite + Electron parallel (Standard-Dev-Loop)
 pnpm electron         # Electron gegen bereits laufenden Vite (oder gegen dist/)
 pnpm build            # vite build → dist/
 pnpm lint             # eslint . --report-unused-disable-directives
-pnpm dist             # build + electron-builder NSIS (Windows-Installer in release/)
-pnpm dist:portable    # build + Portable .exe
-pnpm dist:publish     # build + publish auf GitHub Releases (braucht GH_TOKEN env)
+pnpm dist             # build + electron-builder für das aktuelle Betriebssystem
+pnpm dist:mac         # build + DMG & ZIP (arm64 + x64), ad-hoc signiert
+pnpm dist:mac:signed  # wie dist:mac, aber mit vorhandener Developer-ID-Signatur
+pnpm dist:win         # build + NSIS-Installer und Portable .exe (x64)
+pnpm dist:portable    # build + nur Portable .exe (x64)
+pnpm dist:publish     # Windows-Build + publish auf GitHub Releases (braucht GH_TOKEN env)
+pnpm dist:publish:mac # macOS-Build + publish auf GitHub Releases
 pnpm version-set X.Y.Z  # bump package.json ohne Git-Tag
 ```
+
+**Beide Zielsysteme lassen sich von macOS aus bauen** — electron-builder bringt für
+NSIS eigene native Binaries mit, Wine wird nicht gebraucht. Umgekehrt geht es nicht:
+macOS-Builds brauchen einen Mac (`codesign`, `hdiutil`).
+
+Die `--x64`-Flags in den Windows-Skripten sind Absicht: sobald ein Target auf der
+CLI steht (`--win nsis`), ersetzt es die `arch`-Liste aus der Config und
+electron-builder fällt auf die Architektur des Build-Rechners zurück — auf einem
+Apple-Silicon-Mac käme sonst ein Windows-ARM64-Installer heraus.
+
+**pnpm-Install**: `pnpm-workspace.yaml` muss `electron` unter `allowBuilds`
+führen. Seit pnpm 10/11 sind Install-Skripte standardmäßig blockiert, und Electron
+lädt seine ~250 MB Binary genau im `postinstall` herunter — fehlt der Eintrag,
+bleibt `node_modules/…/electron/dist` leer und nichts startet. Der frühere
+`pnpm`-Block in der `package.json` wird von pnpm 11 nicht mehr gelesen.
 
 Es gibt **keine Tests / kein Test-Framework**. Type-Check läuft implizit via `tsc --noEmit` Settings in `tsconfig.json`, wird aber nicht durch ein Script aufgerufen — bei Bedarf `npx tsc --noEmit` manuell.
 
@@ -30,7 +49,19 @@ Es gibt **keine Tests / kein Test-Framework**. Type-Check läuft implizit via `t
 
 - **`electron/main.cjs`** ist der Main-Prozess und der zentrale Punkt für: `electron-store` (verschlüsselt), AES-256-GCM Backup-Ver-/Entschlüsselung, verschlüsselte PDF-Anhänge (`userData/attachments/<id>.pdf.enc`, Format `IV(12)|AuthTag(16)|Ciphertext`), Tray, Global-Shortcut, AFK-Auto-Pause (via `powerMonitor.getSystemIdleTime`), Auto-Updater (`electron-updater` gegen GitHub Releases), Timer-Overlay-Fenster (Snap-to-Corner), Single-Instance-Lock, JumpList.
 - **`electron/preload.cjs`** ist die **einzige** API-Surface zum Renderer. Alle neuen IPC-Kanäle müssen sowohl in `main.cjs` (`ipcMain.handle`) als auch in `preload.cjs` (`contextBridge.exposeInMainWorld('api', …)`) **und** in der `Window['api']`-Deklaration in `src/types/index.ts` ergänzt werden, sonst sind sie TS-seitig unsichtbar.
-- **Renderer** läuft als React-App in zwei Modi: Hauptfenster oder Timer-Overlay. Welcher Modus aktiv ist, entscheidet `?overlay=timer` in der URL (`src/main.tsx`). Beide Modi teilen sich `AppStateProvider`, aber das Overlay **persistiert nicht** (siehe `isTimerOverlay`-Guard in `AppStateContext.tsx`).
+- **Renderer** läuft als React-App in zwei Modi: Hauptfenster oder Timer-Overlay. Welcher Modus aktiv ist, entscheidet `?overlay=timer` in der URL (`src/main.tsx`). Beide Modi teilen sich `AppStateProvider`, aber das Overlay **persistiert nicht** (siehe `isTimerOverlay`-Guard in `AppStateContext.tsx`). Unter macOS wird der Overlay-Modus nie geladen — siehe `OVERLAY_SUPPORTED`.
+
+### Plattform-Unterschiede Windows / macOS
+
+`main.cjs` setzt oben `IS_MAC` / `IS_WIN`; alles Plattformabhängige hängt an diesen Flags:
+
+- **Application-Menu**: Unter Windows/Linux `Menu.setApplicationMenu(null)` — die App hat eine eigene Titelleiste. Unter macOS **niemals** `null` setzen: dort hängt an der System-Menüleiste die komplette Standard-Tastatursteuerung (Cmd+C/V/X/A/Z/Q/W). `setupApplicationMenu()` baut deshalb ein rollenbasiertes Menü.
+- **Titelleiste**: `titleBarStyle: 'hidden'` auf beiden. Windows/Linux bekommen zusätzlich `titleBarOverlay` (dort rechts), macOS stattdessen `trafficLightPosition` (dort links). `TitleBar.tsx` liest `window.api.platform` und lässt auf der jeweils belegten Seite Platz frei.
+- **Tray**: macOS braucht ein Template-Image (`electron/trayTemplate.png` + `@2x`, schwarze Silhouette mit Alpha) plus `icon.setTemplateImage(true)`; das System färbt es selbst für Hell/Dunkel ein. Windows nutzt das farbige `electron/tray-icon.png`. Unter macOS reagiert der Tray bereits auf das gesetzte Context-Menu — ein zusätzlicher `click`-Handler würde das Fenster ungewollt mit öffnen.
+- **Timer-Overlay**: `OVERLAY_SUPPORTED` ist unter macOS `false` — das Fenster wird gar nicht erst angelegt und der Schalter in den Einstellungen ausgeblendet (`window.api.overlaySupported`). Grund: Die laufende Zeit steht dort ohnehin in der Menüleiste, und ein Fenster, das sich über alles legt, ist auf einem einzelnen Bildschirm eher im Weg. Unter Windows bleibt es — dort gibt es keine Menüleisten-Uhr.
+- **Trackpad-Gesten** (nur macOS): Zwei-Finger-Wischen nach rechts auf einer Eintragszeile löscht (`SwipeRow`), Drei-Finger-Wischen blättert durch die Ansichten (`mainWindow.on('swipe')` → `view-swipe`). Letzteres kommt nur an, wenn im System „Zwischen Seiten blättern" aktiv ist.
+- **JumpList / `setAppUserModelId`**: nur Windows.
+- **Auto-Updater**: Unter macOS verweigert `electron-updater` das Update ohne gültige Developer-ID-Signatur. `checkForUpdates()` fängt das ab und meldet es als verständlichen Hinweis statt als Fehler.
 
 ### Single Source of Truth: `AppStateContext`
 
@@ -48,9 +79,48 @@ Alle Timer-Aktionen (Tray-Menü, Global Hotkey `Ctrl+Shift+Space`, Overlay-Butto
 
 - Hotkey/Tray → Main sendet `hotkey-toggle` / `timer-command` → Renderer-Handler in `AppStateContext.tsx` ruft `runTimerCommand`.
 - Overlay-Button → `window.api.sendTimerOverlayCommand` → Main → `timer-command` IPC → Renderer.
-- AFK / Lock / Suspend → Main schickt `pause` mit `effectiveNow` = Zeitpunkt des Idle-Beginns, damit die nachträgliche Pause korrekt rückdatiert wird.
+- Herunterfahren / Abmelden → Main schickt `stop` und verzögert `app.quit()` um 1,5 s, damit der Renderer den Eintrag noch schreiben kann (nur wenn `stopOnShutdownEnabled`).
+- Schnellstart im Tray-Menü → Main sendet `timer-quick-start` mit `{customerId, projectId, description}` → Renderer ruft `startTimerWith`. Das schließt einen laufenden Eintrag zuerst ab, sonst landete dessen Zeit unter der neu gewählten Tätigkeit.
 
-Wenn neue Auslöser hinzukommen, **niemals** den Timer-State direkt manipulieren, sondern über `runTimerCommand` gehen.
+Wenn neue Auslöser hinzukommen, **niemals** den Timer-State direkt manipulieren, sondern über `runTimerCommand` bzw. `startTimerWith` gehen.
+
+### Pausenerkennung
+
+Der Main-Prozess pausiert **nicht** selbst. Er erkennt die Abwesenheit und legt sie dem Renderer als Frage vor — ob die Zeit abgezogen wird, weiß nur der Mensch davor. Stiller Abzug verliert Arbeitszeit, stilles Behalten erfindet welche.
+
+- `checkAfkPause()` läuft alle 10 s über `powerMonitor.getSystemIdleTime()`. Überschreitet die Untätigkeit die Schwelle, wird ihr Beginn in `afkIdleSince` gemerkt (geklemmt auf `sessionStartedAt` — eine Pause vor dem Eintrag gehört nicht zu ihm). Fällt sie unter `AFK_BACK_AT_DESK_SECONDS`, ist jemand zurück.
+- `suspend`/`lock-screen` merken nur `afkAwaySince`; entschieden wird bei `resume`/`unlock-screen`, weil vorher niemand antworten kann.
+- `proposeAfkPause()` verwirft alles, was kürzer als die Schwelle ist oder vor dem Eintragsstart begann, und lässt immer nur **eine** offene Frage zu (`pendingAfkPause`).
+- Der Renderer holt beim Start `afk-pause-get-pending` nach — eine Pause kann erkannt worden sein, bevor er zuhören konnte — und meldet die Antwort über `afk-pause-resolve` zurück.
+- `applyPause()` in `timerActions.ts` beendet den Eintrag beim Pausenbeginn und startet bei `continueRunning` einen zweiten ab der Rückkehr, mit denselben Angaben.
+
+### Tray-Menü
+
+`buildTrayMenu()` in `main.cjs` wird bei **jedem** `store-set` neu gebaut, plus im Sekundentakt (`trayTicker`), solange der Timer läuft. Inhalt:
+
+- Kopfzeile mit laufender Tätigkeit und Zeit, Start/Pause, „Stoppen und sichern".
+- **Schnellstarts** (`computeQuickStarts`): die drei häufigsten Kombinationen aus Kunde, Projekt und Tätigkeit der letzten 120 abgeschlossenen Einträge. Was nur einmal vorkam, fällt raus — dann greift „Nochmal: …" auf den letzten Eintrag zurück. Nur sichtbar, solange nichts läuft.
+- Unter macOS zeigt `tray.setTitle()` die laufende Zeit direkt in der Menüleiste (`formatMenuClock`: unter einer Stunde `m:ss`, danach `h:mm`). Windows kennt keinen Tray-Titel und bekommt sie im Tooltip.
+
+`sendQuickStart()` holt das Fenster bewusst **nicht** nach vorne — der Sinn ist, aus der Menüleiste heraus zu starten, ohne die App zu öffnen. Ein verstecktes Fenster nimmt die IPC-Nachricht genauso entgegen.
+
+### Trackpad-Gesten (macOS)
+
+`SwipeRow` ersetzt das `<li>` der Eintragsliste. Das Trackpad liefert die Wischgeste als `wheel`-Ereignis mit `deltaX`; React hängt `onWheel` **passiv** ein, dort ließe sich das Scrollen nicht unterdrücken — deshalb ein eigener Listener mit `passive: false` über eine Ref.
+
+- Nur waagerechte Gesten werden abgefangen (`isHorizontalSwipe`), senkrechtes Scrollen gehört weiter der Liste.
+- Mit macOS-Standardeinstellung („natürliches Scrollen") liefert ein Wisch nach rechts ein **negatives** `deltaX`.
+- Das Ende der Geste wird über eine Pause von 140 ms ohne weitere Ereignisse erkannt — das Trackpad meldet kein Loslassen.
+- Absichtlich **nur macOS**: Unter Windows liefert auch das Kipprad einer Maus horizontales `deltaX`, dort wäre der Fehlgriff zu leicht.
+- Keine Rückfrage vor dem Löschen — der Fehlgriff wird über `UndoToast` aufgefangen, nicht über einen Dialog, der jedes Mal im Weg steht.
+
+### Schutz vor vergessenen Timern
+
+Drei unabhängige Netze, alle abschaltbar:
+
+- **Feierabend-Erinnerung** (`checkEndOfDayReminder`, Minutentakt im Main): eine `Notification` pro Tag, sobald die eingestellte Uhrzeit vorbei ist und noch etwas läuft. `reminderSentOn` verhindert Wiederholungen. Bewusst opt-in.
+- **Langläufer-Warnung** (`LONG_RUN_THRESHOLD_SECONDS` in `App.tsx`): ab 12 h Laufzeit eine Rückfrage — beim Fokussieren des Fensters und alle 5 Minuten. Pro `sessionStartedAt` nur einmal (`dismissedLongRunRef`).
+- **Stopp beim Herunterfahren**: `powerMonitor.on('shutdown')`, siehe Timer-Command-Flow.
 
 ### View-Routing
 
@@ -73,13 +143,23 @@ Statisches `switch` in `App.tsx` (`renderView`). Kein React Router. Sichtbare Vi
 - **`window.api`** ist optional (`?.`) — Code muss auch ohne Electron lauffähig sein (Browser-Preview via `pnpm dev` ohne `electron`).
 - **Versions-Bump**: `pnpm version-set X.Y.Z` (kein Git-Tag). `dist:publish` veröffentlicht automatisch auf GitHub Releases (`Kavoma/Kavoma-Time`).
 
-## userData-Layout (Windows)
+## userData-Layout
 
-`%APPDATA%/Kavoma/KavomaTime/` — bewusst nicht der Electron-Default. Enthält:
+Bewusst nicht der Electron-Default, sondern `app.getPath('appData')/Kavoma/KavomaTime`:
+
+- Windows: `%APPDATA%/Kavoma/KavomaTime/`
+- macOS: `~/Library/Application Support/Kavoma/KavomaTime/`
+
+Enthält:
 
 - `kavoma-time-data.json` — verschlüsselter electron-store
-- `kavoma.key` — AES-Schlüssel, gewrappt mit DPAPI über `safeStorage`
+- `kavoma.key` — AES-Schlüssel, gewrappt über `safeStorage` (Windows DPAPI / macOS Schlüsselbund)
 - `attachments/<uuid>.pdf.enc` — verschlüsselte PDF-Belege
+
+Der Keychain-Eintrag hinter `safeStorage` hängt unter macOS an der Code-Signatur-
+Identität des Bundles. Deshalb signiert `build/afterPack.cjs` unsignierte Builds
+ad-hoc auf `com.kavoma.time` — ohne das trüge das Bundle nur die geerbte
+Electron-Signatur und der AES-Schlüssel wäre nach jedem Rebuild ein anderer.
 
 Wenn `safeStorage.isEncryptionAvailable()` false ist, zeigt die App beim Start eine bewusst friktionierte zweistufige Warn-Dialog-Kette und einen permanenten `EncryptionBanner`. Backup-/Anhang-Operationen werfen dann hart, statt Klartext zu schreiben — das ist gewollt und sollte nicht aufgeweicht werden.
 

@@ -1,6 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+  // Plattform, damit der Renderer die Titelleiste korrekt layouten kann
+  // (macOS-Ampel links vs. Windows-Fenstersteuerung rechts).
+  platform: process.platform,
+  /** Ob dieses System das schwebende Timer-Overlay anbietet (macOS: nein). */
+  overlaySupported: process.platform !== 'darwin',
+
   saveData: (key, data) => ipcRenderer.invoke('store-set', key, data),
   loadData: (key) => ipcRenderer.invoke('store-get', key),
 
@@ -14,6 +20,21 @@ contextBridge.exposeInMainWorld('api', {
     const handler = (_event, key, data) => cb(key, data);
     ipcRenderer.on('store-updated', handler);
     return () => ipcRenderer.removeListener('store-updated', handler);
+  },
+  onViewSwipe: (cb) => {
+    const handler = (_event, direction) => cb(direction);
+    ipcRenderer.on('view-swipe', handler);
+    return () => ipcRenderer.removeListener('view-swipe', handler);
+  },
+  onNavigateToView: (cb) => {
+    const handler = (_event, view) => cb(view);
+    ipcRenderer.on('navigate-to-view', handler);
+    return () => ipcRenderer.removeListener('navigate-to-view', handler);
+  },
+  onTimerQuickStart: (cb) => {
+    const handler = (_event, target) => cb(target);
+    ipcRenderer.on('timer-quick-start', handler);
+    return () => ipcRenderer.removeListener('timer-quick-start', handler);
   },
   onTimerCommand: (cb) => {
     const handler = (_event, command, effectiveNow) => cb(command, effectiveNow);
@@ -36,6 +57,15 @@ contextBridge.exposeInMainWorld('api', {
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.send('overlay-set-ignore-mouse-events', ignore, options),
 
   setStartPauseShortcut: (accelerator) => ipcRenderer.invoke('set-start-pause-shortcut', accelerator),
+
+  // Erkannte Abwesenheit — der Renderer fragt nach, was mit der Zeit passieren soll
+  onAfkPauseDetected: (cb) => {
+    const handler = (_event, pause) => cb(pause);
+    ipcRenderer.on('afk-pause-detected', handler);
+    return () => ipcRenderer.removeListener('afk-pause-detected', handler);
+  },
+  getPendingAfkPause: () => ipcRenderer.invoke('afk-pause-get-pending'),
+  resolveAfkPause: () => ipcRenderer.invoke('afk-pause-resolve'),
 
   // Backup-Verschlüsselung
   encryptBackup: (plaintext) => ipcRenderer.invoke('backup-encrypt', plaintext),

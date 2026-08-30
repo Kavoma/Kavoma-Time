@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, Trash2, Plus, ChevronRight, Search, X, ListChecks } from 'lucide-react';
+import { Pencil, Trash2, Copy, Plus, ChevronRight, Search, X, ListChecks } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
 import { CustomAutocomplete } from '../components/CustomAutocomplete';
 import { Checkbox } from '../components/Checkbox';
@@ -12,6 +12,12 @@ import { useAppState } from '../state/AppStateContext';
 import { TimeEntry } from '../types';
 import { pauseTimer, startTimer, stopTimer } from '../utils/timerActions';
 import { getLiveDurationSeconds } from '../utils/trackerTimer';
+import { collectDescriptionSuggestions } from '../utils/descriptionSuggestions';
+import { UndoToast } from '../components/UndoToast';
+import { SwipeRow } from '../components/SwipeRow';
+
+/** Wie lange sich eine Löschung zurückholen lässt. */
+const UNDO_WINDOW_MS = 8000;
 
 export function TrackerView() {
   const { state, setState } = useAppState();
@@ -27,6 +33,34 @@ export function TrackerView() {
   const [entryView, setEntryView] = useState<'date' | 'project'>('date');
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  /**
+   * Wischen zum Löschen gibt es nur unter macOS. Unter Windows liefert auch das
+   * Kipprad einer Maus horizontales deltaX — dort wäre der Fehlgriff zu leicht.
+   */
+  const swipeToDelete = window.api?.platform === 'darwin';
+
+  /** Gerade gelöschte Einträge, solange sie sich zurückholen lassen. */
+  const [deletedEntries, setDeletedEntries] = useState<TimeEntry[] | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+  }, []);
+
+  const rememberDeleted = (entries: TimeEntry[]) => {
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    setDeletedEntries(entries);
+    undoTimerRef.current = window.setTimeout(() => setDeletedEntries(null), UNDO_WINDOW_MS);
+  };
+
+  const undoDelete = () => {
+    if (!deletedEntries) return;
+    const restored = deletedEntries;
+    // Die Liste sortiert sich selbst nach Startzeit — voranstellen genügt.
+    setState(s => s ? { ...s, entries: [...restored, ...s.entries] } : null);
+    setDeletedEntries(null);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+  };
 
   // Auswahlmodus für Mehrfach-Löschung
   const [selectMode, setSelectMode] = useState(false);
@@ -120,11 +154,33 @@ export function TrackerView() {
   };
 
   const handleDeleteEntry = (id: number) => {
+    const removed = (state?.entries ?? []).filter(e => e.id === id);
+    if (removed.length > 0) rememberDeleted(removed);
+    setState(s => s ? { ...s, entries: s.entries.filter(e => e.id !== id) } : null);
+    setDeleteModalEntryId(null);
+  };
+
+  /**
+   * „Nochmal dasselbe": gleicher Kunde, gleiches Projekt, gleiche Dauer.
+   *
+   * Der Klon endet jetzt und beginnt entsprechend früher — anders als ein
+   * Klon, der jetzt beginnt, erzeugt das keinen Eintrag, der in die Zukunft
+   * reicht und die Tagessumme verfälscht.
+   */
+  const handleDuplicateEntry = (id: number) => {
     setState(s => {
       if (!s) return null;
-      return { ...s, entries: s.entries.filter(e => e.id !== id) };
+      const source = s.entries.find(e => e.id === id);
+      if (!source) return s;
+      const now = Date.now();
+      const copy: TimeEntry = {
+        ...source,
+        id: now,
+        startedAt: now - source.durationSeconds * 1000,
+        endedAt: now,
+      };
+      return { ...s, entries: [copy, ...s.entries] };
     });
-    setDeleteModalEntryId(null);
   };
 
   const toggleSelected = (id: number) => {
@@ -153,10 +209,9 @@ export function TrackerView() {
   };
 
   const handleBulkDelete = () => {
-    setState(s => {
-      if (!s) return null;
-      return { ...s, entries: s.entries.filter(e => !selectedIds.has(e.id)) };
-    });
+    const removed = (state?.entries ?? []).filter(e => selectedIds.has(e.id));
+    if (removed.length > 0) rememberDeleted(removed);
+    setState(s => s ? { ...s, entries: s.entries.filter(e => !selectedIds.has(e.id)) } : null);
     setBulkDeleteOpen(false);
     exitSelectMode();
   };
@@ -178,7 +233,7 @@ export function TrackerView() {
   };
 
   const availableProjects = projects.filter(p => p.customerId === state.currentCustomerId);
-  const allDescriptions = [...new Set(state.entries.map(e => e.description).filter(Boolean))];
+  const allDescriptions = collectDescriptionSuggestions(state.entries);
 
   return (
     <>
@@ -311,13 +366,15 @@ export function TrackerView() {
           const d = new Date(entry.startedAt);
           const selected = selectedIds.has(entry.id);
           return (
-            <li
+            <SwipeRow
               key={entry.id}
+              enabled={swipeToDelete && !selectMode}
+              onSwipeDelete={() => handleDeleteEntry(entry.id)}
+              accentColor={customer?.color || '#525252'}
+              selected={selected}
               onContextMenu={selectMode ? undefined : (e) => handleContextMenu(e, entry.id)}
               onDoubleClick={selectMode ? undefined : () => setEditModalEntryId(entry.id)}
               onClick={selectMode ? () => toggleSelected(entry.id) : undefined}
-              className={`group flex items-center gap-3 rounded-md border-l-[3px] px-3 py-2.5 transition-colors cursor-pointer ${selected ? 'bg-divider ring-1 ring-ink/25' : 'bg-surface hover:bg-divider'}`}
-              style={{ borderLeftColor: customer?.color || '#525252' }}
             >
               {selectMode && (
                 <span onClick={(e) => e.stopPropagation()}>
@@ -334,7 +391,7 @@ export function TrackerView() {
                 </div>
                 <div className="text-xs font-black tabular-nums">{formatHM(entry.durationSeconds)}</div>
               </div>
-            </li>
+            </SwipeRow>
           );
         };
 
@@ -536,6 +593,13 @@ export function TrackerView() {
               Bearbeiten
             </button>
             <button
+              onClick={() => { handleDuplicateEntry(contextMenu.entryId); setContextMenu(null); }}
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-ink transition-colors hover:bg-divider"
+            >
+              <Copy size={13} className="text-muted" />
+              Duplizieren
+            </button>
+            <button
               onClick={() => { setDeleteModalEntryId(contextMenu.entryId); setContextMenu(null); }}
               className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-red-400 transition-colors hover:bg-divider"
             >
@@ -545,6 +609,13 @@ export function TrackerView() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <UndoToast
+        message={deletedEntries === null
+          ? null
+          : deletedEntries.length === 1 ? 'Eintrag gelöscht.' : `${deletedEntries.length} Einträge gelöscht.`}
+        onUndo={undoDelete}
+      />
 
       <DeleteModal
         entry={state.entries.find(e => e.id === deleteModalEntryId) || null}

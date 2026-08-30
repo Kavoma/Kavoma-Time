@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Clock, Keyboard } from 'lucide-react';
+import { Clock, Keyboard, BellRing } from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
 import { NumberInput } from '../NumberInput';
 import { SettingsCard } from './SettingsCard';
@@ -75,6 +75,9 @@ export function GeneralTab() {
 
   const afkEnabled = state.afkPauseEnabled !== false;
   const overlayEnabled = state.timerOverlayEnabled !== false;
+  // Unter macOS gibt es das Overlay nicht — die laufende Zeit steht dort in der
+  // Menüleiste. Ein Schalter ohne Wirkung wäre schlimmer als kein Schalter.
+  const overlaySupported = window.api?.overlaySupported !== false;
 
   const updateTarget = (h: number) => setState(s => s ? { ...s, weeklyTargetHours: h } : null);
   const updateAfkEnabled = (next: boolean) => setState(s => s ? { ...s, afkPauseEnabled: next } : null);
@@ -83,6 +86,22 @@ export function GeneralTab() {
     setState(s => s ? { ...s, afkTimeoutMinutes: next } : null);
   };
   const updateOverlay = (next: boolean) => setState(s => s ? { ...s, timerOverlayEnabled: next } : null);
+
+  const reminderEnabled = state.endOfDayReminderEnabled === true;
+  const stopOnShutdown = state.stopOnShutdownEnabled !== false;
+  const reminderHour = state.endOfDayReminderHour ?? 18;
+  const reminderMinute = state.endOfDayReminderMinute ?? 30;
+
+  const updateReminderEnabled = (next: boolean) => setState(s => s ? { ...s, endOfDayReminderEnabled: next } : null);
+  const updateReminderHour = (h: number) => {
+    const next = Math.min(23, Math.max(0, h));
+    setState(s => s ? { ...s, endOfDayReminderHour: next } : null);
+  };
+  const updateReminderMinute = (m: number) => {
+    const next = Math.min(59, Math.max(0, m));
+    setState(s => s ? { ...s, endOfDayReminderMinute: next } : null);
+  };
+  const updateStopOnShutdown = (next: boolean) => setState(s => s ? { ...s, stopOnShutdownEnabled: next } : null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,9 +128,9 @@ export function GeneralTab() {
           {/* AFK-Pause */}
           <div className="flex items-start justify-between gap-4 py-4">
             <div className="min-w-0">
-              <div className="text-sm font-bold text-ink">AFK-Pause</div>
+              <div className="text-sm font-bold text-ink">Pausen erkennen</div>
               <div className="mt-0.5 text-xs text-muted">
-                Bei fehlender Maus-/Tastatur-Aktivität wird der Timer rückwirkend auf die letzte Aktivität pausiert.
+                War der Rechner länger unbenutzt, gesperrt oder im Ruhezustand, während die Zeiterfassung lief, fragt die App beim Zurückkommen, ob die Zeit abgezogen werden soll.
               </div>
               <div className={`mt-3 flex items-center gap-2 ${afkEnabled ? '' : 'opacity-45'}`}>
                 <NumberInput
@@ -125,18 +144,66 @@ export function GeneralTab() {
                 <span className="text-xs text-muted">Minuten ohne Aktivität</span>
               </div>
             </div>
-            <Switch checked={afkEnabled} onChange={updateAfkEnabled} ariaLabel="AFK-Pause aktivieren" />
+            <Switch checked={afkEnabled} onChange={updateAfkEnabled} ariaLabel="Pausenerkennung aktivieren" />
           </div>
 
-          {/* Timer Overlay */}
-          <div className="flex items-start justify-between gap-4 pt-4">
-            <div>
-              <div className="text-sm font-bold text-ink">Timer-Overlay</div>
+          {/* Timer Overlay — nur Windows/Linux */}
+          {overlaySupported && (
+            <div className="flex items-start justify-between gap-4 pt-4">
+              <div>
+                <div className="text-sm font-bold text-ink">Timer-Overlay</div>
+                <div className="mt-0.5 text-xs text-muted">
+                  Kleines Overlay-Fenster im Hintergrund, ziehbar mit Snap in die nächste Bildschirmecke.
+                </div>
+              </div>
+              <Switch checked={overlayEnabled} onChange={updateOverlay} ariaLabel="Timer-Overlay anzeigen" />
+            </div>
+          )}
+        </div>
+      </SettingsCard>
+
+      <SettingsCard icon={BellRing} title="Vergessene Timer">
+        <div className="flex flex-col divide-y divide-divider/60">
+          {/* Feierabend-Erinnerung */}
+          <div className="flex items-start justify-between gap-4 pb-4">
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-ink">Abends erinnern</div>
               <div className="mt-0.5 text-xs text-muted">
-                Kleines Overlay-Fenster im Hintergrund, ziehbar mit Snap in die nächste Bildschirmecke.
+                Läuft zu dieser Uhrzeit noch eine Zeiterfassung, meldet sich die App einmal — bevor daraus über Nacht ein Vierzehn-Stunden-Eintrag wird.
+              </div>
+              <div className={`mt-3 flex items-center gap-2 ${reminderEnabled ? '' : 'opacity-45'}`}>
+                <NumberInput
+                  min={0}
+                  max={23}
+                  value={reminderHour}
+                  onChange={updateReminderHour}
+                  disabled={!reminderEnabled}
+                  className="w-16"
+                />
+                <span className="text-xs text-muted">:</span>
+                <NumberInput
+                  min={0}
+                  max={59}
+                  value={reminderMinute}
+                  onChange={updateReminderMinute}
+                  disabled={!reminderEnabled}
+                  className="w-16"
+                />
+                <span className="text-xs text-muted">Uhr</span>
               </div>
             </div>
-            <Switch checked={overlayEnabled} onChange={updateOverlay} ariaLabel="Timer-Overlay anzeigen" />
+            <Switch checked={reminderEnabled} onChange={updateReminderEnabled} ariaLabel="Feierabend-Erinnerung aktivieren" />
+          </div>
+
+          {/* Beim Herunterfahren stoppen */}
+          <div className="flex items-start justify-between gap-4 pt-4">
+            <div>
+              <div className="text-sm font-bold text-ink">Beim Herunterfahren stoppen</div>
+              <div className="mt-0.5 text-xs text-muted">
+                Wird der Rechner heruntergefahren oder abgemeldet, endet eine laufende Zeiterfassung automatisch — ohne Rückfrage, dafür bleibt dann keine Zeit.
+              </div>
+            </div>
+            <Switch checked={stopOnShutdown} onChange={updateStopOnShutdown} ariaLabel="Beim Herunterfahren stoppen" />
           </div>
         </div>
       </SettingsCard>

@@ -1,3 +1,18 @@
+# Welche Abhängigkeiten ihre Install-/Build-Skripte ausführen dürfen.
+# Seit pnpm 10/11 sind Skripte standardmäßig blockiert — Electron lädt seine
+# Binary aber genau im postinstall herunter und fehlt sonst komplett.
+# allowBuilds = pnpm 11, onlyBuiltDependencies = pnpm 10 (beides eingetragen,
+# damit Windows- und macOS-Rechner mit unterschiedlichen pnpm-Versionen laufen).
 allowBuilds:
+  electron: true
+  electron-builder: true
+  esbuild: true
   core-js: false
+  # Nur unter Windows relevant.
   electron-winstaller: false
+
+onlyBuiltDependencies:
+  - electron
+  - electron-builder
+  - esbuild
+  - electron-winstaller

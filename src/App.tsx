@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Settings, Clock, BarChart3, Users, FolderKanban, Wallet, Database, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TrackerView } from './views/TrackerView';
@@ -13,6 +13,17 @@ import { TitleBar } from './components/TitleBar';
 import { EncryptionBanner } from './components/EncryptionBanner';
 import { OnboardingModal } from './components/OnboardingModal';
 import { LegalModal } from './components/LegalModal';
+import { AfkPauseModal } from './components/AfkPauseModal';
+import { LongRunModal } from './components/LongRunModal';
+import { applyPause, runTimerCommand } from './utils/timerActions';
+import { getLiveDurationSeconds } from './utils/trackerTimer';
+import type { DetectedPause } from './types';
+
+/** Ab dieser Laufzeit wird nachgefragt, ob das Stoppen vergessen wurde. */
+const LONG_RUN_THRESHOLD_SECONDS = 12 * 3600;
+
+/** Reihenfolge für Cmd+1…6 und das Drei-Finger-Wischen. */
+const VIEW_ORDER: ViewKey[] = ['tracker', 'projects', 'customers', 'statistics', 'finance', 'settings'];
 
 export type ViewKey = 'tracker' | 'customers' | 'projects' | 'statistics' | 'finance' | 'settings';
 
@@ -80,13 +91,12 @@ export function App() {
 
   // Keyboard shortcuts: Ctrl+1 to Ctrl+6 for view navigation
   useEffect(() => {
-    const viewIds: ViewKey[] = ['tracker', 'projects', 'customers', 'statistics', 'finance', 'settings'];
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
         const num = parseInt(e.key);
         if (num >= 1 && num <= 6) {
           e.preventDefault();
-          navigateTo(viewIds[num - 1]);
+          navigateTo(VIEW_ORDER[num - 1]);
         }
       }
     };
@@ -94,7 +104,99 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const { state, isRestoring, restoreNonce } = useAppState();
+  // macOS-Menu "Kavoma Time > Einstellungen..." (Cmd+,) springt in die Settings.
+  useEffect(() => {
+    return window.api?.onNavigateToView((view) => {
+      navigateTo(view as ViewKey);
+    });
+  }, []);
+
+  // Drei-Finger-Wischen blättert durch dieselbe Reihenfolge wie Cmd+1…6.
+  // An den Enden passiert nichts — Umlaufen würde das Gefühl für die
+  // Reihenfolge zerstören.
+  useEffect(() => {
+    return window.api?.onViewSwipe?.((direction) => {
+      setActiveView(prev => {
+        const index = VIEW_ORDER.indexOf(prev);
+        const next = direction === 'left' ? index + 1 : index - 1;
+        if (index < 0 || next < 0 || next >= VIEW_ORDER.length) return prev;
+        return VIEW_ORDER[next];
+      });
+      setNavIntent(null);
+    });
+  }, []);
+
+  const { state, setState, isRestoring, restoreNonce } = useAppState();
+
+  // === Erkannte Abwesenheit ===
+  const [pendingPause, setPendingPause] = useState<DetectedPause | null>(null);
+
+  useEffect(() => {
+    if (!window.api) return;
+    // Beim Start nachfragen: Eine Pause kann erkannt worden sein, bevor der
+    // Renderer überhaupt zuhören konnte.
+    window.api.getPendingAfkPause?.().then(setPendingPause).catch(() => {});
+    return window.api.onAfkPauseDetected?.(setPendingPause);
+  }, []);
+
+  const resolvePause = () => {
+    setPendingPause(null);
+    window.api?.resolveAfkPause?.().catch(() => {});
+  };
+
+  const handleSubtractPause = (continueRunning: boolean) => {
+    if (pendingPause) {
+      const pause = pendingPause;
+      setState(s => s ? applyPause(s, pause, continueRunning) : null);
+    }
+    resolvePause();
+  };
+
+  // === Vergessen zu stoppen ===
+  const [longRunSeconds, setLongRunSeconds] = useState<number | null>(null);
+  // Pro Erfassung nur einmal nachfragen — sonst nervt es bei jedem Fensterwechsel.
+  const dismissedLongRunRef = useRef<number | null>(null);
+  // Der Prüf-Callback hängt an Timer und Fokus-Ereignissen und würde sonst den
+  // Zustand des ersten Renders festhalten.
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
+
+  useEffect(() => {
+    const check = () => {
+      const s = stateRef.current;
+      if (!s?.isRunning || !s.sessionStartedAt) {
+        setLongRunSeconds(null);
+        return;
+      }
+      if (dismissedLongRunRef.current === s.sessionStartedAt) return;
+      const elapsed = getLiveDurationSeconds({
+        isRunning: s.isRunning,
+        startedAt: s.startedAt,
+        elapsedBefore: s.elapsedBefore,
+      });
+      setLongRunSeconds(elapsed >= LONG_RUN_THRESHOLD_SECONDS ? elapsed : null);
+    };
+
+    check();
+    // Beim Zurückkommen ans Fenster fällt es am ehesten auf — die Schwelle kann
+    // aber auch reißen, während die App offen daneben steht.
+    const interval = setInterval(check, 5 * 60 * 1000);
+    window.addEventListener('focus', check);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', check);
+    };
+  }, [state?.isRunning, state?.sessionStartedAt]);
+
+  const dismissLongRun = () => {
+    dismissedLongRunRef.current = stateRef.current?.sessionStartedAt ?? null;
+    setLongRunSeconds(null);
+  };
+
+  const handleStopLongRun = () => {
+    setState(s => s ? runTimerCommand(s, 'stop') : null);
+    setLongRunSeconds(null);
+  };
 
   const navItems: { id: ViewKey; label: string; icon: typeof Clock }[] = [
     { id: 'tracker', label: 'Tracker', icon: Clock },
@@ -132,6 +234,16 @@ export function App() {
         onOpenPrivacy={() => setShowPrivacy(true)}
       />
       <LegalModal open={showPrivacy} initial="privacy" onClose={() => setShowPrivacy(false)} />
+      <AfkPauseModal
+        pause={pendingPause}
+        onSubtract={handleSubtractPause}
+        onKeep={resolvePause}
+      />
+      <LongRunModal
+        seconds={longRunSeconds}
+        onStop={handleStopLongRun}
+        onKeepRunning={dismissLongRun}
+      />
       <div className="app-content">
         <aside className={`flex flex-col gap-8 border-r border-divider bg-paper p-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-4' : 'p-8'}`}>
           <nav className="flex flex-col gap-px">
@@ -254,7 +366,7 @@ export function App() {
           </div>
         </aside>
 
-        <main className="flex-1 overflow-y-auto relative px-12 py-12 lg:px-24">
+        <main className="flex-1 overflow-y-auto overscroll-contain relative px-12 py-12 lg:px-24">
           <div className="mx-auto w-full max-w-6xl">
             <AnimatePresence mode="wait">
               <motion.div

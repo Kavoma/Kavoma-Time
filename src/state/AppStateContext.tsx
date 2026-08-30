@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { AppState } from '../types';
-import { runTimerCommand, TimerCommand } from '../utils/timerActions';
+import { runTimerCommand, startTimerWith, TimerCommand, QuickStartTarget } from '../utils/timerActions';
 import { evaluateRecurringInvoices } from '../utils/recurring';
 
 const STORAGE_KEY = 'kavoma_time';
@@ -92,6 +92,13 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
   if (typeof migrated.afkPauseEnabled !== 'boolean') migrated.afkPauseEnabled = true;
   if (typeof migrated.afkTimeoutMinutes !== 'number') migrated.afkTimeoutMinutes = 10;
   migrated.afkTimeoutMinutes = Math.min(240, Math.max(1, migrated.afkTimeoutMinutes));
+  if (typeof migrated.stopOnShutdownEnabled !== 'boolean') migrated.stopOnShutdownEnabled = true;
+  // Benachrichtigungen bewusst opt-in: ungefragt zu poppen ist übergriffig.
+  if (typeof migrated.endOfDayReminderEnabled !== 'boolean') migrated.endOfDayReminderEnabled = false;
+  if (typeof migrated.endOfDayReminderHour !== 'number') migrated.endOfDayReminderHour = 18;
+  if (typeof migrated.endOfDayReminderMinute !== 'number') migrated.endOfDayReminderMinute = 30;
+  migrated.endOfDayReminderHour = Math.min(23, Math.max(0, migrated.endOfDayReminderHour));
+  migrated.endOfDayReminderMinute = Math.min(59, Math.max(0, migrated.endOfDayReminderMinute));
 
   // Finanzen-Modul (Anhänge / Eingangsrechnungen / Verträge)
   if (!Array.isArray(migrated.attachments)) migrated.attachments = [];
@@ -279,12 +286,20 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setState(s => s ? runTimerCommand(s, command, effectiveNow) : null);
     };
 
+    // Schnellstart aus der Menüleiste: Kunde, Projekt und Tätigkeit setzen und
+    // sofort loslaufen — ohne dass die App dafür geöffnet werden muss.
+    const runQuickStart = (target: QuickStartTarget) => {
+      setState(s => s ? startTimerWith(s, target) : null);
+    };
+
     const cleanupTimerCommand = window.api?.onTimerCommand?.(runCommand);
     const cleanupHotkey = window.api?.onHotkeyToggle?.(() => runCommand('toggle'));
+    const cleanupQuickStart = window.api?.onTimerQuickStart?.(runQuickStart);
 
     return () => {
       cleanupTimerCommand?.();
       cleanupHotkey?.();
+      cleanupQuickStart?.();
     };
   }, []);
 

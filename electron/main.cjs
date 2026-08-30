@@ -2,7 +2,7 @@
 // Electron Main-Process
 // ============================================================
 
-const { app, BrowserWindow, dialog, nativeTheme, ipcMain, Tray, Menu, globalShortcut, nativeImage, safeStorage, screen, powerMonitor, shell } = require('electron');
+const { app, BrowserWindow, dialog, nativeTheme, ipcMain, Tray, Menu, globalShortcut, nativeImage, safeStorage, screen, powerMonitor, shell, Notification } = require('electron');
 const path = require('node:path');
 const fs   = require('node:fs');
 const fsp  = require('node:fs/promises');
@@ -10,9 +10,19 @@ const crypto = require('node:crypto');
 const Store = require('electron-store').default || require('electron-store');
 const { autoUpdater } = require('electron-updater');
 
+// === PLATTFORM ===
+const IS_MAC = process.platform === 'darwin';
+const IS_WIN = process.platform === 'win32';
+
+// Das schwebende Timer-Overlay gibt es unter macOS nicht mehr: Dort steht die
+// laufende Zeit ohnehin dauerhaft in der Menüleiste, und ein zusätzliches
+// Fenster, das sich über alles legt, ist auf einem einzelnen Bildschirm eher
+// im Weg. Unter Windows bleibt es — dort gibt es keine Menüleisten-Uhr.
+const OVERLAY_SUPPORTED = !IS_MAC;
+
 // === APP IDENTIFICATION & PATHS ===
 app.name = 'Kavoma Time';
-if (process.platform === 'win32') {
+if (IS_WIN) {
   app.setAppUserModelId('com.kavoma.time');
 }
 // Setzen des Pfads auf Roaming/Kavoma/KavomaTime (Professional Organization)
@@ -77,6 +87,13 @@ ipcMain.handle('store-set', (event, key, data) => {
   if (key === 'kavoma_time') {
     currentTimerState = data;
     updateOverlayVisibility();
+    refreshTray();
+    // Wird der Timer anderweitig gestoppt, ist eine offene Pausen-Frage
+    // gegenstandslos.
+    if (!data?.isRunning) {
+      pendingAfkPause = null;
+      afkIdleSince = null;
+    }
   }
 
   BrowserWindow.getAllWindows().forEach((win) => {
@@ -274,16 +291,30 @@ ipcMain.handle('auto-backup-open-directory', () => {
 });
 
 ipcMain.handle('get-app-info', () => {
-  const release = require('os').release();
-  const major = parseInt(release.split('.')[0]);
-  const build = parseInt(release.split('.')[2]);
-  
-  let osName = `Windows ${release}`;
-  if (major === 10) {
-    if (build >= 22000) osName = `Windows 11 (${build})`;
-    else osName = `Windows 10 (${build})`;
+  const os = require('os');
+  const release = os.release();
+  let osName;
+
+  if (IS_MAC) {
+    // Darwin-Kernel-Version auf die macOS-Marketing-Version abbilden
+    // (Darwin 25 = macOS 26, Darwin 24 = macOS 15, ...).
+    const darwinMajor = parseInt(release.split('.')[0], 10);
+    const macMajor = Number.isFinite(darwinMajor)
+      ? (darwinMajor >= 25 ? darwinMajor + 1 : darwinMajor - 9)
+      : null;
+    osName = macMajor ? `macOS ${macMajor} (Darwin ${release})` : `macOS (Darwin ${release})`;
+  } else if (IS_WIN) {
+    const major = parseInt(release.split('.')[0], 10);
+    const build = parseInt(release.split('.')[2], 10);
+    osName = `Windows ${release}`;
+    if (major === 10) {
+      if (build >= 22000) osName = `Windows 11 (${build})`;
+      else osName = `Windows 10 (${build})`;
+    }
+  } else {
+    osName = `${os.type()} ${release}`;
   }
-  
+
   return {
     os: osName,
     arch: process.arch,
@@ -419,10 +450,103 @@ ipcMain.handle('attachment-delete', async (_event, id) => {
 });
 
 nativeTheme.themeSource = 'dark';
-Menu.setApplicationMenu(null); // Entfernt das Standard-Electron-Menu komplett
+
+// ============================================================
+// APPLICATION MENU
+// ============================================================
+// Windows/Linux: Menu komplett entfernen — die App bringt eine eigene
+// Titelleiste mit. macOS: Menü liegt in der System-Menüleiste und trägt dort
+// die komplette Standard-Tastatursteuerung. Ein null-Menü würde unter macOS
+// Cmd+C/V/X/A/Z/Q/W app-weit außer Kraft setzen — deshalb hier ein echtes,
+// auf Rollen basierendes Menu.
+function setupApplicationMenu() {
+  if (!IS_MAC) {
+    Menu.setApplicationMenu(null);
+    return;
+  }
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    {
+      label: 'Kavoma Time',
+      submenu: [
+        { label: 'Über Kavoma Time', role: 'about' },
+        { type: 'separator' },
+        { label: 'Nach Updates suchen...', click: () => checkForUpdates(true) },
+        { type: 'separator' },
+        { label: 'Einstellungen...', accelerator: 'Cmd+,', click: () => { showMainWindow(); mainWindow?.webContents.send('navigate-to-view', 'settings'); } },
+        { type: 'separator' },
+        { label: 'Dienste', role: 'services' },
+        { type: 'separator' },
+        { label: 'Kavoma Time ausblenden', role: 'hide' },
+        { label: 'Andere ausblenden', role: 'hideOthers' },
+        { label: 'Alle einblenden', role: 'unhide' },
+        { type: 'separator' },
+        { label: 'Kavoma Time beenden', role: 'quit' },
+      ],
+    },
+    {
+      label: 'Bearbeiten',
+      submenu: [
+        { label: 'Widerrufen', role: 'undo' },
+        { label: 'Wiederholen', role: 'redo' },
+        { type: 'separator' },
+        { label: 'Ausschneiden', role: 'cut' },
+        { label: 'Kopieren', role: 'copy' },
+        { label: 'Einfügen', role: 'paste' },
+        { label: 'Einfügen und Stil anpassen', role: 'pasteAndMatchStyle' },
+        { label: 'Löschen', role: 'delete' },
+        { label: 'Alles auswählen', role: 'selectAll' },
+        { type: 'separator' },
+        {
+          label: 'Sprache',
+          submenu: [
+            { label: 'Sprache einblenden', role: 'startSpeaking' },
+            { label: 'Sprache ausblenden', role: 'stopSpeaking' },
+          ],
+        },
+      ],
+    },
+    {
+      label: 'Timer',
+      submenu: [
+        { label: 'Start / Pause', accelerator: 'CommandOrControl+Shift+Space', click: () => mainWindow?.webContents.send('hotkey-toggle') },
+        { label: 'Stoppen', click: () => mainWindow?.webContents.send('timer-command', 'stop') },
+      ],
+    },
+    {
+      label: 'Ansicht',
+      submenu: [
+        { label: 'Neu laden', role: 'reload' },
+        { label: 'Vollständig neu laden', role: 'forceReload' },
+        { label: 'Entwicklerwerkzeuge', role: 'toggleDevTools' },
+        { type: 'separator' },
+        { label: 'Originalgröße', role: 'resetZoom' },
+        { label: 'Vergrößern', role: 'zoomIn' },
+        { label: 'Verkleinern', role: 'zoomOut' },
+        { type: 'separator' },
+        { label: 'Vollbild', role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Fenster',
+      submenu: [
+        { label: 'Im Dock ablegen', role: 'minimize' },
+        { label: 'Zoomen', role: 'zoom' },
+        { label: 'Schließen', role: 'close' },
+        { type: 'separator' },
+        { label: 'Alle nach vorne bringen', role: 'front' },
+      ],
+    },
+  ]));
+}
 
 const DEV_URL = 'http://localhost:5173';
-const TRAY_ICON_PATH = path.join(__dirname, 'tray-icon.png');
+// macOS erwartet in der Menüleiste ein Template-Image (schwarze Silhouette +
+// Alpha), das das System selbst für Hell-/Dunkelmodus einfärbt. Das farbige
+// 32px-Icon von Windows würde dort unscharf und fehl am Platz wirken.
+const TRAY_ICON_PATH = IS_MAC
+  ? path.join(__dirname, 'trayTemplate.png')
+  : path.join(__dirname, 'tray-icon.png');
 const WINDOW_ICON_PATH = path.join(__dirname, 'window-icon.png');
 const OVERLAY_ANCHOR_KEY = 'timer_overlay_anchor';
 const OVERLAY_WIDTH = 400; // Vergrößert für Schatten-Padding
@@ -434,6 +558,7 @@ const OVERLAY_MARGIN = 18;
 let mainWindow = null;
 let overlayWindow = null;
 let tray = null;
+let trayTicker = null;
 let isQuitting = false;
 let currentTimerState = null;
 let overlayDrag = null;
@@ -481,12 +606,18 @@ function createMainWindow() {
     title: 'Kavoma Time',
     icon: WINDOW_ICON_PATH,
     backgroundColor: '#0a0a0a',
+    // macOS zeichnet die Ampel-Buttons weiterhin, nur eingerückt —
+    // titleBarOverlay gibt es dort nicht, das ist Windows/Linux-only.
     titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#0a0a0a',
-      symbolColor: '#ffffff',
-      height: 40
-    },
+    ...(IS_MAC
+      ? { trafficLightPosition: { x: 16, y: 13 } }
+      : {
+          titleBarOverlay: {
+            color: '#0a0a0a',
+            symbolColor: '#ffffff',
+            height: 40,
+          },
+        }),
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -518,6 +649,16 @@ function createMainWindow() {
       updateOverlayVisibility();
     }
   });
+
+  // Drei-Finger-Wischen wechselt die Ansicht — macOS-only und nur aktiv, wenn
+  // im System "Zwischen Seiten blättern" eingeschaltet ist. Ist es aus, kommt
+  // das Ereignis schlicht nie an.
+  if (IS_MAC) {
+    mainWindow.on('swipe', (_event, direction) => {
+      if (direction !== 'left' && direction !== 'right') return;
+      mainWindow?.webContents.send('view-swipe', direction);
+    });
+  }
 
   mainWindow.on('hide', updateOverlayVisibility);
   mainWindow.on('minimize', updateOverlayVisibility);
@@ -605,6 +746,8 @@ function positionOverlay(anchor = getOverlayAnchor()) {
 }
 
 function createOverlayWindow() {
+  if (!OVERLAY_SUPPORTED) return;
+
   overlayWindow = new BrowserWindow({
     width: OVERLAY_WIDTH,
     height: OVERLAY_HEIGHT,
@@ -646,6 +789,7 @@ function createOverlayWindow() {
 }
 
 function shouldShowOverlay() {
+  if (!OVERLAY_SUPPORTED) return false;
   if (!isTimerOverlayEnabled(currentTimerState)) return false;
   if (!isTimerInProgress(currentTimerState)) return false;
   if (!mainWindow) return true;
@@ -729,34 +873,162 @@ function isAfkPauseEnabled(data) {
   return data?.afkPauseEnabled !== false;
 }
 
+function isStopOnShutdownEnabled(data) {
+  return data?.stopOnShutdownEnabled !== false;
+}
+
 function getAfkTimeoutSeconds(data) {
   const minutes = Number(data?.afkTimeoutMinutes);
   const safeMinutes = Number.isFinite(minutes) ? Math.min(240, Math.max(1, minutes)) : 10;
   return Math.round(safeMinutes * 60);
 }
 
-function checkAfkPause() {
-  if (!currentTimerState?.isRunning || !currentTimerState.startedAt) return;
+/** Unterhalb dieses Werts gilt jemand als zurück am Rechner. */
+const AFK_BACK_AT_DESK_SECONDS = 10;
+
+/** Beginn der laufenden Untätigkeit, solange sie andauert. */
+let afkIdleSince = null;
+/** Beginn von Ruhezustand oder Bildschirmsperre. */
+let afkAwaySince = null;
+/** Erkannte Pause, über die noch nicht entschieden wurde. */
+let pendingAfkPause = null;
+
+/** Beginn des laufenden Eintrags — eine Pause davor gehört nicht zu ihm. */
+function runningSessionStart(data) {
+  return data?.sessionStartedAt || data?.startedAt || null;
+}
+
+/**
+ * Eine erkannte Abwesenheit dem Renderer zur Entscheidung vorlegen.
+ *
+ * Bewusst nicht selbst pausieren: Ob die Zeit abgezogen wird, weiß nur der
+ * Mensch davor. Ein stiller Abzug verliert Arbeitszeit, ein stilles Behalten
+ * erfindet welche — beides falsch, wenn man einfach fragen kann.
+ */
+function proposeAfkPause(began, ended, reason) {
+  if (pendingAfkPause) return;                       // Eine Frage zur Zeit reicht
   if (!isAfkPauseEnabled(currentTimerState)) return;
+  if (!currentTimerState?.isRunning) return;
+
+  const sessionStart = runningSessionStart(currentTimerState);
+  if (!sessionStart || began <= sessionStart) return;
+
+  const thresholdMs = getAfkTimeoutSeconds(currentTimerState) * 1000;
+  if (ended - began < thresholdMs) return;
+
+  pendingAfkPause = { began, ended, reason };
+  mainWindow?.webContents.send('afk-pause-detected', pendingAfkPause);
+}
+
+function checkAfkPause() {
+  if (!isAfkPauseEnabled(currentTimerState) || !currentTimerState?.isRunning) {
+    afkIdleSince = null;
+    return;
+  }
 
   const idleSeconds = powerMonitor.getSystemIdleTime();
   const timeoutSeconds = getAfkTimeoutSeconds(currentTimerState);
-  if (idleSeconds < timeoutSeconds) return;
 
-  const effectivePauseAt = Date.now() - idleSeconds * 1000;
-  mainWindow?.webContents.send('timer-command', 'pause', effectivePauseAt);
+  if (idleSeconds >= timeoutSeconds) {
+    if (afkIdleSince === null) {
+      const sessionStart = runningSessionStart(currentTimerState);
+      // Die Untätigkeit begann vielleicht schon vor dem Eintrag — dann zählt
+      // erst ab dessen Start.
+      afkIdleSince = Math.max(Date.now() - idleSeconds * 1000, sessionStart || 0);
+    }
+    return;
+  }
+
+  if (idleSeconds < AFK_BACK_AT_DESK_SECONDS && afkIdleSince !== null) {
+    const began = afkIdleSince;
+    afkIdleSince = null;
+    proposeAfkPause(began, Date.now() - idleSeconds * 1000, 'idle');
+  }
 }
 
-function pauseRunningTimerAt(timestamp) {
-  if (!currentTimerState?.isRunning || !currentTimerState.startedAt) return;
-  mainWindow?.webContents.send('timer-command', 'pause', timestamp);
+/** Rückkehr aus Ruhezustand oder Bildschirmsperre. */
+function handleAfkReturn(reason) {
+  const began = afkAwaySince;
+  afkAwaySince = null;
+  afkIdleSince = null;
+  if (!began) return;
+  proposeAfkPause(began, Date.now(), reason);
 }
 
 function startAfkPauseWatcher() {
   if (afkPauseTimer) clearInterval(afkPauseTimer);
   afkPauseTimer = setInterval(checkAfkPause, 10_000);
-  powerMonitor.on('suspend', () => pauseRunningTimerAt(Date.now()));
-  powerMonitor.on('lock-screen', () => pauseRunningTimerAt(Date.now()));
+
+  // Deckel zu oder gesperrt: nur den Zeitpunkt merken. Entschieden wird erst
+  // bei der Rückkehr — vorher ist niemand da, der antworten könnte.
+  powerMonitor.on('suspend', () => { afkAwaySince = Date.now(); });
+  powerMonitor.on('lock-screen', () => { afkAwaySince = Date.now(); });
+  powerMonitor.on('resume', () => handleAfkReturn('sleep'));
+  powerMonitor.on('unlock-screen', () => handleAfkReturn('lock'));
+
+  // Herunterfahren oder Abmelden: ohne Rückfrage stoppen — dafür bleibt keine
+  // Zeit. Das Stoppen läuft trotzdem über den Renderer, damit der Eintrag
+  // durch denselben Reducer entsteht wie sonst auch.
+  powerMonitor.on('shutdown', (event) => {
+    if (!isStopOnShutdownEnabled(currentTimerState)) return;
+    if (!currentTimerState?.isRunning) return;
+    event.preventDefault();
+    isQuitting = true;
+    mainWindow?.webContents.send('timer-command', 'stop');
+    // Dem Renderer Zeit geben, den Eintrag zu schreiben und zu persistieren.
+    setTimeout(() => app.quit(), 1500);
+  });
+}
+
+ipcMain.handle('afk-pause-get-pending', () => pendingAfkPause);
+ipcMain.handle('afk-pause-resolve', () => { pendingAfkPause = null; });
+
+// ============================================================
+// FEIERABEND-ERINNERUNG
+// ============================================================
+// Eine einzige Mitteilung am Abend, solange etwas läuft — bevor daraus über
+// Nacht ein Vierzehn-Stunden-Eintrag wird.
+
+const REMINDER_DEFAULT_HOUR = 18;
+const REMINDER_DEFAULT_MINUTE = 30;
+
+let reminderTimer = null;
+/** Tag, an dem zuletzt erinnert wurde — verhindert Wiederholungen. */
+let reminderSentOn = null;
+
+function isReminderEnabled(data) {
+  return data?.endOfDayReminderEnabled === true;
+}
+
+function checkEndOfDayReminder() {
+  if (!isReminderEnabled(currentTimerState)) return;
+  if (!currentTimerState?.isRunning) return;
+
+  const now = new Date();
+  const today = now.toDateString();
+  if (reminderSentOn === today) return;
+
+  const hour = Number.isFinite(currentTimerState?.endOfDayReminderHour)
+    ? currentTimerState.endOfDayReminderHour
+    : REMINDER_DEFAULT_HOUR;
+  const minute = Number.isFinite(currentTimerState?.endOfDayReminderMinute)
+    ? currentTimerState.endOfDayReminderMinute
+    : REMINDER_DEFAULT_MINUTE;
+
+  const due = now.getHours() > hour || (now.getHours() === hour && now.getMinutes() >= minute);
+  if (!due) return;
+
+  reminderSentOn = today;
+  if (!Notification.isSupported()) return;
+  new Notification({
+    title: 'Die Zeiterfassung läuft noch',
+    body: 'Feierabend? Dann jetzt stoppen, sonst zählt sie weiter.',
+  }).show();
+}
+
+function startEndOfDayReminder() {
+  if (reminderTimer) clearInterval(reminderTimer);
+  reminderTimer = setInterval(checkEndOfDayReminder, 60_000);
 }
 
 // ============================================================
@@ -825,7 +1097,7 @@ function configureAutoUpdater() {
   autoUpdater.on('error', (error) => {
     publishUpdateStatus({
       state: 'error',
-      message: 'Update-Pruefung fehlgeschlagen.',
+      message: 'Update-Prüfung fehlgeschlagen.',
       progress: null,
       error: error?.message || String(error),
     });
@@ -868,11 +1140,19 @@ function checkForUpdates(manual = false) {
   }
 
   return autoUpdater.checkForUpdates().catch((error) => {
+    const detail = error?.message || String(error);
+    // Unter macOS verweigert electron-updater das Update, wenn das Bundle
+    // keine gültige Developer-ID-Signatur hat. Das ist bei lokal gebauten
+    // oder ad-hoc signierten Builds der Normalfall — kein echter Fehler,
+    // aber der Nutzer muss wissen, dass er manuell aktualisieren muss.
+    const unsignedMac = IS_MAC && /code signature|not signed|Developer ID/i.test(detail);
     publishUpdateStatus({
       state: 'error',
-      message: 'Update-Pruefung fehlgeschlagen.',
+      message: unsignedMac
+        ? 'Automatische Updates benötigen unter macOS eine Apple-Signatur (Developer ID). Bitte neue Version manuell installieren.'
+        : 'Update-Prüfung fehlgeschlagen.',
       progress: null,
-      error: error?.message || String(error),
+      error: detail,
     });
     return null;
   });
@@ -882,21 +1162,206 @@ function checkForUpdates(manual = false) {
 // TRAY
 // ============================================================
 
+/** Sekunden des laufenden Eintrags — dieselbe Rechnung wie im Renderer. */
+function liveElapsedSeconds(data, now = Date.now()) {
+  if (!data) return 0;
+  const before = data.elapsedBefore || 0;
+  if (!data.isRunning || !data.startedAt) return before;
+  return before + Math.max(0, Math.floor((now - data.startedAt) / 1000));
+}
+
+/** Kompakt für die Menüleiste: unter einer Stunde m:ss, danach h:mm. */
+function formatMenuClock(seconds) {
+  const total = Math.max(0, Math.floor(seconds));
+  const pad = (n) => String(n).padStart(2, '0');
+  if (total < 3600) return `${Math.floor(total / 60)}:${pad(total % 60)}`;
+  return `${Math.floor(total / 3600)}:${pad(Math.floor((total % 3600) / 60))}`;
+}
+
+/**
+ * Die häufigsten Kombinationen aus Kunde, Projekt und Tätigkeit der letzten
+ * Einträge — damit sich aus der Menüleiste in einem Klick weiterarbeiten lässt,
+ * ohne die App zu öffnen.
+ *
+ * Einmaliges taugt nicht als Schnellstart: Was nur ein einziges Mal vorkam,
+ * ist keine Gewohnheit, sondern Rauschen. Fällt dadurch alles weg, greift
+ * weiter unten "Nochmal: …" auf den letzten Eintrag zurück.
+ */
+function computeQuickStarts(data, limit = 3) {
+  const entries = Array.isArray(data?.entries) ? data.entries : [];
+  const customers = Array.isArray(data?.customers) ? data.customers : [];
+  const projects = Array.isArray(data?.projects) ? data.projects : [];
+
+  const recent = entries
+    .filter((e) => e && e.endedAt)
+    .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0))
+    .slice(0, 120);
+
+  const buckets = new Map();
+  for (const entry of recent) {
+    const description = (entry.description || '').trim();
+    const customerId = entry.customerId || 0;
+    const projectId = entry.projectId || 0;
+    // Ein Eintrag ganz ohne Zuordnung lässt sich nicht sinnvoll wiederholen.
+    if (!description && !customerId && !projectId) continue;
+
+    const key = `${customerId}|${projectId}|${description}`;
+    const bucket = buckets.get(key);
+    if (bucket) bucket.count += 1;
+    else buckets.set(key, { count: 1, entry, customerId, projectId, description });
+  }
+
+  return [...buckets.values()]
+    .filter((b) => b.count > 1)
+    .sort((a, b) => (b.count - a.count) || ((b.entry.startedAt || 0) - (a.entry.startedAt || 0)))
+    .slice(0, limit)
+    .map((b) => ({
+      customerId: b.customerId,
+      projectId: b.projectId,
+      description: b.description,
+      customerName: customers.find((c) => c.id === b.customerId)?.name || null,
+      projectName: projects.find((p) => p.id === b.projectId)?.name || null,
+    }));
+}
+
+/** Letzter abgeschlossener Eintrag — Grundlage für "Nochmal: …". */
+function lastFinishedEntry(data) {
+  const entries = Array.isArray(data?.entries) ? data.entries : [];
+  return entries
+    .filter((e) => e && e.endedAt)
+    .sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0))[0] || null;
+}
+
+/** "Tätigkeit — Kunde · Projekt", je nachdem was gesetzt ist. */
+function quickStartLabel(quick) {
+  const task = quick.description || 'Ohne Tätigkeit';
+  const where = [quick.customerName, quick.projectName].filter(Boolean).join(' · ');
+  return where ? `${task} — ${where}` : task;
+}
+
+function sendQuickStart(target) {
+  // Bewusst ohne showMainWindow: Der Sinn des Schnellstarts ist, dass die App
+  // dafür gerade nicht nach vorne kommen muss. Ein verstecktes Fenster nimmt
+  // die Nachricht genauso entgegen.
+  if (mainWindow) {
+    mainWindow.webContents.send('timer-quick-start', target);
+    return;
+  }
+  // Nur falls gar kein Fenster mehr existiert: eins anlegen und warten, bis der
+  // Renderer bereit ist — dort liegt der Zustand.
+  createMainWindow();
+  mainWindow?.webContents.once('did-finish-load', () => {
+    mainWindow?.webContents.send('timer-quick-start', target);
+  });
+}
+
+function buildTrayMenu() {
+  const data = currentTimerState;
+  const running = Boolean(data?.isRunning);
+  const elapsed = liveElapsedSeconds(data);
+  const template = [];
+
+  // Kopfzeile: was gerade läuft. Deaktiviert — reine Anzeige.
+  if (running || elapsed > 0) {
+    const task = (data?.currentDescription || '').trim() || 'Ohne Tätigkeit';
+    template.push({
+      label: `${running ? '▶' : '❚❚'}  ${task} · ${formatMenuClock(elapsed)}`,
+      enabled: false,
+    });
+  } else {
+    template.push({ label: 'Bereit', enabled: false });
+  }
+  template.push({ type: 'separator' });
+
+  template.push({
+    label: running ? 'Pause' : 'Start',
+    accelerator: 'CmdOrCtrl+Shift+Space',
+    click: () => mainWindow?.webContents.send('hotkey-toggle'),
+  });
+  template.push({
+    label: 'Stoppen und sichern',
+    enabled: running || elapsed > 0,
+    click: () => mainWindow?.webContents.send('timer-command', 'stop'),
+  });
+
+  // Schnellstarts nur anbieten, solange nichts läuft — mitten im Eintrag
+  // wäre der Klick ein Themenwechsel, kein Schnellstart.
+  if (!running) {
+    const quickStarts = computeQuickStarts(data);
+    if (quickStarts.length > 0) {
+      template.push({ type: 'separator' });
+      template.push({ label: 'Weitermachen mit', enabled: false });
+      for (const quick of quickStarts) {
+        template.push({
+          label: quickStartLabel(quick),
+          click: () => sendQuickStart({
+            customerId: quick.customerId,
+            projectId: quick.projectId,
+            description: quick.description,
+          }),
+        });
+      }
+    } else {
+      const last = lastFinishedEntry(data);
+      if (last) {
+        template.push({ type: 'separator' });
+        template.push({
+          label: `Nochmal: ${(last.description || '').trim() || 'Ohne Tätigkeit'}`,
+          click: () => sendQuickStart({
+            customerId: last.customerId || 0,
+            projectId: last.projectId || 0,
+            description: last.description || '',
+          }),
+        });
+      }
+    }
+  }
+
+  template.push({ type: 'separator' });
+  template.push({ label: 'Kavoma Time öffnen', click: showMainWindow });
+  template.push({ label: 'Beenden', click: () => { isQuitting = true; app.quit(); } });
+
+  return Menu.buildFromTemplate(template);
+}
+
+/**
+ * Menü und Titel des Tray-Icons nachziehen. Der Titel steht unter macOS neben
+ * dem Icon in der Menüleiste — dort sieht man die laufende Zeit, ohne irgendwo
+ * hinzuklicken. Windows kennt das nicht und bekommt sie im Tooltip.
+ */
+function refreshTray() {
+  if (!tray) return;
+
+  const data = currentTimerState;
+  const running = Boolean(data?.isRunning);
+  const elapsed = liveElapsedSeconds(data);
+
+  tray.setContextMenu(buildTrayMenu());
+
+  if (IS_MAC) {
+    tray.setTitle(running ? ` ${formatMenuClock(elapsed)}` : '');
+  }
+  tray.setToolTip(running || elapsed > 0
+    ? `Kavoma Time — ${formatMenuClock(elapsed)}`
+    : 'Kavoma Time');
+
+  // Sekundentakt nur, solange wirklich etwas läuft.
+  if (running && !trayTicker) {
+    trayTicker = setInterval(refreshTray, 1000);
+  } else if (!running && trayTicker) {
+    clearInterval(trayTicker);
+    trayTicker = null;
+  }
+}
+
 function createTray() {
   const icon = nativeImage.createFromPath(TRAY_ICON_PATH);
+  if (IS_MAC) icon.setTemplateImage(true);
   tray = new Tray(icon);
-  tray.setToolTip('Kavoma Time');
-
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Öffnen', click: showMainWindow },
-    { type: 'separator' },
-    { label: 'Start / Pause', accelerator: 'CmdOrCtrl+Shift+Space', click: () => mainWindow?.webContents.send('hotkey-toggle') },
-    { type: 'separator' },
-    { label: 'Beenden', click: () => { isQuitting = true; app.quit(); } },
-  ]);
-
-  tray.setContextMenu(contextMenu);
-  tray.on('click', showMainWindow);
+  refreshTray();
+  // Unter macOS öffnet bereits das gesetzte Kontextmenü bei jedem Klick —
+  // ein zusätzlicher click-Handler würde das Fenster ungewollt mit aufmachen.
+  if (!IS_MAC) tray.on('click', showMainWindow);
 }
 
 // ============================================================
@@ -1057,11 +1522,20 @@ app.whenReady().then(() => {
   });
   currentTimerState = store.get('kavoma_time');
 
+  setupApplicationMenu();
+
+  // Im Dev-Modus läuft die App unter der Electron-Bundle-Identität und würde
+  // sonst das Standard-Electron-Icon im Dock zeigen.
+  if (IS_MAC && !app.isPackaged) {
+    try { app.dock?.setIcon(WINDOW_ICON_PATH); } catch { /* nicht kritisch */ }
+  }
+
   createMainWindow();
   createOverlayWindow();
   createTray();
   registerHotkeys();
   startAfkPauseWatcher();
+  startEndOfDayReminder();
   configureAutoUpdater();
   scheduleAutoBackup();
   updateOverlayVisibility();
@@ -1086,7 +1560,8 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', (event) => {
-  // verhindere Quit — App bleibt im Tray
+  // verhindere Quit — App bleibt im Tray (macOS: in der Menüleiste).
+  // Beendet wird über das Tray-Menü, unter macOS zusätzlich über Cmd+Q.
   event.preventDefault();
 });
 
@@ -1096,6 +1571,8 @@ app.on('before-quit', () => {
 
 app.on('will-quit', () => {
   if (afkPauseTimer) clearInterval(afkPauseTimer);
+  if (reminderTimer) clearInterval(reminderTimer);
+  if (trayTicker) clearInterval(trayTicker);
   globalShortcut.unregisterAll();
 });
 
