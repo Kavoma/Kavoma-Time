@@ -28,11 +28,6 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('store-updated', handler);
     return () => ipcRenderer.removeListener('store-updated', handler);
   },
-  onViewSwipe: (cb) => {
-    const handler = (_event, direction) => cb(direction);
-    ipcRenderer.on('view-swipe', handler);
-    return () => ipcRenderer.removeListener('view-swipe', handler);
-  },
   onNavigateToView: (cb) => {
     const handler = (_event, view) => cb(view);
     ipcRenderer.on('navigate-to-view', handler);

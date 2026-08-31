@@ -864,15 +864,17 @@ function createMainWindow() {
     }
   });
 
-  // Drei-Finger-Wischen wechselt die Ansicht — macOS-only und nur aktiv, wenn
-  // im System "Zwischen Seiten blättern" eingeschaltet ist. Ist es aus, kommt
-  // das Ereignis schlicht nie an.
-  if (IS_MAC) {
-    mainWindow.on('swipe', (_event, direction) => {
-      if (direction !== 'left' && direction !== 'right') return;
-      mainWindow?.webContents.send('view-swipe', direction);
-    });
-  }
+  // Kein Ansichtswechsel per Wischgeste mehr.
+  //
+  // Electrons `swipe`-Ereignis feuert unter macOS nur, wenn im System
+  // "Zwischen Seiten blättern" auf drei Finger steht. Voreingestellt sind dort
+  // zwei Finger, und drei Finger gehören Mission Control. Wer die Geste in der
+  // App wollte, musste sie Mission Control wegnehmen — ein schlechter Tausch
+  // für etwas, das Cmd+1…6 ohnehin schneller erledigt.
+  //
+  // Auf zwei Finger auszuweichen ginge nicht: Diese Geste löscht in der
+  // Eintragsliste bereits eine Zeile (`SwipeRow`) und würde sich mit
+  // waagerechtem Scrollen in Tabellen schlagen.
 
   mainWindow.on('hide', updateOverlayVisibility);
   mainWindow.on('minimize', updateOverlayVisibility);

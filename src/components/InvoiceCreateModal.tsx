@@ -662,17 +662,37 @@ export function InvoiceCreateModal({
             periodTo={to}
             excludeEntryIds={entryIds}
             onConfirm={(newItems, newEntryIds) => {
-              // Bereits abgerechnete Einträge blendet der Picker aus, die
-              // gelieferten Positionen enthalten also ausschließlich neue
-              // Stunden. Der Set-Filter bleibt als Sicherheitsnetz.
+              // Der Picker bekommt `excludeEntryIds` und blendet bereits
+              // enthaltene Einträge aus — Überschneidungen dürfte es hier nicht
+              // geben. Das frühere Sicherheitsnetz filterte allerdings nur die
+              // IDs und ließ die Positionen unangetastet. Käme ein Eintrag doch
+              // zweimal durch, stünde er einmal in `entryIds`, aber zweimal auf
+              // der Rechnung: Der Kunde zahlt dieselbe Stunde doppelt.
+              //
+              // Teilweise filtern geht nicht: `newItems` sind pro Projekt
+              // zusammengefasst, `newEntryIds` liegen einzeln vor — die Listen
+              // sind unterschiedlich lang und nicht paarweise zuzuordnen.
+              // Deshalb alles oder nichts. Eine Überschneidung ist ein Fehler
+              // im Programm, kein Bedienfehler; sie wird sichtbar gemacht,
+              // statt eine halb übernommene Auswahl zu erzeugen.
               const existing = new Set(entryIds);
-              const freshIds = newEntryIds.filter((id) => !existing.has(id));
-              if (freshIds.length === 0) {
+              const doppelt = newEntryIds.filter((id) => existing.has(id));
+
+              if (newEntryIds.length === 0) {
+                setPickerOpen(false);
+                return;
+              }
+              if (doppelt.length > 0) {
+                console.error('Picker lieferte bereits enthaltene Einträge:', doppelt);
+                alert(
+                  'Diese Zeiteinträge stehen bereits auf der Rechnung und wurden nicht '
+                  + 'noch einmal hinzugefügt. Bitte prüfe die Positionen.',
+                );
                 setPickerOpen(false);
                 return;
               }
               setItems((prev) => [...prev, ...newItems]);
-              setEntryIds((prev) => [...prev, ...freshIds]);
+              setEntryIds((prev) => [...prev, ...newEntryIds]);
               setPickerOpen(false);
               markDirty();
             }}

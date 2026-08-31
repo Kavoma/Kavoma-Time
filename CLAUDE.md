@@ -80,7 +80,9 @@ drei vorbestehende Fehler in `src/utils/attachments.ts` und
 - **Titelleiste**: `titleBarStyle: 'hidden'` auf beiden. Windows/Linux bekommen zusätzlich `titleBarOverlay` (dort rechts), macOS stattdessen `trafficLightPosition` (dort links). `TitleBar.tsx` liest `window.api.platform` und lässt auf der jeweils belegten Seite Platz frei.
 - **Tray**: macOS braucht ein Template-Image (`electron/trayTemplate.png` + `@2x`, schwarze Silhouette mit Alpha) plus `icon.setTemplateImage(true)`; das System färbt es selbst für Hell/Dunkel ein. Windows nutzt das farbige `electron/tray-icon.png`. Unter macOS reagiert der Tray bereits auf das gesetzte Context-Menu — ein zusätzlicher `click`-Handler würde das Fenster ungewollt mit öffnen.
 - **Timer-Overlay**: `OVERLAY_SUPPORTED` ist unter macOS `false` — das Fenster wird gar nicht erst angelegt und der Schalter in den Einstellungen ausgeblendet (`window.api.overlaySupported`). Grund: Die laufende Zeit steht dort ohnehin in der Menüleiste, und ein Fenster, das sich über alles legt, ist auf einem einzelnen Bildschirm eher im Weg. Unter Windows bleibt es — dort gibt es keine Menüleisten-Uhr.
-- **Trackpad-Gesten** (nur macOS): Zwei-Finger-Wischen nach rechts auf einer Eintragszeile löscht (`SwipeRow`), Drei-Finger-Wischen blättert durch die Ansichten (`mainWindow.on('swipe')` → `view-swipe`). Letzteres kommt nur an, wenn im System „Zwischen Seiten blättern" aktiv ist.
+- **Trackpad-Geste** (nur macOS): Zwei-Finger-Wischen nach rechts auf einer Eintragszeile löscht (`SwipeRow`). Das funktioniert mit den Werkseinstellungen, weil zwei Finger waagerecht als normales `wheel`-Ereignis mit `deltaX` ankommen.
+
+  **Kein Ansichtswechsel per Geste mehr.** Electrons `swipe`-Ereignis feuert unter macOS nur, wenn im System „Zwischen Seiten blättern" auf *drei* Finger steht — voreingestellt sind dort zwei, und drei Finger gehören Mission Control. Die Funktion war damit entweder tot oder erkaufte sich Mission Control ab. Auf zwei Finger auszuweichen ginge nicht: Diese Geste löscht bereits eine Zeile und schlüge sich mit waagerechtem Scrollen in Tabellen. `Cmd+1…6` erledigt es schneller.
 - **JumpList / `setAppUserModelId`**: nur Windows.
 - **Auto-Updater**: Unter macOS verweigert `electron-updater` das Update ohne gültige Developer-ID-Signatur. `checkForUpdates()` fängt das ab und meldet es als verständlichen Hinweis statt als Fehler.
 
@@ -125,9 +127,9 @@ Der Main-Prozess pausiert **nicht** selbst. Er erkennt die Abwesenheit und legt 
 
 `sendQuickStart()` holt das Fenster bewusst **nicht** nach vorne — der Sinn ist, aus der Menüleiste heraus zu starten, ohne die App zu öffnen. Ein verstecktes Fenster nimmt die IPC-Nachricht genauso entgegen.
 
-### Trackpad-Gesten (macOS)
+### Trackpad-Geste (macOS)
 
-`SwipeRow` ersetzt das `<li>` der Eintragsliste. Das Trackpad liefert die Wischgeste als `wheel`-Ereignis mit `deltaX`; React hängt `onWheel` **passiv** ein, dort ließe sich das Scrollen nicht unterdrücken — deshalb ein eigener Listener mit `passive: false` über eine Ref.
+`SwipeRow` ersetzt das `<li>` der Eintragsliste. Das Trackpad liefert die Geste als `wheel`-Ereignis mit `deltaX`; React hängt `onWheel` **passiv** ein, dort ließe sich das Scrollen nicht unterdrücken — deshalb ein eigener Listener mit `passive: false` über eine Ref.
 
 - Nur waagerechte Gesten werden abgefangen (`isHorizontalSwipe`), senkrechtes Scrollen gehört weiter der Liste.
 - Mit macOS-Standardeinstellung („natürliches Scrollen") liefert ein Wisch nach rechts ein **negatives** `deltaX`.
@@ -145,7 +147,7 @@ Drei unabhängige Netze, alle abschaltbar:
 
 ### View-Routing
 
-Statisches `switch` in `App.tsx` (`renderView`). Kein React Router. Sichtbare Views: `tracker | projects | customers | statistics | finance | settings`. `ExportView.tsx` existiert noch im Code, ist aber **nicht mehr gerouted** — die Export-Funktionalität ist in `FinanceView` aufgegangen. Strg+1…6 navigiert sequentiell durch die Views.
+Statisches `switch` in `App.tsx` (`renderView`). Kein React Router. Sichtbare Views: `tracker | projects | customers | statistics | finance | settings`. `ExportView.tsx` existiert noch im Code, ist aber **nicht mehr gerouted** — die Export-Funktionalität ist in `FinanceView` aufgegangen. `Strg`/`Cmd`+1…6 springt **direkt** zur jeweiligen Ansicht (nicht sequentiell); die Reihenfolge steht in `VIEW_ORDER`.
 
 ### Gerätesynchronisation (Issue #31)
 
