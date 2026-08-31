@@ -75,6 +75,7 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "!electron/**/*.test.*",
       "package.json",
       "LICENSE",
       "NOTICE"
