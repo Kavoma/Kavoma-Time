@@ -15,6 +15,7 @@ import { getLiveDurationSeconds } from '../utils/trackerTimer';
 import { collectDescriptionSuggestions } from '../utils/descriptionSuggestions';
 import { UndoToast } from '../components/UndoToast';
 import { SwipeRow } from '../components/SwipeRow';
+import { newNumericId } from '../sync/ids';
 
 /** Wie lange sich eine Löschung zurückholen lässt. */
 const UNDO_WINDOW_MS = 8000;
@@ -175,7 +176,7 @@ export function TrackerView() {
       const now = Date.now();
       const copy: TimeEntry = {
         ...source,
-        id: now,
+        id: newNumericId(now),
         startedAt: now - source.durationSeconds * 1000,
         endedAt: now,
       };

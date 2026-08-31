@@ -27,3 +27,8 @@ branding
 env
 .env
 .claude
+
+# Arbeitsdateien für KI-Agenten und lokale Dokumentation — bleiben auf dem Rechner
+.codex
+AGENTS.md
+documentation

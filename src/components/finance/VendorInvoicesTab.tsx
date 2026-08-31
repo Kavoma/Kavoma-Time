@@ -71,7 +71,6 @@ export function VendorInvoicesTab() {
         ...s,
         attachments: [...s.attachments, attachment],
         vendorInvoices: [...s.vendorInvoices, vendor],
-        nextVendorInvoiceId: vendor.id + 1,
       };
     });
   };
@@ -259,7 +258,6 @@ export function VendorInvoicesTab() {
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         onSave={handleSave}
-        nextId={state?.nextVendorInvoiceId ?? 1}
       />
 
       <PdfViewerModal

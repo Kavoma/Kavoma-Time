@@ -14,6 +14,7 @@ import { AnimatedNumber } from '../components/AnimatedNumber';
 import { createCancellationInvoice } from '../utils/analytics';
 import { Tooltip } from '../components/Tooltip';
 import type { NavIntent, ViewKey } from '../App';
+import { allocateNumber, formatInvoiceNumber, DRAFT_NUMBER_LABEL } from '../sync/numbers';
 
 interface ExportViewProps {
   navigateTo?: (view: ViewKey, intent?: NavIntent) => void;
@@ -183,27 +184,36 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
   const handleCreate = async (invoice: Invoice, options: { includeReport: boolean }) => {
     const customer = state.customers.find(c => c.id === invoice.customerId);
     if (!customer) return;
-    // Beim Finalisieren eines bestehenden Drafts ersetzen wir die existierende Invoice
-    // mit demselben id; bei Neu-Erstellung prepend.
+
+    // Hier — und nur hier — entsteht die Rechnungsnummer. Nicht beim Anlegen
+    // eines Entwurfs: Der verbrennt sonst eine Nummer, auch wenn er nie
+    // verschickt wird, und auf zwei Geräten dieselbe.
+    let finalized = invoice;
+    let bumpCounter = false;
+    if (!invoice.number.trim()) {
+      const year = new Date(invoice.createdAt).getFullYear();
+      try {
+        const allocated = await allocateNumber('invoice', state.nextInvoiceCounter, year);
+        finalized = { ...invoice, number: formatInvoiceNumber(state.invoicePrefix, allocated.value, year) };
+        bumpCounter = allocated.bumpLocalCounter;
+      } catch (e) {
+        // Lieber gar keine Rechnung als zwei mit derselben Nummer.
+        alert(e instanceof Error ? e.message : 'Rechnungsnummer konnte nicht vergeben werden.');
+        return;
+      }
+    }
+
     setState(s => {
       if (!s) return null;
-      const exists = s.invoices.some(i => i.id === invoice.id);
-      if (exists) {
-        return {
-          ...s,
-          invoices: s.invoices.map(i => i.id === invoice.id ? invoice : i),
-          // nextInvoiceCounter NICHT erhöhen — Nummer wurde beim Draft-Anlegen reserviert
-        };
-      }
-      return {
-        ...s,
-        invoices: [invoice, ...s.invoices],
-        nextInvoiceCounter: s.nextInvoiceCounter + 1,
-      };
+      const exists = s.invoices.some(i => i.id === finalized.id);
+      const counter = bumpCounter ? { nextInvoiceCounter: s.nextInvoiceCounter + 1 } : {};
+      return exists
+        ? { ...s, ...counter, invoices: s.invoices.map(i => i.id === finalized.id ? finalized : i) }
+        : { ...s, ...counter, invoices: [finalized, ...s.invoices] };
     });
 
     // Paket-Download (Kombiniert PDF wenn includeReport gewählt wurde)
-    await downloadInvoicePdf(invoice, state.issuer, customer, options.includeReport ? state.entries : undefined, eInvoiceOptions);
+    await downloadInvoicePdf(finalized, state.issuer, customer, options.includeReport ? state.entries : undefined, eInvoiceOptions);
 
     setCreateOpen(false);
     setEditingDraftId(null);
@@ -216,14 +226,11 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
       if (exists) {
         return { ...s, invoices: s.invoices.map(i => i.id === draft.id ? draft : i) };
       }
-      // Neuer Draft → Counter erhöht sich erst beim Finalisieren? Nein, beim
-      // Anlegen, damit die Rechnungsnummer reserviert ist und nicht doppelt
-      // vergeben wird, falls parallel eine andere Rechnung erstellt wird.
-      return {
-        ...s,
-        invoices: [draft, ...s.invoices],
-        nextInvoiceCounter: s.nextInvoiceCounter + 1,
-      };
+      // Entwürfe reservieren keine Nummer mehr. Früher geschah das hier, damit
+      // sie nicht doppelt vergeben wird — auf einem Gerät funktionierte das,
+      // auf zweien nicht: Beide zählen ihren eigenen Zähler hoch und landen
+      // auf derselben Nummer.
+      return { ...s, invoices: [draft, ...s.invoices] };
     });
     setCreateOpen(false);
     setEditingDraftId(null);
@@ -250,12 +257,32 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     const drafts = state.invoices.filter(i => selectedIds.includes(String(i.id)) && i.status === 'draft');
     if (drafts.length === 0) return;
     setIsFinalizing(true);
+    // Bewusst nacheinander und nicht als Block: Jede Nummer wird einzeln
+    // gezogen, damit bei einem Abbruch in der Mitte keine Lücke entsteht.
     for (const d of drafts) {
       const customer = state.customers.find(c => c.id === d.customerId);
       if (!customer) continue;
-      const final: Invoice = { ...d, status: 'active', createdAt: Date.now() };
+
+      const createdAt = Date.now();
+      let number = d.number.trim();
+      let bumpCounter = false;
+      if (!number) {
+        try {
+          const allocated = await allocateNumber('invoice', state.nextInvoiceCounter, new Date(createdAt).getFullYear());
+          number = formatInvoiceNumber(state.invoicePrefix, allocated.value, new Date(createdAt).getFullYear());
+          bumpCounter = allocated.bumpLocalCounter;
+        } catch (e) {
+          // Abbrechen statt weitermachen: Die bereits finalisierten bleiben
+          // gültig, der Rest bleibt Entwurf und kann später erneut ran.
+          alert(e instanceof Error ? e.message : 'Rechnungsnummer konnte nicht vergeben werden.');
+          break;
+        }
+      }
+
+      const final: Invoice = { ...d, number, status: 'active', createdAt };
       setState(s => s ? {
         ...s,
+        ...(bumpCounter ? { nextInvoiceCounter: s.nextInvoiceCounter + 1 } : {}),
         invoices: s.invoices.map(i => i.id === d.id ? final : i),
       } : null);
       await downloadInvoicePdf(final, state.issuer, customer, d.entryIds.length > 0 ? state.entries : undefined, eInvoiceOptions);
@@ -312,18 +339,25 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     setDeletingId(null);
   };
 
-  const cancelInvoice = (reason: string) => {
+  const cancelInvoice = async (reason: string) => {
     if (!cancellingId || !state) return;
     const original = state.invoices.find(i => i.id === cancellingId);
     if (!original || original.status === 'cancelled') { setCancellingId(null); return; }
 
     const year = new Date().getFullYear();
-    const newNumber = `${state.invoicePrefix?.replace('YYYY', String(year)) ?? `${year}-`}${String(state.nextInvoiceCounter).padStart(3, '0')}-S`;
+    let allocated;
+    try {
+      allocated = await allocateNumber('invoice', state.nextInvoiceCounter, year);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Storno-Nummer konnte nicht vergeben werden.');
+      return;
+    }
+    const newNumber = formatInvoiceNumber(state.invoicePrefix, allocated.value, year, '-S');
     const stornoInv = createCancellationInvoice(original, reason, newNumber);
 
     setState(s => s ? {
       ...s,
-      nextInvoiceCounter: s.nextInvoiceCounter + 1,
+      ...(allocated.bumpLocalCounter ? { nextInvoiceCounter: s.nextInvoiceCounter + 1 } : {}),
       invoices: [
         stornoInv,
         ...s.invoices.map(i => i.id === original.id
@@ -691,7 +725,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                 <div className="mb-4 flex items-start justify-between gap-2 pr-7">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`font-display text-lg font-bold tabular-nums ${inv.status === 'cancelled' ? 'text-muted line-through' : isDraft ? 'text-amber-100' : 'text-ink'}`}>{inv.number}</span>
+                      <span className={`font-display text-lg font-bold tabular-nums ${inv.status === 'cancelled' ? 'text-muted line-through' : isDraft ? 'text-amber-100' : 'text-ink'}`}>{inv.number || DRAFT_NUMBER_LABEL}</span>
                       {isDraft && (
                         <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
                           <Edit2 size={9} /> Entwurf
@@ -768,8 +802,6 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         projects={state.projects}
         entries={state.entries}
         issuer={state.issuer}
-        nextCounter={state.nextInvoiceCounter}
-        invoicePrefix={state.invoicePrefix ?? 'YYYY-'}
         templates={state.invoiceTemplates}
         editingDraft={editingDraft}
         onSave={handleCreate}

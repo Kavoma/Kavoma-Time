@@ -140,6 +140,14 @@ function ImprintContent() {
 }
 
 function PrivacyContent() {
+  // Der Standort kommt über IPC aus `electron/sync/config.cjs` — nicht per
+  // `require` im Preload, das stirbt im Sandbox (siehe Hinweis dort).
+  const [standort, setStandort] = useState<{ region: string; isThirdCountry: boolean } | null>(null);
+
+  useEffect(() => {
+    window.api?.syncGetRegion?.().then(setStandort).catch(() => setStandort(null));
+  }, []);
+
   return (
     <div className="space-y-5 text-muted">
       <section>
@@ -158,10 +166,55 @@ function PrivacyContent() {
         <h3 className="mb-2 text-sm font-bold uppercase tracking-widest text-ink">2. Verarbeitete Daten und Zwecke</h3>
         <p className="mb-2">
           <strong className="text-ink">Lokale Anwendungsdaten:</strong> Alle erfassten Zeiteinträge, Kunden,
-          Projekte und Rechnungen werden ausschließlich lokal auf Ihrem Gerät gespeichert (Windows-Ordner
-          „%APPDATA%\Kavoma\KavomaTime"). Die Daten werden mit AES-256-GCM verschlüsselt; der Schlüssel ist mit
-          der Windows-Datenschutzfunktion DPAPI an Ihr Benutzerkonto gebunden. Es findet keine Übertragung an
-          den Anbieter dieser Software statt.
+          Projekte und Rechnungen werden auf Ihrem Gerät gespeichert (Windows:
+          „%APPDATA%\Kavoma\KavomaTime", macOS: „~/Library/Application Support/Kavoma/KavomaTime").
+          Die Daten werden mit AES-256-GCM verschlüsselt; der Schlüssel ist über die
+          Betriebssystem-Funktion (Windows DPAPI bzw. macOS-Schlüsselbund) an Ihr Benutzerkonto auf
+          diesem Rechner gebunden. Es findet keine Übertragung an den Anbieter dieser Software statt.
+        </p>
+        <p className="mb-2">
+          <strong className="text-ink">Geräte-Synchronisierung (optional, standardmäßig ausgeschaltet):</strong>{' '}
+          Solange Sie diese Funktion nicht in den Einstellungen aktivieren, verlassen Ihre
+          Anwendungsdaten das Gerät nicht. Aktivieren Sie sie, werden Änderungen an Zeiteinträgen,
+          Kunden, Projekten, Rechnungen und Belegen an ein von Ihnen genutztes Supabase-Projekt
+          übertragen, damit Ihre Geräte denselben Stand haben.
+        </p>
+        <p className="mb-2">
+          Die Übertragung erfolgt <strong className="text-ink">Ende-zu-Ende-verschlüsselt</strong>:
+          Die Inhalte werden bereits auf Ihrem Gerät mit AES-256-GCM verschlüsselt. Der dafür nötige
+          Schlüssel entsteht auf Ihrem ersten Gerät und verlässt es nie in lesbarer Form. Nehmen Sie
+          ein weiteres Gerät hinzu, wird er direkt zwischen Ihren Geräten ausgetauscht und dabei mit
+          einem Verfahren geschützt, das nur den beiden beteiligten Geräten bekannt ist; die
+          sechsstellige Zahl, die Sie dabei bestätigen, stellt sicher, dass sich niemand
+          dazwischenschaltet. Der Betreiber der Server kann die Inhalte deshalb technisch nicht
+          einsehen — auch nicht auf behördliche Anordnung.
+        </p>
+        <p className="mb-2">
+          Für den Betreiber sichtbar bleiben dagegen <strong className="text-ink">Metadaten</strong>:
+          die zur Anmeldung verwendete E-Mail-Adresse, Ihre IP-Adresse, Zeitpunkte der Zugriffe, Name
+          und Betriebssystem Ihrer angemeldeten Geräte, Zeitpunkt und Beteiligte von
+          Geräte-Verbindungsvorgängen sowie Anzahl und Größe der übertragenen Datensätze. Nicht sichtbar sind deren Inhalte, also insbesondere keine Kunden-, Projekt-
+          oder Rechnungsdaten.
+          {standort ? ` Serverstandort: ${standort.region}.` : ''}
+        </p>
+        {standort?.isThirdCountry && (
+          <p className="mb-2">
+            <strong className="text-ink">Übermittlung in ein Drittland:</strong> Der Serverstandort
+            liegt außerhalb der Europäischen Union. Die Übermittlung stützt sich auf den
+            Angemessenheitsbeschluss der Europäischen Kommission für das Vereinigte Königreich,
+            den die Kommission am 19. Dezember 2025 bis zum 27. Dezember 2031 verlängert hat
+            (Art. 45 DSGVO). Standardvertragsklauseln sind daher nicht erforderlich. Da die
+            Inhalte bereits auf Ihrem Gerät verschlüsselt werden, verlassen ausschließlich die
+            oben genannten Metadaten die EU in lesbarer Form.
+          </p>
+        )}
+        <p className="mb-2">
+          Verantwortlich für dieses Supabase-Projekt sind Sie selbst; der Anbieter dieser Software
+          hat darauf keinen Zugriff. Da der Schlüssel ausschließlich auf Ihren Geräten liegt, kann
+          er nicht zurückgesetzt werden: Verlieren Sie <strong className="text-ink">alle</strong>{' '}
+          Geräte und haben den beim Einrichten angezeigten Wiederherstellungscode nicht, sind die
+          synchronisierten Daten unwiederbringlich verloren. Das ist die technische Folge daraus,
+          dass niemand außer Ihnen sie entschlüsseln kann.
         </p>
         <p className="mb-2">
           <strong className="text-ink">Update-Prüfung:</strong> Sofern aktiviert, prüft die App beim Start
@@ -181,8 +234,11 @@ function PrivacyContent() {
           archivieren. Diese Dateien werden ausschließlich lokal im Unterordner{' '}
           <span className="font-mono">attachments/</span> Ihres Benutzerverzeichnisses gespeichert
           und mit AES-256-GCM verschlüsselt. Der Schlüssel ist über die Windows-Funktion DPAPI an
-          Ihr Benutzerkonto gebunden. Es findet keine Übertragung an Dritte statt. Bei „Alle Daten
-          löschen" werden auch diese Dateien entfernt.
+          Ihr Benutzerkonto gebunden. Bei „Alle Daten löschen" werden auch diese Dateien entfernt.
+          Ist die Geräte-Synchronisierung aktiviert, werden diese PDFs zusätzlich — nach demselben
+          Verfahren auf Ihrem Gerät verschlüsselt — im Supabase-Projekt abgelegt, damit sie auf
+          Ihren anderen Geräten verfügbar sind. Ohne Synchronisierung findet keine Übertragung an
+          Dritte statt.
         </p>
       </section>
 
@@ -191,6 +247,7 @@ function PrivacyContent() {
         <ul className="list-disc space-y-1 pl-5">
           <li>Lokale Verarbeitung Ihrer Eingaben: Art. 6 Abs. 1 lit. b DSGVO (Erfüllung des Nutzungsverhältnisses).</li>
           <li>Update-Prüfung: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an Sicherheits- und Funktions-Updates); Widerspruchsmöglichkeit über den Schalter in den Einstellungen.</li>
+          <li>Geräte-Synchronisierung: Art. 6 Abs. 1 lit. a DSGVO (Einwilligung). Die Funktion ist standardmäßig ausgeschaltet und wird ausschließlich durch Ihre ausdrückliche Aktivierung in Gang gesetzt; die Einwilligung ist jederzeit durch Abmelden in den Einstellungen widerrufbar.</li>
         </ul>
       </section>
 
@@ -207,6 +264,21 @@ function PrivacyContent() {
             className="text-ink underline decoration-divider hover:decoration-ink"
           >
             GitHub Privacy Statement
+          </a>.
+        </p>
+        <p className="mt-2">
+          Bei aktivierter Geräte-Synchronisierung verarbeitet die Supabase, Inc. die oben genannten
+          Metadaten sowie die verschlüsselten Datensätze als Auftragsverarbeiter im Sinne von
+          Art. 28 DSGVO. Da Sie das Projekt selbst betreiben, obliegt Ihnen der Abschluss eines
+          Auftragsverarbeitungsvertrags mit Supabase. Die Verarbeitung findet am oben genannten
+          Serverstandort statt. Weitere Informationen:{' '}
+          <a
+            href="https://supabase.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-ink underline decoration-divider hover:decoration-ink"
+          >
+            Supabase Privacy Policy
           </a>.
         </p>
       </section>

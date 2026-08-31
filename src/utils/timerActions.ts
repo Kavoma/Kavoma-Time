@@ -1,5 +1,6 @@
 import type { AppState, TimeEntry } from '../types';
 import { getLiveDurationSeconds } from './trackerTimer';
+import { newNumericId } from '../sync/ids';
 
 export type TimerCommand = 'toggle' | 'start' | 'pause' | 'stop';
 
@@ -52,7 +53,9 @@ export function stopTimer(state: AppState, now = Date.now()): AppState {
   if (totalSeconds <= 0 || !state.sessionStartedAt) return resetState;
 
   const newEntry: TimeEntry = {
-    id: now,
+    // Nicht `now`: Zwei Geräte, die in derselben Millisekunde stoppen, hätten
+    // sonst dieselbe ID — und der Abgleich machte aus zwei Einträgen einen.
+    id: newNumericId(now),
     customerId: state.currentCustomerId,
     projectId: state.currentProjectId,
     description: state.currentDescription,

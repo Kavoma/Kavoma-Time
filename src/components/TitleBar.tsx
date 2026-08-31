@@ -1,4 +1,5 @@
 import React from 'react';
+import { SyncIndicator } from './SyncIndicator';
 
 // Die Fenstersteuerung liegt je nach System auf einer anderen Seite:
 // macOS zeichnet die Ampel-Buttons links (Position in main.cjs via
@@ -23,6 +24,7 @@ export const TitleBar: React.FC = () => {
         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted/80">
           Kavoma Time
         </span>
+        <SyncIndicator />
       </div>
 
       {/*

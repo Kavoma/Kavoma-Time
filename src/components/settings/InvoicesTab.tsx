@@ -8,6 +8,7 @@ import { Checkbox } from '../Checkbox';
 import type { Issuer } from '../../types';
 import { isValidIban, getBankName, isValidBic, formatIban, formatBic, formatPhone, formatTaxId } from '../../utils/iban';
 import { collectEInvoiceIssues } from '../../utils/eInvoiceXml';
+import { formatInvoiceNumber } from '../../sync/numbers';
 
 interface FieldInputProps {
   label: string;
@@ -88,7 +89,7 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
     setState(s => s ? { ...s, issuer: next } : null);
   };
 
-  const previewNumber = `${(state.invoicePrefix || 'YYYY-').replace('YYYY', String(new Date().getFullYear()))}${String(state.nextInvoiceCounter).padStart(3, '0')}`;
+  const previewNumber = formatInvoiceNumber(state.invoicePrefix, state.nextInvoiceCounter);
 
   // Nur die Absender-Stammdaten prüfen — Kundendaten hängen an der jeweiligen Rechnung
   const eInvoiceIssues = collectEInvoiceIssues(localIssuer);

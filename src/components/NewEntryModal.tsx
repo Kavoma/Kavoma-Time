@@ -6,6 +6,7 @@ import { CustomSelect } from './CustomSelect';
 import { CustomAutocomplete } from './CustomAutocomplete';
 import { CustomInput } from './CustomInput';
 import { DatePicker } from './DatePicker';
+import { newNumericId } from '../sync/ids';
 
 interface Props {
   open: boolean;
@@ -92,7 +93,7 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
     }
 
     onSave({
-      id: Date.now(),
+      id: newNumericId(),
       customerId,
       projectId,
       description: description.trim(),

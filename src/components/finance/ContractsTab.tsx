@@ -56,7 +56,6 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
         ...s,
         attachments: [...s.attachments, attachment],
         contracts: [...s.contracts, contract],
-        nextContractId: contract.id + 1,
       };
     });
   };
@@ -178,7 +177,6 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
         customers={customers}
         onClose={() => setUploadOpen(false)}
         onSave={handleSave}
-        nextId={state?.nextContractId ?? 1}
       />
 
       <PdfViewerModal

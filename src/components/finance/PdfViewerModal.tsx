@@ -32,6 +32,8 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /** null = noch nicht geprüft. false = wird gerade aus der Cloud geholt. */
+  const [lokalVorhanden, setLokalVorhanden] = useState<boolean | null>(null);
   const [zoom, setZoom] = useState<ZoomValue>(FIT_WIDTH);
   // Wird debounced gesetzt, damit nicht jeder Zoom-Click den iframe sofort neu lädt
   const [debouncedZoom, setDebouncedZoom] = useState<ZoomValue>(FIT_WIDTH);
@@ -47,7 +49,15 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
     }
     let cancelled = false;
     setError(null);
+    setLokalVorhanden(null);
     setBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+
+    // Vorab fragen, damit die Wartemeldung die Wahrheit sagt: Entschlüsseln
+    // dauert Millisekunden, ein Beleg aus der Cloud kann Sekunden brauchen.
+    window.api?.attachmentHas?.(attachment.id)
+      .then((da) => { if (!cancelled) setLokalVorhanden(da); })
+      .catch(() => { if (!cancelled) setLokalVorhanden(true); });
+
     loadPdfBlob(attachment.id)
       .then((blob) => {
         if (cancelled) return;
@@ -285,6 +295,12 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                   <AlertTriangle size={28} className="text-red-300" />
                   <div className="text-sm font-bold">PDF konnte nicht geladen werden</div>
                   <div className="max-w-md text-[12px] text-muted">{error}</div>
+                  {lokalVorhanden === false && (
+                    <div className="max-w-md text-[12px] text-muted">
+                      Dieser Beleg wurde auf einem anderen Gerät angelegt und liegt hier noch
+                      nicht. Mit Verbindung wird er beim Öffnen nachgeladen.
+                    </div>
+                  )}
                 </div>
               )}
               {!error && viewerSrc && (
@@ -308,7 +324,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                     <div className="h-3 w-3/4 animate-pulse rounded bg-divider" />
                     <div className="h-3 w-full animate-pulse rounded bg-divider" />
                     <div className="mt-4 text-center text-[10px] uppercase tracking-widest text-muted">
-                      PDF wird entschlüsselt…
+                      {lokalVorhanden === false ? 'Beleg wird geladen…' : 'PDF wird entschlüsselt…'}
                     </div>
                   </div>
                 </div>

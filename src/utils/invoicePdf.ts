@@ -326,6 +326,14 @@ export async function downloadInvoicePdf(
   entries?: any[],
   options?: EInvoiceOptions,
 ) {
+  // Ohne Nummer ist es rechtlich keine Rechnung — §14 UStG verlangt eine
+  // fortlaufende Nummer. Entwürfe tragen bewusst keine; sie bekommen sie erst
+  // beim Finalisieren. Hier abzubrechen ist besser, als ein Dokument
+  // auszuliefern, in dem „Rechnung " ohne Nummer steht.
+  if (!invoice.number?.trim()) {
+    throw new Error('Diese Rechnung hat noch keine Nummer. Bitte zuerst finalisieren.');
+  }
+
   const blob = await generateEInvoicePdf(invoice, issuer, customer, entries, options);
   saveAs(blob, `Rechnung-${invoice.number}-${customer.name.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
 }

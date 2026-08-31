@@ -1,6 +1,6 @@
 {
   "name": "kavoma-time",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -27,7 +27,9 @@
     "dist:publish": "pnpm build && electron-builder --win nsis --x64 --publish always",
     "dist:publish:mac": "pnpm build && electron-builder --mac --publish always",
     "version-set": "npm version --no-git-tag-version",
-    "lint": "eslint . --report-unused-disable-directives"
+    "lint": "eslint . --report-unused-disable-directives",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "build": {
     "appId": "com.kavoma.time",
@@ -73,6 +75,7 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "!electron/**/*.test.*",
       "package.json",
       "LICENSE",
       "NOTICE"
@@ -133,6 +136,7 @@
     "afterPack": "build/afterPack.cjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "electron-store": "^11.0.2",
     "electron-updater": "^6.8.3",
     "jspdf": "^4.2.1",
@@ -164,6 +168,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.3",
     "vite": "^8.0.13",
+    "vitest": "^4.1.11",
     "wait-on": "^9.0.10"
   }
 }
