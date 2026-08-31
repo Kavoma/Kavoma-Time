@@ -1,5 +1,10 @@
+// ACHTUNG: Preload-Skripte laufen im Sandbox (seit Electron 20 die Voreinstellung,
+// solange `nodeIntegration` aus ist). Dort ist `require` auf wenige eingebaute
+// Module beschränkt — 'electron' geht, eine eigene Datei nicht. Ein `require`
+// auf `./irgendwas.cjs` wirft, und weil das ganze Skript daran stirbt, wird
+// `window.api` nie gesetzt: Die App verhält sich dann wie im Browser, ohne
+// Fehlermeldung. Alles, was aus dem Main-Prozess kommen muss, geht über IPC.
 const { contextBridge, ipcRenderer } = require('electron');
-const syncConfig = require('./sync/config.cjs');
 
 contextBridge.exposeInMainWorld('api', {
   // Plattform, damit der Renderer die Titelleiste korrekt layouten kann
@@ -7,13 +12,7 @@ contextBridge.exposeInMainWorld('api', {
   platform: process.platform,
   /** Ob dieses System das schwebende Timer-Overlay anbietet (macOS: nein). */
   overlaySupported: process.platform !== 'darwin',
-  /** Serverstandort der Synchronisierung — steht so in der Datenschutzerklärung.
-   *  Kommt aus `electron/sync/config.cjs`, damit Erklärung und Wirklichkeit
-   *  nicht auseinanderlaufen können. */
-  syncRegion: syncConfig.region,
-  /** Liegt der Standort außerhalb von EU/EWR? Dann braucht die Erklärung den
-   *  Hinweis auf die Drittlandübermittlung. */
-  syncRegionIsThirdCountry: Boolean(syncConfig.regionIsThirdCountry),
+
 
   saveData: (key, data) => ipcRenderer.invoke('store-set', key, data),
   loadData: (key) => ipcRenderer.invoke('store-get', key),
@@ -101,6 +100,9 @@ contextBridge.exposeInMainWorld('api', {
   syncGetDeviceInfo: () => ipcRenderer.invoke('sync-get-device-info'),
 
   // Gerätesynchronisation — Konto, Schlüssel, Abgleich
+  /** Serverstandort für die Datenschutzerklärung. Über IPC statt `require`,
+   *  siehe Hinweis oben. */
+  syncGetRegion: () => ipcRenderer.invoke('sync-get-region'),
   syncGetStatus: () => ipcRenderer.invoke('sync-get-status'),
   syncSignIn: (email, password) => ipcRenderer.invoke('sync-sign-in', email, password),
   syncSignOut: () => ipcRenderer.invoke('sync-sign-out'),

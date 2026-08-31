@@ -225,6 +225,11 @@ function withEngine(fn) {
   };
 }
 
+ipcMain.handle('sync-get-region', () => {
+  const cfg = require('./sync/config.cjs');
+  return { region: cfg.region, isThirdCountry: Boolean(cfg.regionIsThirdCountry) };
+});
+
 ipcMain.handle('sync-get-status', () => syncEngine?.status() ?? {
   state: 'off', account: null, lastSyncAt: null, pendingOps: 0, error: null, deviceId: null,
 });

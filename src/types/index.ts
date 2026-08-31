@@ -320,10 +320,7 @@ declare global {
       platform: string;
       /** Ob dieses System das schwebende Timer-Overlay anbietet (macOS: nein). */
       overlaySupported: boolean;
-      /** Serverstandort der Synchronisierung, für die Datenschutzerklärung. */
-      syncRegion?: string;
-      /** Ob der Serverstandort außerhalb von EU/EWR liegt (Drittlandübermittlung). */
-      syncRegionIsThirdCountry?: boolean;
+
       saveData: (key: string, data: any) => Promise<void>;
       loadData: (key: string) => Promise<any>;
       onHotkeyToggle: (cb: () => void) => () => void;
@@ -380,6 +377,8 @@ declare global {
       syncReserveStatus: (kind: 'invoice' | 'debtor', year: number) => Promise<{ kind: string; year: number; remaining: number; target: number }>;
 
       // === Gerätesynchronisation ===
+      /** Serverstandort für die Datenschutzerklärung. */
+      syncGetRegion: () => Promise<{ region: string; isThirdCountry: boolean }>;
       syncGetStatus: () => Promise<SyncStatus>;
       syncSignIn: (email: string, password: string) => Promise<SyncStatus>;
       syncSignOut: () => Promise<SyncStatus>;

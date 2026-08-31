@@ -58,6 +58,17 @@ drei vorbestehende Fehler in `src/utils/attachments.ts` und
 ### Zwei-Prozess-Modell (Electron)
 
 - **`electron/main.cjs`** ist der Main-Prozess und der zentrale Punkt für: `electron-store` (verschlüsselt), AES-256-GCM Backup-Ver-/Entschlüsselung, verschlüsselte PDF-Anhänge (`userData/attachments/<id>.pdf.enc`, Format `IV(12)|AuthTag(16)|Ciphertext`), Tray, Global-Shortcut, AFK-Auto-Pause (via `powerMonitor.getSystemIdleTime`), Auto-Updater (`electron-updater` gegen GitHub Releases), Timer-Overlay-Fenster (Snap-to-Corner), Single-Instance-Lock, JumpList.
+- **`electron/preload.cjs`** läuft im **Sandbox** — seit Electron 20 die
+  Voreinstellung, solange `nodeIntegration` aus ist (die `webPreferences` der App
+  setzen `sandbox` nicht, also gilt der Default). Dort kennt `require` nur
+  `electron`, `events`, `timers` und `url`. **Ein `require('./irgendwas.cjs')`
+  wirft** — und weil das ganze Skript daran stirbt, läuft
+  `contextBridge.exposeInMainWorld` nie. Das Ergebnis ist heimtückisch:
+  `window.api` bleibt undefiniert, die App fällt still auf ihre Browser-Pfade
+  zurück (leerer Datenstand bei jedem Start, Onboarding immer wieder, keine
+  Backups, keine Synchronisierung) — ohne eine einzige Fehlermeldung im
+  Terminal. Alles aus dem Main-Prozess geht über IPC, nie über `require`.
+  `electron/preload.test.mjs` prüft das.
 - **`electron/preload.cjs`** ist die **einzige** API-Surface zum Renderer. Alle neuen IPC-Kanäle müssen sowohl in `main.cjs` (`ipcMain.handle`) als auch in `preload.cjs` (`contextBridge.exposeInMainWorld('api', …)`) **und** in der `Window['api']`-Deklaration in `src/types/index.ts` ergänzt werden, sonst sind sie TS-seitig unsichtbar.
 - **Renderer** läuft als React-App in zwei Modi: Hauptfenster oder Timer-Overlay. Welcher Modus aktiv ist, entscheidet `?overlay=timer` in der URL (`src/main.tsx`). Beide Modi teilen sich `AppStateProvider`, aber das Overlay **persistiert nicht** (siehe `isTimerOverlay`-Guard in `AppStateContext.tsx`). Unter macOS wird der Overlay-Modus nie geladen — siehe `OVERLAY_SUPPORTED`.
 

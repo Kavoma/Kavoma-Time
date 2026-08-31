@@ -140,6 +140,14 @@ function ImprintContent() {
 }
 
 function PrivacyContent() {
+  // Der Standort kommt über IPC aus `electron/sync/config.cjs` — nicht per
+  // `require` im Preload, das stirbt im Sandbox (siehe Hinweis dort).
+  const [standort, setStandort] = useState<{ region: string; isThirdCountry: boolean } | null>(null);
+
+  useEffect(() => {
+    window.api?.syncGetRegion?.().then(setStandort).catch(() => setStandort(null));
+  }, []);
+
   return (
     <div className="space-y-5 text-muted">
       <section>
@@ -184,9 +192,9 @@ function PrivacyContent() {
           und Betriebssystem Ihrer angemeldeten Geräte sowie Anzahl und Größe der übertragenen
           Datensätze. Nicht sichtbar sind deren Inhalte, also insbesondere keine Kunden-, Projekt-
           oder Rechnungsdaten.
-          {window.api?.syncRegion ? ` Serverstandort: ${window.api.syncRegion}.` : ''}
+          {standort ? ` Serverstandort: ${standort.region}.` : ''}
         </p>
-        {window.api?.syncRegionIsThirdCountry && (
+        {standort?.isThirdCountry && (
           <p className="mb-2">
             <strong className="text-ink">Übermittlung in ein Drittland:</strong> Der Serverstandort
             liegt außerhalb der Europäischen Union. Die Übermittlung stützt sich auf den
