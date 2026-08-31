@@ -16,6 +16,7 @@ import type {
   Invoice,
 } from '../types';
 import { computeTotals } from './templates';
+import { DRAFT_NUMBER } from '../sync/numbers';
 
 const MAX_SAFE_DAY = 28;
 
@@ -54,16 +55,10 @@ export function generateDraftFromRecurring(params: {
   recurring: RecurringInvoice;
   template: InvoiceTemplate;
   customer: Customer;
-  nextCounter: number;
-  invoicePrefix: string;
   vatRate: number;
   now: number;
 }): Invoice {
-  const { recurring, template, customer, nextCounter, invoicePrefix, vatRate, now } = params;
-
-  const year = new Date(now).getFullYear();
-  const prefix = (invoicePrefix || 'YYYY-').replace('YYYY', String(year));
-  const number = `${prefix}${String(nextCounter).padStart(3, '0')}`;
+  const { recurring, template, customer, vatRate, now } = params;
 
   const items = template.items.map((it) => ({ ...it }));
   const { subtotal, vatAmount, total } = computeTotals(items, vatRate);
@@ -72,7 +67,9 @@ export function generateDraftFromRecurring(params: {
 
   return {
     id: `${now}-${recurring.id}`,
-    number,
+    // Entwürfe tragen keine Nummer. Sie entsteht erst beim Finalisieren, und
+    // zwar aus einer einzigen Quelle — sonst vergeben zwei Geräte dieselbe.
+    number: DRAFT_NUMBER,
     customerId: customer.id,
     projectId: template.projectId ?? null,
     mode: 'mixed', // Drafts mit freien Items → mixed; wird beim Finalisieren neu abgeleitet
@@ -118,7 +115,6 @@ export function evaluateRecurringInvoices(now: number, state: AppState): Recurri
   const issuer = state.issuer;
   const vatRate = issuer?.smallBusiness ? 0 : issuer?.vatRate ?? 0;
 
-  let nextCounter = state.nextInvoiceCounter;
   const newInvoices: Invoice[] = [];
   const updatedRecurrings: RecurringInvoice[] = recurrings.map((r) => ({ ...r }));
 
@@ -140,13 +136,10 @@ export function evaluateRecurringInvoices(now: number, state: AppState): Recurri
         recurring: r,
         template,
         customer,
-        nextCounter,
-        invoicePrefix: state.invoicePrefix ?? 'YYYY-',
         vatRate,
         now: dueAt,
       });
       newInvoices.push(draft);
-      nextCounter++;
       r.lastGeneratedAt = dueAt;
       dueAt = computeNextDueDate(r.cadence, r.dayOfPeriod, dueAt);
     }
@@ -162,7 +155,6 @@ export function evaluateRecurringInvoices(now: number, state: AppState): Recurri
     state: {
       ...state,
       invoices: [...newInvoices, ...state.invoices],
-      nextInvoiceCounter: nextCounter,
       recurringInvoices: updatedRecurrings,
     },
     generatedCount: newInvoices.length,

@@ -13,6 +13,8 @@ import { InvoicePreviewPane } from './InvoicePreviewPane';
 import { RecurringSetupModal } from './RecurringSetupModal';
 import { applyTemplate, computeTotals, inferInvoiceMode, templateFromInvoice } from '../utils/templates';
 import { collectEInvoiceIssues } from '../utils/eInvoiceXml';
+import { newNumericId } from '../sync/ids';
+import { DRAFT_NUMBER } from '../sync/numbers';
 
 interface Props {
   open: boolean;
@@ -20,8 +22,6 @@ interface Props {
   projects: Project[];
   entries: TimeEntry[];
   issuer: Issuer;
-  nextCounter: number;
-  invoicePrefix: string;
   templates: InvoiceTemplate[];
   editingDraft?: Invoice | null;        // nicht-null = Draft-Edit-Modus
   onSave: (invoice: Invoice, options: { includeReport: boolean }) => void;
@@ -90,7 +90,7 @@ function Section({ title, hint, defaultOpen = true, children }: SectionProps) {
 }
 
 export function InvoiceCreateModal({
-  open, customers, projects, entries, issuer, nextCounter, invoicePrefix,
+  open, customers, projects, entries, issuer,
   templates, editingDraft, onSave, onSaveDraft, onCreateTemplate, onCreateRecurring, onCancel,
 }: Props) {
   const [customerId, setCustomerId] = useState<number>(0);
@@ -158,8 +158,10 @@ export function InvoiceCreateModal({
       setEntryIds([]);
       setServiceType('Dienstleistung');
       setNotes('');
-      const prefix = (invoicePrefix || 'YYYY-').replace('YYYY', String(new Date().getFullYear()));
-      setInvoiceNumber(`${prefix}${String(nextCounter).padStart(3, '0')}`);
+      // Bewusst leer: Die Nummer wird erst beim Finalisieren vergeben, damit
+      // nicht jeder Entwurf eine verbrennt und zwei Geräte nicht dieselbe
+      // ziehen. Wer eine eigene Nummer will, trägt sie hier ein.
+      setInvoiceNumber(DRAFT_NUMBER);
       setCreatedAt(todayISO());
       setDueDate(addDaysISO(todayISO(), 14));
       setIncludeReport(true);
@@ -186,7 +188,7 @@ export function InvoiceCreateModal({
 
   // Aktuelles Invoice-Objekt für die Preview + zum Speichern
   const buildInvoice = (status: 'active' | 'draft', explicitId?: string): Invoice => ({
-    id: explicitId ?? editingDraft?.id ?? String(Date.now()),
+    id: explicitId ?? editingDraft?.id ?? String(newNumericId()),
     number: invoiceNumber.trim(),
     customerId,
     projectId: projectId === 0 ? null : projectId,
@@ -260,7 +262,7 @@ export function InvoiceCreateModal({
   const handleSaveTemplate = () => {
     if (!templateName.trim()) return;
     const tpl = templateFromInvoice({
-      id: String(Date.now()),
+      id: String(newNumericId()),
       name: templateName,
       serviceType,
       notes,
@@ -452,8 +454,9 @@ export function InvoiceCreateModal({
                       <input
                         type="text"
                         value={invoiceNumber}
+                        placeholder="wird beim Finalisieren vergeben"
                         onChange={(e) => { setInvoiceNumber(e.target.value); markDirty(); }}
-                        className="h-10 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none focus:border-accent font-bold"
+                        className="h-10 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none placeholder:text-muted placeholder:text-[11px] placeholder:font-normal focus:border-accent font-bold"
                       />
                     </div>
                     <DatePicker label="Datum" value={createdAt} onChange={(v) => { setCreatedAt(v); markDirty(); }} />

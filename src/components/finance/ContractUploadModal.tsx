@@ -4,20 +4,20 @@ import { X, Upload, FileSignature, AlertTriangle, XCircle } from 'lucide-react';
 import { Attachment, Contract, Customer } from '../../types';
 import { uploadPdf, formatFileSize } from '../../utils/attachments';
 import { DatePicker } from '../DatePicker';
+import { newNumericId } from '../../sync/ids';
 
 interface Props {
   open: boolean;
   customers: Customer[];
   onClose: () => void;
   onSave: (contract: Contract, attachment: Attachment) => void;
-  nextId: number;
 }
 
 function todayInput() {
   return new Date().toISOString().split('T')[0];
 }
 
-export function ContractUploadModal({ open, customers, onClose, onSave, nextId }: Props) {
+export function ContractUploadModal({ open, customers, onClose, onSave }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [customerId, setCustomerId] = useState<number>(customers[0]?.id ?? 0);
   const [title, setTitle] = useState('');
@@ -88,7 +88,7 @@ export function ContractUploadModal({ open, customers, onClose, onSave, nextId }
       const validUntilTs = validUntil ? new Date(validUntil).getTime() : NaN;
       const attachment = await uploadPdf(file);
       const contract: Contract = {
-        id: nextId,
+        id: newNumericId(),
         customerId,
         attachmentId: attachment.id,
         title: title.trim(),

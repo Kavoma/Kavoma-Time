@@ -12,6 +12,8 @@ import { Tooltip } from '../components/Tooltip';
 import { Checkbox } from '../components/Checkbox';
 import { collectTags, tagColors } from '../utils/tagColor';
 import type { NavIntent, ViewKey } from '../App';
+import { newNumericId } from '../sync/ids';
+import { allocateNumber } from '../sync/numbers';
 
 type SortBy = 'name' | 'recent' | 'revenue' | 'hours';
 type ViewMode = 'list' | 'cards';
@@ -139,27 +141,45 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
   const allVisibleSelected = filtered.length > 0 && filtered.every((c) => selected.has(c.id));
   const someSelected = selected.size > 0;
 
-  const handleSave = (data: Omit<Customer, 'id'> & { id?: number }) => {
+  const handleSave = async (data: Omit<Customer, 'id'> & { id?: number }) => {
     if (data.id) {
       setState((s) => s ? { ...s, customers: s.customers.map((c) => c.id === data.id ? (data as Customer) : c) } : null);
-    } else {
-      const id = Date.now();
-      const newDebtor = data.debtorNumber || String(state.nextDebtorNumber);
-      const newCustomer: Customer = {
-        ...(data as Omit<Customer, 'id'>),
-        id,
-        debtorNumber: newDebtor,
-        createdAt: Date.now(),
-        acquisitionDate: data.acquisitionDate ?? Date.now(),
-      };
-      setState((s) => s ? {
-        ...s,
-        customers: [...s.customers, newCustomer],
-        nextDebtorNumber: data.debtorNumber ? s.nextDebtorNumber : s.nextDebtorNumber + 1,
-      } : null);
-      setEditingId(id);
-      setCreating(false);
+      return;
     }
+
+    const id = newNumericId();
+
+    // Debitorennummern haben dasselbe Problem wie Rechnungsnummern: Zwei
+    // Geräte, die je einen Kunden anlegen, vergeben sonst dieselbe — und der
+    // DATEV-Export braucht sie eindeutig. Hat der Nutzer selbst eine
+    // eingetragen, bleibt die stehen.
+    let debtorNumber = data.debtorNumber ?? '';
+    let bumpCounter = false;
+    if (!debtorNumber) {
+      try {
+        const allocated = await allocateNumber('debtor', state.nextDebtorNumber, new Date().getFullYear());
+        debtorNumber = String(allocated.value);
+        bumpCounter = allocated.bumpLocalCounter;
+      } catch (e) {
+        alert(e instanceof Error ? e.message : 'Debitorennummer konnte nicht vergeben werden.');
+        return;
+      }
+    }
+
+    const newCustomer: Customer = {
+      ...(data as Omit<Customer, 'id'>),
+      id,
+      debtorNumber,
+      createdAt: Date.now(),
+      acquisitionDate: data.acquisitionDate ?? Date.now(),
+    };
+    setState((s) => s ? {
+      ...s,
+      customers: [...s.customers, newCustomer],
+      ...(bumpCounter ? { nextDebtorNumber: s.nextDebtorNumber + 1 } : {}),
+    } : null);
+    setEditingId(id);
+    setCreating(false);
   };
 
   const handleDelete = (id: number) => {

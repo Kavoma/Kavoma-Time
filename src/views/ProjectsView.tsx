@@ -12,6 +12,7 @@ import { collectTags, tagColors } from '../utils/tagColor';
 import { Tooltip } from '../components/Tooltip';
 import { Checkbox } from '../components/Checkbox';
 import type { NavIntent, ViewKey } from '../App';
+import { newNumericId } from '../sync/ids';
 
 type SortBy = 'name' | 'recent' | 'status' | 'budget' | 'priority';
 type ViewMode = 'list' | 'cards' | 'grouped';
@@ -161,7 +162,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
     if (data.id) {
       setState((s) => s ? { ...s, projects: s.projects.map((p) => p.id === data.id ? (data as Project) : p) } : null);
     } else {
-      const id = Date.now();
+      const id = newNumericId();
       const newProject: Project = {
         ...(data as Omit<Project, 'id'>),
         id,

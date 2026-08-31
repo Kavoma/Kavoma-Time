@@ -1,4 +1,5 @@
 import { AppState, Customer, Project, TimeEntry, Invoice } from '../types';
+import { newNumericId } from '../sync/ids';
 
 // === Stundensatz-Auflösung ====================================
 export function resolveRate(entry: TimeEntry, customers: Customer[], projects: Project[]): number {
@@ -207,7 +208,7 @@ export function createCancellationInvoice(original: Invoice, reason: string, new
   const negVatAmount = -original.vatAmount;
   const negTotal     = -original.total;
   return {
-    id: String(Date.now()),
+    id: String(newNumericId()),
     number: newNumber,
     customerId: original.customerId,
     projectId: original.projectId,

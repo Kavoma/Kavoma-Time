@@ -4,12 +4,12 @@ import { X, Upload, FileText, AlertTriangle } from 'lucide-react';
 import { Attachment, VendorInvoice, VendorInvoiceCategory } from '../../types';
 import { uploadPdf, formatFileSize } from '../../utils/attachments';
 import { DatePicker } from '../DatePicker';
+import { newNumericId } from '../../sync/ids';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onSave: (vendor: VendorInvoice, attachment: Attachment) => void;
-  nextId: number;
 }
 
 const CATEGORIES: { value: VendorInvoiceCategory; label: string }[] = [
@@ -40,7 +40,7 @@ function isValidDateInput(input: string): boolean {
   return Number.isFinite(ts);
 }
 
-export function VendorInvoiceUploadModal({ open, onClose, onSave, nextId }: Props) {
+export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [vendorName, setVendorName] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -124,7 +124,7 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave, nextId }: Prop
     try {
       const attachment = await uploadPdf(file);
       const vendor: VendorInvoice = {
-        id: nextId,
+        id: newNumericId(),
         attachmentId: attachment.id,
         vendorName: vendorName.trim(),
         invoiceNumber: invoiceNumber.trim() || undefined,
