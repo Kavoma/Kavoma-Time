@@ -1,6 +1,6 @@
 {
   "name": "kavoma-time",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -27,6 +27,7 @@
     "dist:publish": "pnpm build && electron-builder --win nsis --x64 --publish always",
     "dist:publish:mac": "pnpm build && electron-builder --mac --publish always",
     "version-set": "npm version --no-git-tag-version",
+    "release-tag": "node scripts/release-tag.mjs",
     "lint": "eslint . --report-unused-disable-directives",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

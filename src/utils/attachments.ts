@@ -15,7 +15,13 @@ function bufferToBase64(buf: ArrayBuffer): string {
   return btoa(binary);
 }
 
-function base64ToUint8Array(b64: string): Uint8Array {
+/**
+ * Der Rückgabetyp ist bewusst auf `ArrayBuffer` festgelegt: Seit den neueren
+ * lib-Typen ist `Uint8Array` über seinen Puffer generisch, und `BlobPart`
+ * verlangt einen echten `ArrayBuffer`. `new Uint8Array(len)` liefert immer
+ * einen — TypeScript leitet es nur nicht mehr von allein ab.
+ */
+function base64ToUint8Array(b64: string): Uint8Array<ArrayBuffer> {
   const binary = atob(b64);
   const out = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
@@ -23,12 +29,21 @@ function base64ToUint8Array(b64: string): Uint8Array {
 }
 
 function generateId(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID().replace(/-/g, '');
+  // Über `globalThis` statt direkt: Der `in`-Test verengt `crypto` sonst so
+  // weit, dass TypeScript den Ausweichzweig für unerreichbar hält und
+  // `getRandomValues` auf `never` nicht mehr findet.
+  const c: Crypto | undefined = globalThis.crypto;
+  if (typeof c?.randomUUID === 'function') {
+    return c.randomUUID().replace(/-/g, '');
   }
-  const arr = new Uint8Array(16);
-  crypto.getRandomValues(arr);
-  return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+  if (typeof c?.getRandomValues === 'function') {
+    const arr = new Uint8Array(16);
+    c.getRandomValues(arr);
+    return Array.from(arr, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  // Weder das eine noch das andere: lieber abbrechen als eine schwache
+  // Kennung vergeben, an der später eine verschlüsselte Datei hängt.
+  throw new Error('Dieser Browser bietet keine sichere Zufallsquelle für Anhang-IDs.');
 }
 
 async function sha256Hex(buf: ArrayBuffer): Promise<string> {

@@ -326,7 +326,6 @@ declare global {
       onHotkeyToggle: (cb: () => void) => () => void;
       onStoreUpdated: (cb: (key: string, data: any) => void) => () => void;
       onNavigateToView: (cb: (view: string) => void) => () => void;
-      onViewSwipe: (cb: (direction: 'left' | 'right') => void) => () => void;
       onTimerQuickStart: (cb: (target: { customerId: number; projectId: number; description: string }) => void) => () => void;
       onTimerCommand: (cb: (command: 'toggle' | 'start' | 'pause' | 'stop', effectiveNow?: number) => void) => () => void;
       sendTimerOverlayCommand: (command: 'toggle' | 'start' | 'pause' | 'stop') => Promise<void>;

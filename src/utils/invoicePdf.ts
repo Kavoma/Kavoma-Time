@@ -167,7 +167,10 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
     margin: { left: 20, right: 20 },
   });
 
-  // @ts-expect-error — autotable hängt sich an doc
+  // jspdf-autotable hängt `lastAutoTable` zur Laufzeit an das doc-Objekt;
+  // in den Typen steht es nicht. Die Umgehung erledigt der Cast — eine
+  // zusätzliche `@ts-expect-error`-Direktive hätte hier nichts zu unterdrücken
+  // und wäre selbst ein Fehler.
   y = (doc as any).lastAutoTable.finalY + 8;
 
   // === Summen ===

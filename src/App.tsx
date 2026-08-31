@@ -112,21 +112,6 @@ export function App() {
     });
   }, []);
 
-  // Drei-Finger-Wischen blättert durch dieselbe Reihenfolge wie Cmd+1…6.
-  // An den Enden passiert nichts — Umlaufen würde das Gefühl für die
-  // Reihenfolge zerstören.
-  useEffect(() => {
-    return window.api?.onViewSwipe?.((direction) => {
-      setActiveView(prev => {
-        const index = VIEW_ORDER.indexOf(prev);
-        const next = direction === 'left' ? index + 1 : index - 1;
-        if (index < 0 || next < 0 || next >= VIEW_ORDER.length) return prev;
-        return VIEW_ORDER[next];
-      });
-      setNavIntent(null);
-    });
-  }, []);
-
   const { state, setState, isRestoring, restoreNonce } = useAppState();
 
   // === Verbindungsanfrage eines anderen Geräts ===
