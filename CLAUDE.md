@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Projekt
 
-**Kavoma Time** — Single-User Desktop-App (Electron + React 19 + Vite + TypeScript + Tailwind v4) für Zeiterfassung, Projekt-/Kundenverwaltung, Rechnungsstellung mit Mahnwesen, Finanzen (Eingangsrechnungen + Verträge mit verschlüsselten PDF-Anhängen) und DATEV-Export. UI ist durchgängig **Deutsch**; Code-Kommentare ebenfalls Deutsch. DSGVO-konform (lokale Speicherung, Wipe, Verschlüsselung).
+**Kavoma Time** — Single-User Desktop-App (Electron + React 19 + Vite + TypeScript + Tailwind v4) für Zeiterfassung, Projekt-/Kundenverwaltung, Rechnungsstellung mit Mahnwesen, Finanzen (Eingangsrechnungen + Verträge mit verschlüsselten PDF-Anhängen, Auswertung) und optionaler, Ende-zu-Ende verschlüsselter Geräte-Synchronisierung. **Einen DATEV-Export gibt es nicht** — es existieren ein CSV-Export der Eingangsrechnungen, die verschlüsselte `.kvbak`-Sicherung und ein Klartext-JSON-Export. Debitorennummern werden DATEV-tauglich vergeben, das ist aber Vorbereitung und keine Schnittstelle. UI ist durchgängig **Deutsch**; Code-Kommentare ebenfalls Deutsch. DSGVO-konform (lokale Speicherung, Wipe, Verschlüsselung).
 
 Package-Manager: **pnpm** (Workspace via `pnpm-workspace.yaml`, Lockfile `pnpm-lock.yaml`).
 

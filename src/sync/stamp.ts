@@ -3,7 +3,7 @@
 // ============================================================
 // „Letzte Änderung gewinnt" braucht auf beiden Seiten eine Version. Die
 // Domänen-Typen tragen keine und sollen auch keine bekommen: Eine `_rev` in
-// `Invoice` landete im Backup, im DATEV-Export und im Rechnungs-PDF.
+// `Invoice` landete im Backup, im JSON-Export und im Rechnungs-PDF.
 //
 // Der Stempel entsteht deshalb in derselben State-Aktualisierung wie die
 // Änderung selbst — nicht hinterher. Das hält die Tabelle immer im Gleichtakt
