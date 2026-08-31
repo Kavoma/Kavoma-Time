@@ -108,6 +108,28 @@ contextBridge.exposeInMainWorld('api', {
   syncSignOut: () => ipcRenderer.invoke('sync-sign-out'),
   syncHasKeys: () => ipcRenderer.invoke('sync-has-keys'),
   syncSetupPassphrase: (passphrase) => ipcRenderer.invoke('sync-setup-passphrase', passphrase),
+  syncInitializeKey: () => ipcRenderer.invoke('sync-initialize-key'),
+  syncStartLink: () => ipcRenderer.invoke('sync-start-link'),
+  syncCancelLink: () => ipcRenderer.invoke('sync-cancel-link'),
+  syncListLinks: () => ipcRenderer.invoke('sync-list-links'),
+  syncRespondLink: (id) => ipcRenderer.invoke('sync-respond-link', id),
+  syncApproveLink: (id, code) => ipcRenderer.invoke('sync-approve-link', id, code),
+  syncRejectLink: (id) => ipcRenderer.invoke('sync-reject-link', id),
+  onSyncLinkRequest: (cb) => {
+    const handler = (_e, anfrage) => cb(anfrage);
+    ipcRenderer.on('sync-link-request', handler);
+    return () => ipcRenderer.removeListener('sync-link-request', handler);
+  },
+  onSyncLinkCode: (cb) => {
+    const handler = (_e, daten) => cb(daten);
+    ipcRenderer.on('sync-link-code', handler);
+    return () => ipcRenderer.removeListener('sync-link-code', handler);
+  },
+  onSyncLinkDone: (cb) => {
+    const handler = (_e, daten) => cb(daten);
+    ipcRenderer.on('sync-link-done', handler);
+    return () => ipcRenderer.removeListener('sync-link-done', handler);
+  },
   syncUnlock: (secret) => ipcRenderer.invoke('sync-unlock', secret),
   syncStart: () => ipcRenderer.invoke('sync-start'),
   syncEnqueue: (ops) => ipcRenderer.invoke('sync-enqueue', ops),

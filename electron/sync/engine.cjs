@@ -14,6 +14,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('./crypto.cjs');
 const { createSyncClient } = require('./supabase.cjs');
+const linking = require('./linking.cjs');
 
 const CURSOR_KEY = 'sync_cursor';
 const DEK_FILE = 'kavoma-sync.key';
@@ -43,6 +44,7 @@ function createEngine({ store, userDataPath, safeStorage, broadcast, api = null,
   let user = null;
   let device = null;
   let unsubscribe = null;
+  let unsubscribeLinks = null;
   let pollTimer = null;
   let lastError = null;
   let lastSyncAt = null;
@@ -54,6 +56,9 @@ function createEngine({ store, userDataPath, safeStorage, broadcast, api = null,
   /** Zugriff auf die lokalen Belege — nur der Main-Prozess kennt sie. */
   let attachmentHooks = null;
   let lastReconcileAt = 0;
+  /** Laufender Verbindungsvorgang. Der private Schlüssel darf nur hier leben. */
+  let link = null;
+  let linkTimer = null;
   /** Ops, die noch nicht hochgeladen sind. Überlebt Verbindungsabbrüche. */
   let queue = [];
 
@@ -255,6 +260,17 @@ function createEngine({ store, userDataPath, safeStorage, broadcast, api = null,
       sync();
     });
 
+    // Verbindungsanfragen anderer Geräte. Der Hinweis soll überall in der App
+    // auftauchen, nicht nur in den Einstellungen — deshalb hier und nicht in
+    // der Oberfläche.
+    unsubscribeLinks?.();
+    unsubscribeLinks = api.subscribeToLinks?.(user.id, (row) => {
+      if (row.requester_device_id === device.id) return;   // die eigene
+      broadcast('sync-link-request', {
+        id: row.id, name: row.requester_name, platform: row.requester_platform,
+      });
+    });
+
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(sync, POLL_MS);
     // Beim Aufnehmen einmal ohne Drosselung: Genau hier stehen die Belege an,
@@ -266,6 +282,8 @@ function createEngine({ store, userDataPath, safeStorage, broadcast, api = null,
   function detach() {
     unsubscribe?.();
     unsubscribe = null;
+    unsubscribeLinks?.();
+    unsubscribeLinks = null;
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = null;
   }
@@ -280,6 +298,138 @@ function createEngine({ store, userDataPath, safeStorage, broadcast, api = null,
     let name;
     try { name = os.hostname(); } catch (_) { name = 'Unbekanntes Gerät'; }
     return { id, name, platform: process.platform };
+  }
+
+  // === Gerät mit Gerät verbinden ===========================================
+  // Ersetzt die Passphrase. Der Ablauf in Kurzform:
+  //
+  //   1. Neues Gerät legt eine Anfrage mit seiner öffentlichen Hälfte ab.
+  //   2. Eingerichtetes Gerät antwortet **automatisch** mit seiner — eine
+  //      öffentliche Hälfte verrät nichts, und ohne sie könnte das neue Gerät
+  //      die Zahl gar nicht erst anzeigen.
+  //   3. Beide rechnen dieselbe sechsstellige Zahl aus.
+  //   4. Der Mensch tippt sie vom neuen ins eingerichtete Gerät.
+  //   5. Stimmt sie, wandert der Datenschlüssel — verpackt mit dem gemeinsamen
+  //      Geheimnis, das nur die beiden Geräte kennen.
+  //
+  // Erst Schritt 5 gibt etwas preis. Alles davor ist öffentlich.
+
+  const LINK_POLL_MS = 1500;
+
+  function stopLinkPolling() {
+    if (linkTimer) clearInterval(linkTimer);
+    linkTimer = null;
+  }
+
+  /** Neues Gerät: Anfrage stellen und auf die Antwort warten. */
+  async function startDeviceLink() {
+    if (!user) throw new Error('Nicht angemeldet.');
+    cancelDeviceLink();
+
+    const paar = linking.generateLinkKeypair();
+    const geraet = await ensureDevice();
+    await api.pruneDeviceLinks().catch(() => {});
+    const zeile = await api.createDeviceLink(user.id, geraet, paar.publicKey);
+
+    link = { rolle: 'anfrage', id: zeile.id, paar, code: null, shared: null };
+
+    linkTimer = setInterval(() => { void pollLinkOnce(); }, LINK_POLL_MS);
+    return { linkId: zeile.id };
+  }
+
+  /** Ein Abfrageschritt des wartenden Geräts. Eigene Funktion, damit sich der
+   *  Ablauf testen lässt, ohne auf Timer zu warten. */
+  async function pollLinkOnce() {
+    if (!link || link.rolle !== 'anfrage') return { state: 'inaktiv' };
+    try {
+      const aktuell = await api.getDeviceLink(link.id);
+      if (!aktuell) return { state: 'wartet' };
+
+      // Schritt 3: Gegenstück da → Zahl anzeigen.
+      if (aktuell.responder_pubkey && !link.code) {
+        link.shared = linking.deriveShared(link.paar.privateKey, aktuell.responder_pubkey);
+        link.code = linking.deriveCode(link.shared, link.paar.publicKey, aktuell.responder_pubkey);
+        broadcast('sync-link-code', { code: link.code });
+      }
+
+      // Schritt 5: Schlüssel da → auspacken und loslegen.
+      if (aktuell.wrapped_dek && link.shared) {
+        const geoeffnet = linking.openDek(link.shared, aktuell.wrapped_dek, `link:${link.id}`);
+        stopLinkPolling();
+        persistDek(geoeffnet);
+        dek = geoeffnet;
+        await api.deleteDeviceLink(link.id).catch(() => {});
+        link = null;
+        publish();
+        broadcast('sync-link-done', { ok: true });
+        return { state: 'fertig' };
+      }
+      return { state: link.code ? 'zahl-steht' : 'wartet', code: link.code };
+    } catch (e) {
+      stopLinkPolling();
+      broadcast('sync-link-done', { ok: false, error: e.message });
+      return { state: 'fehler', error: e.message };
+    }
+  }
+
+  function cancelDeviceLink() {
+    stopLinkPolling();
+    if (link?.id && link.rolle === 'anfrage') api.deleteDeviceLink(link.id).catch(() => {});
+    link = null;
+  }
+
+  /** Eingerichtetes Gerät: offene Anfragen anderer Geräte. */
+  async function listPendingLinks() {
+    if (!user || !dek) return [];
+    const zeilen = await api.listPendingLinks();
+    const eigenes = (await ensureDevice()).id;
+    return zeilen
+      .filter((z) => z.requester_device_id !== eigenes && !z.wrapped_dek)
+      .map((z) => ({
+        id: z.id, name: z.requester_name, platform: z.requester_platform, createdAt: z.created_at,
+      }));
+  }
+
+  /**
+   * Eingerichtetes Gerät: mit der eigenen öffentlichen Hälfte antworten.
+   *
+   * Gibt die Zahl **nicht** zurück — sie wird hier nur gemerkt. Würde das alte
+   * Gerät sie anzeigen, könnte man sie blind abnicken; der Sinn ist, dass sie
+   * vom *anderen* Bildschirm kommt.
+   */
+  async function respondToLink(id) {
+    if (!user || !dek) throw new Error('Dieses Gerät ist nicht entsperrt.');
+    const zeile = await api.getDeviceLink(id);
+    if (!zeile) throw new Error('Diese Anfrage gibt es nicht mehr.');
+    if (new Date(zeile.expires_at) < new Date()) throw new Error('Diese Anfrage ist abgelaufen.');
+
+    const paar = linking.generateLinkKeypair();
+    const shared = linking.deriveShared(paar.privateKey, zeile.requester_pubkey);
+    const code = linking.deriveCode(shared, paar.publicKey, zeile.requester_pubkey);
+
+    link = { rolle: 'bestaetigung', id, paar, shared, code };
+    await api.publishLinkResponse(id, paar.publicKey);
+    return { id, name: zeile.requester_name, platform: zeile.requester_platform };
+  }
+
+  /** Eingerichtetes Gerät: Zahl prüfen und bei Übereinstimmung den Schlüssel senden. */
+  async function approveLink(id, eingetippt) {
+    if (!link || link.id !== id || link.rolle !== 'bestaetigung') {
+      throw new Error('Für diese Anfrage läuft gerade kein Vorgang.');
+    }
+    if (!linking.codesMatch(eingetippt, link.code)) {
+      throw new Error('Die Zahlen stimmen nicht überein. Brich ab und versuch es neu — '
+        + 'wenn es wieder nicht passt, stimmt etwas mit der Verbindung nicht.');
+    }
+    await api.publishLinkKey(id, linking.sealDek(link.shared, dek, `link:${id}`));
+    link = null;
+    return { ok: true };
+  }
+
+  async function rejectLink(id) {
+    await api.deleteDeviceLink(id).catch(() => {});
+    if (link?.id === id) link = null;
+    return { ok: true };
   }
 
   // === Öffentliche Schnittstelle ===========================================
@@ -309,6 +459,7 @@ function createEngine({ store, userDataPath, safeStorage, broadcast, api = null,
 
     async signOut() {
       detach();
+      cancelDeviceLink();
       await api.signOut().catch(() => {});
       // Der Datenschlüssel geht mit: Ein abgemeldetes Gerät soll nichts mehr
       // entschlüsseln können, was es später herunterlädt.
@@ -351,6 +502,29 @@ function createEngine({ store, userDataPath, safeStorage, broadcast, api = null,
       publish();
       return { recoveryCode };
     },
+
+    /**
+     * Erstes Gerät: Datenschlüssel anlegen — ohne Passphrase.
+     *
+     * Gesichert wird er allein über den Wiederherstellungscode. Der ist nicht
+     * Bequemlichkeit, sondern der einzige Weg zurück, wenn alle Geräte weg
+     * sind: Der Schlüssel liegt sonst nirgends.
+     */
+    async initializeKey() {
+      if (!user) throw new Error('Nicht angemeldet.');
+      const frisch = crypto.generateDek();
+      const recoveryCode = crypto.generateRecoveryCode();
+      const umschlag = crypto.wrapDek(frisch, crypto.normalizeRecoveryCode(recoveryCode), kdfOverrides);
+
+      await api.putKeyEnvelope(user.id, 'recovery', umschlag.kdf, umschlag.wrapped);
+      persistDek(frisch);
+      dek = frisch;
+      await attach();
+      publish();
+      return { recoveryCode };
+    },
+
+    pollLinkOnce,
 
     /** Zweites Gerät: Umschlag holen und mit Passphrase oder Code öffnen. */
     async unlock(secret) {
@@ -448,6 +622,13 @@ function createEngine({ store, userDataPath, safeStorage, broadcast, api = null,
       if (!user) return false;
       return api.deleteAttachment(user.id, id).catch(() => false);
     },
+
+    startDeviceLink,
+    cancelDeviceLink,
+    listPendingLinks,
+    respondToLink,
+    approveLink,
+    rejectLink,
 
     /** Zugriff auf die lokalen Belege hereinreichen. */
     setAttachmentHooks(hooks) { attachmentHooks = hooks; },

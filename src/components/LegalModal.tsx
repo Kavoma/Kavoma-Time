@@ -182,15 +182,18 @@ function PrivacyContent() {
         <p className="mb-2">
           Die Übertragung erfolgt <strong className="text-ink">Ende-zu-Ende-verschlüsselt</strong>:
           Die Inhalte werden bereits auf Ihrem Gerät mit AES-256-GCM verschlüsselt. Der dafür nötige
-          Schlüssel wird aus einer Passphrase abgeleitet, die nur Sie kennen und die zu keinem
-          Zeitpunkt übertragen wird. Der Betreiber der Server kann die Inhalte deshalb technisch
-          nicht einsehen — auch nicht auf behördliche Anordnung.
+          Schlüssel entsteht auf Ihrem ersten Gerät und verlässt es nie in lesbarer Form. Nehmen Sie
+          ein weiteres Gerät hinzu, wird er direkt zwischen Ihren Geräten ausgetauscht und dabei mit
+          einem Verfahren geschützt, das nur den beiden beteiligten Geräten bekannt ist; die
+          sechsstellige Zahl, die Sie dabei bestätigen, stellt sicher, dass sich niemand
+          dazwischenschaltet. Der Betreiber der Server kann die Inhalte deshalb technisch nicht
+          einsehen — auch nicht auf behördliche Anordnung.
         </p>
         <p className="mb-2">
           Für den Betreiber sichtbar bleiben dagegen <strong className="text-ink">Metadaten</strong>:
           die zur Anmeldung verwendete E-Mail-Adresse, Ihre IP-Adresse, Zeitpunkte der Zugriffe, Name
-          und Betriebssystem Ihrer angemeldeten Geräte sowie Anzahl und Größe der übertragenen
-          Datensätze. Nicht sichtbar sind deren Inhalte, also insbesondere keine Kunden-, Projekt-
+          und Betriebssystem Ihrer angemeldeten Geräte, Zeitpunkt und Beteiligte von
+          Geräte-Verbindungsvorgängen sowie Anzahl und Größe der übertragenen Datensätze. Nicht sichtbar sind deren Inhalte, also insbesondere keine Kunden-, Projekt-
           oder Rechnungsdaten.
           {standort ? ` Serverstandort: ${standort.region}.` : ''}
         </p>
@@ -207,10 +210,11 @@ function PrivacyContent() {
         )}
         <p className="mb-2">
           Verantwortlich für dieses Supabase-Projekt sind Sie selbst; der Anbieter dieser Software
-          hat darauf keinen Zugriff. Die Passphrase kann nicht zurückgesetzt werden — geht sie
-          verloren und liegt kein Wiederherstellungscode vor, sind die synchronisierten Daten
-          unwiederbringlich verloren. Das ist die technische Folge daraus, dass niemand außer Ihnen
-          sie entschlüsseln kann.
+          hat darauf keinen Zugriff. Da der Schlüssel ausschließlich auf Ihren Geräten liegt, kann
+          er nicht zurückgesetzt werden: Verlieren Sie <strong className="text-ink">alle</strong>{' '}
+          Geräte und haben den beim Einrichten angezeigten Wiederherstellungscode nicht, sind die
+          synchronisierten Daten unwiederbringlich verloren. Das ist die technische Folge daraus,
+          dass niemand außer Ihnen sie entschlüsseln kann.
         </p>
         <p className="mb-2">
           <strong className="text-ink">Update-Prüfung:</strong> Sofern aktiviert, prüft die App beim Start

@@ -386,6 +386,20 @@ declare global {
       syncHasKeys: () => Promise<boolean>;
       /** Erstmalige Einrichtung. Der Wiederherstellungscode kommt genau einmal. */
       syncSetupPassphrase: (passphrase: string) => Promise<{ recoveryCode: string }>;
+      /** Erstes Gerät: Schlüssel anlegen, ohne Passphrase. Code kommt genau einmal. */
+      syncInitializeKey: () => Promise<{ recoveryCode: string }>;
+      /** Neues Gerät: Verbindungsanfrage stellen. Die Zahl kommt über `onSyncLinkCode`. */
+      syncStartLink: () => Promise<{ linkId: string }>;
+      syncCancelLink: () => Promise<boolean>;
+      syncListLinks: () => Promise<Array<{ id: string; name: string; platform: string; createdAt: string }>>;
+      /** Eingerichtetes Gerät: mit der eigenen öffentlichen Hälfte antworten. */
+      syncRespondLink: (id: string) => Promise<{ id: string; name: string; platform: string }>;
+      /** Eingerichtetes Gerät: Zahl prüfen und den Schlüssel freigeben. */
+      syncApproveLink: (id: string, code: string) => Promise<{ ok: boolean }>;
+      syncRejectLink: (id: string) => Promise<{ ok: boolean }>;
+      onSyncLinkRequest: (cb: (anfrage: { id: string; name: string; platform: string }) => void) => () => void;
+      onSyncLinkCode: (cb: (daten: { code: string }) => void) => () => void;
+      onSyncLinkDone: (cb: (daten: { ok: boolean; error?: string }) => void) => () => void;
       /** Zweites Gerät: Passphrase oder Wiederherstellungscode. */
       syncUnlock: (secret: string) => Promise<SyncStatus>;
       /** Abgleich aufnehmen — erst nach dem Erstabgleich aufrufen. */

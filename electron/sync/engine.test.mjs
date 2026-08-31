@@ -16,13 +16,15 @@ function makeFakeBackend() {
   const keys = [];
   const devices = new Map();
   const ablage = new Map();
+  const links = new Map();
   let seq = 0;
+  let linkSeq = 0;
   const state = { offline: false, user: { id: 'user-1', email: 'test@kavoma.invalid' } };
 
   const guard = () => { if (state.offline) throw new Error('offline'); };
 
   return {
-    state, ops, keys, devices, ablage,
+    state, ops, keys, devices, ablage, links,
     api: {
       async getUser() { guard(); return state.user; },
       async signIn() { guard(); return { user: state.user }; },
@@ -59,6 +61,35 @@ function makeFakeBackend() {
         return [...ablage.keys()].filter(k => k.startsWith(`${userId}/`)).map(k => k.split('/')[1]);
       },
       async deleteAttachment(userId, id) { guard(); ablage.delete(`${userId}/${id}`); return true; },
+
+      async createDeviceLink(userId, device, pubkey) {
+        guard();
+        const zeile = {
+          id: `link-${++linkSeq}`, user_id: userId,
+          requester_device_id: device.id, requester_name: device.name,
+          requester_platform: device.platform, requester_pubkey: pubkey,
+          responder_pubkey: null, wrapped_dek: null, consumed_at: null,
+          expires_at: new Date(Date.now() + 600_000).toISOString(),
+          created_at: new Date().toISOString(),
+        };
+        links.set(zeile.id, zeile);
+        return zeile;
+      },
+      async getDeviceLink(id) { guard(); return links.get(id) ?? null; },
+      async listPendingLinks() {
+        guard();
+        return [...links.values()].filter(z => !z.consumed_at && new Date(z.expires_at) > new Date());
+      },
+      async publishLinkResponse(id, pubkey) { guard(); links.get(id).responder_pubkey = pubkey; return links.get(id); },
+      async publishLinkKey(id, wrapped) {
+        guard();
+        const z = links.get(id);
+        z.wrapped_dek = wrapped;
+        z.consumed_at = new Date().toISOString();
+        return z;
+      },
+      async deleteDeviceLink(id) { guard(); links.delete(id); return true; },
+      async pruneDeviceLinks() { guard(); return 0; },
     },
   };
 }
@@ -395,6 +426,111 @@ describe('Sync-Motor', () => {
     await b.engine.downloadAttachment('beleg-1', async (id, buf) => { platteB.set(id, buf); });
 
     expect(platteB.get('beleg-1').toString()).toBe('%PDF-1.7 Inhalt');
+  });
+
+  it('richtet das erste Gerät ohne Passphrase ein', async () => {
+    const backend = makeFakeBackend();
+    const a = makeDevice(backend, 'a');
+    await a.engine.signIn('x', 'y');
+
+    const { recoveryCode } = await a.engine.initializeKey();
+
+    expect(a.engine.status().state).toBe('synced');
+    expect(recoveryCode).toMatch(/^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){7}$/);
+    // Nur der Notfall-Umschlag — keine Passphrase mehr.
+    expect(backend.keys.map(k => k.kind)).toEqual(['recovery']);
+  });
+
+  it('verbindet ein zweites Gerät über die sechsstellige Zahl', async () => {
+    const backend = makeFakeBackend();
+    const a = makeDevice(backend, 'a');
+    await a.engine.signIn('x', 'y');
+    await a.engine.initializeKey();
+
+    const b = makeDevice(backend, 'b');
+    await b.engine.signIn('x', 'y');
+    expect(b.engine.status().state).toBe('locked');
+
+    // 1. Neues Gerät stellt die Anfrage.
+    const { linkId } = await b.engine.startDeviceLink();
+
+    // 2. Eingerichtetes Gerät sieht sie und antwortet automatisch.
+    const offen = await a.engine.listPendingLinks();
+    expect(offen.map(o => o.id)).toContain(linkId);
+    await a.engine.respondToLink(linkId);
+
+    // 3. Erst jetzt kann das neue Gerät die Zahl zeigen.
+    const zwischenstand = await b.engine.pollLinkOnce();
+    expect(zwischenstand.state).toBe('zahl-steht');
+    expect(zwischenstand.code).toMatch(/^\d{6}$/);
+
+    // 4. Der Mensch tippt sie am eingerichteten Gerät ein.
+    await a.engine.approveLink(linkId, zwischenstand.code);
+
+    // 5. Schlüssel kommt an.
+    const fertig = await b.engine.pollLinkOnce();
+    expect(fertig.state).toBe('fertig');
+    expect(b.engine._internals.dek.equals(a.engine._internals.dek)).toBe(true);
+    expect(backend.links.size).toBe(0);   // Vorgang aufgeräumt
+  });
+
+  it('gibt den Schlüssel bei falscher Zahl nicht heraus', async () => {
+    const backend = makeFakeBackend();
+    const a = makeDevice(backend, 'a');
+    await a.engine.signIn('x', 'y');
+    await a.engine.initializeKey();
+
+    const b = makeDevice(backend, 'b');
+    await b.engine.signIn('x', 'y');
+    const { linkId } = await b.engine.startDeviceLink();
+    await a.engine.respondToLink(linkId);
+    const { code } = await b.engine.pollLinkOnce();
+
+    const falsch = String((Number(code) + 1) % 1_000_000).padStart(6, '0');
+    await expect(a.engine.approveLink(linkId, falsch)).rejects.toThrow(/stimmen nicht überein/);
+
+    // Nichts abgelegt, das zweite Gerät bleibt gesperrt.
+    expect(backend.links.get(linkId).wrapped_dek).toBeNull();
+    expect(b.engine.status().state).toBe('locked');
+  });
+
+  it('das eingerichtete Gerät zeigt seine eigene Anfrage nicht an', async () => {
+    const backend = makeFakeBackend();
+    const a = makeDevice(backend, 'a');
+    await a.engine.signIn('x', 'y');
+    await a.engine.initializeKey();
+    await a.engine.startDeviceLink();
+
+    // Sonst könnte man sich selbst bestätigen — sinnlos und verwirrend.
+    expect(await a.engine.listPendingLinks()).toHaveLength(0);
+  });
+
+  it('eine abgelehnte Anfrage verschwindet', async () => {
+    const backend = makeFakeBackend();
+    const a = makeDevice(backend, 'a');
+    await a.engine.signIn('x', 'y');
+    await a.engine.initializeKey();
+
+    const b = makeDevice(backend, 'b');
+    await b.engine.signIn('x', 'y');
+    const { linkId } = await b.engine.startDeviceLink();
+
+    await a.engine.rejectLink(linkId);
+    expect(await a.engine.listPendingLinks()).toHaveLength(0);
+    expect(b.engine.status().state).toBe('locked');
+  });
+
+  it('der Wiederherstellungscode bleibt der Ausweg ohne zweites Gerät', async () => {
+    const backend = makeFakeBackend();
+    const a = makeDevice(backend, 'a');
+    await a.engine.signIn('x', 'y');
+    const { recoveryCode } = await a.engine.initializeKey();
+
+    const b = makeDevice(backend, 'b');
+    await b.engine.signIn('x', 'y');
+    await b.engine.unlock(recoveryCode);
+
+    expect(b.engine._internals.dek.equals(a.engine._internals.dek)).toBe(true);
   });
 
   it('liefert für den Erstabgleich alles, ohne den Zeiger zu bewegen', async () => {

@@ -168,6 +168,16 @@ ein, die dieser Aufbau vermeidet.
 - **Echo-Falle:** Fremde Ops werden über `applyOps` eingespielt, und
   `prevSyncedRef` wird **vor** dem Setzen nachgezogen. Sonst meldet der nächste
   Diff die fremde Änderung als eigene zurück.
+- **Kein Passphrase.** Das erste Gerät erzeugt den Datenschlüssel
+  (`initializeKey`), weitere bekommen ihn über einen X25519-Austausch, den eine
+  sechsstellige Zahl gegen einen Zwischenmann absichert
+  (`electron/sync/linking.cjs`). Die Zahl ist **kein Geheimnis**, sondern ein
+  Fingerabdruck: Sie wird aus dem gemeinsamen Geheimnis und beiden öffentlichen
+  Schlüsseln abgeleitet, weicht bei einem Zwischenmann auf beiden Seiten
+  voneinander ab und wird deshalb **eingetippt statt angezeigt** — stünde sie
+  auf beiden Bildschirmen, ließe sie sich blind abnicken.
+  `unlock()` mit dem Wiederherstellungscode bleibt der Weg, wenn kein zweites
+  Gerät zur Hand ist; bestehende Passphrase-Umschläge funktionieren weiter.
 - **Krypto und Transport liegen im Main-Prozess** (`electron/sync/`), der
   Datenschlüssel verlässt ihn nie. Zusammengeführt wird im Renderer — als reine,
   testbare Funktion.

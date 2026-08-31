@@ -18,6 +18,7 @@ import { LongRunModal } from './components/LongRunModal';
 import { applyPause, runTimerCommand } from './utils/timerActions';
 import { getLiveDurationSeconds } from './utils/trackerTimer';
 import type { DetectedPause } from './types';
+import { ApproveLinkModal, type LinkAnfrage } from './components/sync/ApproveLinkModal';
 
 /** Ab dieser Laufzeit wird nachgefragt, ob das Stoppen vergessen wurde. */
 const LONG_RUN_THRESHOLD_SECONDS = 12 * 3600;
@@ -127,6 +128,16 @@ export function App() {
   }, []);
 
   const { state, setState, isRestoring, restoreNonce } = useAppState();
+
+  // === Verbindungsanfrage eines anderen Geräts ===
+  // Gehört bewusst hierher und nicht in die Einstellungen: Wer ein zweites
+  // Gerät einrichtet, steht davor und wartet — er soll nicht erst im richtigen
+  // Menü sein müssen.
+  const [linkAnfrage, setLinkAnfrage] = useState<LinkAnfrage | null>(null);
+
+  useEffect(() => {
+    return window.api?.onSyncLinkRequest?.(setLinkAnfrage);
+  }, []);
 
   // === Erkannte Abwesenheit ===
   const [pendingPause, setPendingPause] = useState<DetectedPause | null>(null);
@@ -239,6 +250,7 @@ export function App() {
         onSubtract={handleSubtractPause}
         onKeep={resolvePause}
       />
+      <ApproveLinkModal anfrage={linkAnfrage} onClose={() => setLinkAnfrage(null)} />
       <LongRunModal
         seconds={longRunSeconds}
         onStop={handleStopLongRun}

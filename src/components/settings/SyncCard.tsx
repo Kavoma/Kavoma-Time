@@ -5,6 +5,7 @@ import type { SyncStatus } from '../../sync/types';
 import { SettingsCard } from './SettingsCard';
 import { SyncSetupModal } from '../sync/SyncSetupModal';
 import { FirstMergePreview } from '../sync/FirstMergePreview';
+import { ApproveLinkModal, type LinkAnfrage } from '../sync/ApproveLinkModal';
 
 type Geraet = { id: string; name: string; platform: string; created_at: string; last_seen_at: string };
 
@@ -33,6 +34,8 @@ export function SyncCard() {
   const [dialogOffen, setDialogOffen] = useState(false);
   const [erstabgleichOffen, setErstabgleichOffen] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
+  const [offeneAnfragen, setOffeneAnfragen] = useState<LinkAnfrage[]>([]);
+  const [gewaehlteAnfrage, setGewaehlteAnfrage] = useState<LinkAnfrage | null>(null);
 
   const geraeteLaden = useCallback(async () => {
     try { setGeraete((await window.api?.syncListDevices()) ?? []); }
@@ -47,6 +50,19 @@ export function SyncCard() {
   useEffect(() => {
     if (status?.state === 'synced' || status?.state === 'syncing') void geraeteLaden();
   }, [status?.state, geraeteLaden]);
+
+  // Netz für den Fall, dass die Realtime-Meldung nicht ankam — etwa weil die
+  // App beim Stellen der Anfrage gerade zu war.
+  useEffect(() => {
+    if (status?.state !== 'synced') return;
+    let abgebrochen = false;
+    const laden = () => window.api?.syncListLinks?.()
+      .then((l) => { if (!abgebrochen) setOffeneAnfragen(l ?? []); })
+      .catch(() => {});
+    laden();
+    const t = setInterval(laden, 15_000);
+    return () => { abgebrochen = true; clearInterval(t); };
+  }, [status?.state]);
 
   // Ohne Electron gibt es keine Synchronisierung — die Karte dann gar nicht zeigen.
   if (!window.api?.syncGetStatus) return null;
@@ -116,6 +132,25 @@ export function SyncCard() {
                 <p className="rounded-md border border-red-500/30 bg-red-500/[0.06] px-3 py-2 text-xs text-red-300">
                   {status.error}
                 </p>
+              )}
+
+              {offeneAnfragen.length > 0 && (
+                <div className="rounded-md border border-accent/40 bg-accent/[0.06] p-3">
+                  <h4 className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
+                    Wartet auf Bestätigung
+                  </h4>
+                  <ul className="space-y-1">
+                    {offeneAnfragen.map((a) => (
+                      <li key={a.id} className="flex items-center gap-2">
+                        <span className="flex-1 truncate text-xs text-ink">{a.name}</span>
+                        <button type="button" onClick={() => setGewaehlteAnfrage(a)}
+                          className="rounded-md bg-ink px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-paper">
+                          Verbinden
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
               {geraete.length > 0 && (
@@ -190,6 +225,8 @@ export function SyncCard() {
           else void geraeteLaden();
         }}
       />
+
+      <ApproveLinkModal anfrage={gewaehlteAnfrage} onClose={() => { setGewaehlteAnfrage(null); void geraeteLaden(); }} />
 
       <FirstMergePreview
         open={erstabgleichOffen}

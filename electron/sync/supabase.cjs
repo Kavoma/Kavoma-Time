@@ -156,6 +156,52 @@ function createSyncClient(store, { url = config.url, key = config.publishableKey
       return Number(data);
     },
 
+    // === Gerät mit Gerät verbinden ===
+    async createDeviceLink(userId, device, pubkey) {
+      return unwrap(await client.from('device_links').insert({
+        user_id: userId,
+        requester_device_id: device.id,
+        requester_name: device.name,
+        requester_platform: device.platform,
+        requester_pubkey: pubkey,
+      }).select().single());
+    },
+
+    async getDeviceLink(id) {
+      const rows = unwrap(await client.from('device_links').select('*').eq('id', id).limit(1));
+      return rows?.[0] ?? null;
+    },
+
+    /** Offene Anfragen: noch nicht eingelöst und noch nicht verfallen. */
+    async listPendingLinks() {
+      return unwrap(await client.from('device_links').select('*')
+        .is('consumed_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false }));
+    },
+
+    /** Nur die öffentliche Hälfte — der Datenschlüssel folgt erst nach Zustimmung. */
+    async publishLinkResponse(id, responderPubkey) {
+      return unwrap(await client.from('device_links')
+        .update({ responder_pubkey: responderPubkey }).eq('id', id).select().single());
+    },
+
+    async publishLinkKey(id, wrappedDek) {
+      return unwrap(await client.from('device_links')
+        .update({ wrapped_dek: wrappedDek, consumed_at: new Date().toISOString() })
+        .eq('id', id).select().single());
+    },
+
+    async deleteDeviceLink(id) {
+      return unwrap(await client.from('device_links').delete().eq('id', id));
+    },
+
+    async pruneDeviceLinks() {
+      const { data, error } = await client.rpc('prune_device_links');
+      if (error) throw new Error(error.message);
+      return Number(data) || 0;
+    },
+
     // === Belege ===
     // Pfad `<user_id>/<attachment_id>.enc` — der erste Abschnitt trägt die
     // Zugriffsregel, siehe Migration.
@@ -189,6 +235,17 @@ function createSyncClient(store, { url = config.url, key = config.publishableKey
     // === Realtime ===
     // Ohne das würde nur der 60-Sekunden-Nachlauf greifen; damit erscheint eine
     // Änderung vom anderen Gerät in ein bis zwei Sekunden.
+    /** Neue Verbindungsanfragen — damit das eingerichtete Gerät sofort fragt. */
+    subscribeToLinks(userId, onInsert) {
+      const channel = client
+        .channel(`device_links:${userId}`)
+        .on('postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'device_links', filter: `user_id=eq.${userId}` },
+          (payload) => onInsert(payload.new))
+        .subscribe();
+      return () => { client.removeChannel(channel); };
+    },
+
     subscribeToOps(userId, onInsert) {
       const channel = client
         .channel(`sync_ops:${userId}`)
