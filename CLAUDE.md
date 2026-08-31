@@ -26,7 +26,19 @@ pnpm dist:portable    # build + nur Portable .exe (x64)
 pnpm dist:publish     # Windows-Build + publish auf GitHub Releases (braucht GH_TOKEN env)
 pnpm dist:publish:mac # macOS-Build + publish auf GitHub Releases
 pnpm version-set X.Y.Z  # bump package.json ohne Git-Tag
+pnpm release-tag      # Tag vX.Y.Z anlegen und pushen — VOR jedem publish
 ```
+
+**Reihenfolge beim Veröffentlichen:** `version-set` → committen → `release-tag`
+→ `dist:publish`. Der Tag muss **vorher** existieren.
+
+Ohne ihn legt electron-builder das GitHub-Release selbst an und erzeugt den Tag
+als Nebenwirkung. Das geht schief, sobald mehrere Artefakte gleichzeitig
+hochgeladen werden: Jedes startet einen eigenen Publisher, alle sehen „Release
+existiert nicht", alle wollen es anlegen. Einer gewinnt, die übrigen bekommen
+`422 — Published releases must have a valid tag`, und mit ihnen stirbt ihr
+Upload. Beim 1.1.2-Release blieb so nur die `.blockmap` übrig, der Installer
+fehlte. Das Release sah fertig aus und war leer.
 
 **Beide Zielsysteme lassen sich von macOS aus bauen** — electron-builder bringt für
 NSIS eigene native Binaries mit, Wine wird nicht gebraucht. Umgekehrt geht es nicht:
