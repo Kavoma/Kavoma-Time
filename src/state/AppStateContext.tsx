@@ -1,7 +1,13 @@
-import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { AppState } from '../types';
 import { runTimerCommand, startTimerWith, TimerCommand, QuickStartTarget } from '../utils/timerActions';
 import { evaluateRecurringInvoices } from '../utils/recurring';
+import { diffState } from '../sync/diff';
+import { applyOps } from '../sync/merge';
+import type { Op } from '../sync/types';
+import { stampChanges } from '../sync/stamp';
+import { resolveDeviceInfo } from '../sync/device';
+import { timestampFromId } from '../sync/ids';
 
 const STORAGE_KEY = 'kavoma_time';
 
@@ -56,6 +62,8 @@ const SEED_STATE: AppState = {
   nextTemplateId: 1,
   nextRecurringId: 1,
   eInvoiceEnabled: true,
+  syncTombstones: [],
+  syncConflicts: [],
 };
 
 interface ContextValue {
@@ -122,6 +130,15 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
   // ZUGFeRD — Einbettung ist Default an
   if (typeof migrated.eInvoiceEnabled !== 'boolean') migrated.eInvoiceEnabled = true;
 
+  // Gerätesynchronisation — ohne Defaults stürzt die App bei alten Backups ab
+  if (!Array.isArray(migrated.syncTombstones)) migrated.syncTombstones = [];
+  if (!Array.isArray(migrated.syncConflicts)) migrated.syncConflicts = [];
+  if (!migrated.syncVersions || typeof migrated.syncVersions !== 'object') migrated.syncVersions = {};
+  // Der Zähler muss den Neustart überleben. Fiele er auf 0 zurück, trügen die
+  // nächsten Änderungen dieses Geräts niedrigere Stände als die bereits
+  // abgeglichenen — und verlören beim Zusammenführen gegen ältere Daten.
+  if (!Number.isFinite(migrated.syncLamport) || migrated.syncLamport < 0) migrated.syncLamport = 0;
+
   // E-Rechnung: `taxId` war früher ein Sammelfeld für Steuernummer UND USt-IdNr.
   // Sah es wie eine USt-IdNr. aus (Ländercode + Ziffern), übernehmen wir es
   // einmalig in das neue, für das XML nötige `vatId`-Feld.
@@ -175,7 +192,7 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
     if (typeof c.notes !== 'string') c.notes = '';
     if (typeof c.createdAt !== 'number') {
       // Legacy: id war Date.now() bei Anlage → als Fallback nutzen
-      c.createdAt = typeof c.id === 'number' && c.id > 1000000000000 ? c.id : 0;
+      c.createdAt = typeof c.id === 'number' && c.id > 1000000000000 ? timestampFromId(c.id) : 0;
     }
   });
 
@@ -186,7 +203,7 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
     if (!p.priority) p.priority = 'normal';
     if (!Array.isArray(p.milestones)) p.milestones = [];
     if (typeof p.createdAt !== 'number') {
-      p.createdAt = typeof p.id === 'number' && p.id > 1000000000000 ? p.id : 0;
+      p.createdAt = typeof p.id === 'number' && p.id > 1000000000000 ? timestampFromId(p.id) : 0;
     }
   });
 
@@ -206,19 +223,49 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
 }
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState | null>(null);
+  const [state, setStateRaw] = useState<AppState | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreNonce, setRestoreNonce] = useState(0);
   const skipNextPersistRef = useRef(false);
   const isTimerOverlay = new URLSearchParams(window.location.search).get('overlay') === 'timer';
+
+  // Zuletzt als „bekannt" verbuchter Stand. Der Unterschied zum neuen State
+  // ergibt das Änderungsprotokoll — siehe `src/sync/diff.ts`.
+  const prevSyncedRef = useRef<AppState | null>(null);
+  const deviceIdRef = useRef<string | null>(null);
+
+  /**
+   * Der `setState`, den die ganze App benutzt — mit einem Zusatz: Er hält fest,
+   * welche Entität wann geändert wurde.
+   *
+   * Der Stempel entsteht bewusst *im* Updater und nicht in einem Effekt
+   * danach. Nur so bleiben Daten und Versionstabelle im selben Schritt
+   * konsistent, und nur so muss keine der über 60 Aufrufstellen etwas davon
+   * wissen. Der Updater bleibt dabei rein — React 19 ruft ihn im StrictMode
+   * zweimal auf und erwartet beide Male dasselbe Ergebnis.
+   */
+  const setState = useCallback<React.Dispatch<React.SetStateAction<AppState | null>>>((action) => {
+    setStateRaw((prev) => {
+      const next = typeof action === 'function'
+        ? (action as (p: AppState | null) => AppState | null)(prev)
+        : action;
+      if (next === prev) return next;
+      return stampChanges(prev, next, deviceIdRef.current);
+    });
+  }, []);
 
   const restoreBackup = async (data: AppState) => {
     setIsRestoring(true);
     // Gib der Animation Zeit zu starten
     await new Promise(resolve => setTimeout(resolve, 1000));
 
+    // Ein eingespieltes Backup ist keine Änderung, sondern ein neuer
+    // Ausgangspunkt: Die Versionstabelle des fremden Geräts wird verworfen,
+    // der Zähler bleibt stehen (er wird beim nächsten Abgleich ohnehin über
+    // den höchsten fremden Stand gezogen).
     const migrated = migrateData(data);
-    setState(migrated);
+    prevSyncedRef.current = migrated;
+    setStateRaw({ ...migrated, syncVersions: {} });
 
     // Gib der Animation Zeit zum Verweilen
     await new Promise(resolve => setTimeout(resolve, 1200));
@@ -226,6 +273,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     // Force-Remount: Views mit lokalem State auf den neuen Datenstand zwingen
     setRestoreNonce(n => n + 1);
   };
+
+  // Geräte-Kennung einmalig holen
+  useEffect(() => {
+    if (isTimerOverlay) return;
+    resolveDeviceInfo()
+      .then((info) => { deviceIdRef.current = info.id; })
+      .catch(() => { /* ohne Kennung wird eben nichts protokolliert */ });
+  }, []);
 
   // Laden (einmalig)
   useEffect(() => {
@@ -248,25 +303,79 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             migrated = evalResult.state;
           }
         }
-        setState(migrated);
+        // Rohsetzer: Laden ist keine Änderung und darf nichts stempeln.
+        prevSyncedRef.current = migrated;
+        setStateRaw(migrated);
       } else {
-        setState(SEED_STATE);
+        prevSyncedRef.current = SEED_STATE;
+        setStateRaw(SEED_STATE);
       }
     }
     loadData();
   }, []);
 
-  // Persistieren bei jeder Änderung
+  // Persistieren bei jeder Änderung — und derselbe Flaschenhals, aus dem das
+  // Änderungsprotokoll abgeleitet wird.
   useEffect(() => {
     if (!state) return;
     if (isTimerOverlay) return;
+
+    const previous = prevSyncedRef.current;
+    prevSyncedRef.current = state;
+
+    // Kam die Änderung aus einem anderen Fenster, hat jenes sie bereits
+    // protokolliert. `prevSyncedRef` ist oben trotzdem nachgezogen, sonst
+    // meldete der nächste Diff die fremde Änderung ein zweites Mal.
     if (skipNextPersistRef.current) {
       skipNextPersistRef.current = false;
       return;
     }
+
     if (window.api) window.api.saveData(STORAGE_KEY, state);
     else            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+    const deviceId = deviceIdRef.current;
+    if (!previous || !deviceId) return;
+
+    // Der Zähler steht schon im State — `stampChanges` hat ihn beim Setzen
+    // weitergedreht. Hier wird nur noch abgeleitet, was zu übertragen wäre.
+    const ops = diffState(previous, state, deviceId, state.syncLamport ?? 0);
+    if (ops.length === 0) return;
+
+    // Der Motor im Main-Prozess verschlüsselt und lädt hoch. Ist keine
+    // Synchronisierung eingerichtet, wirft er die Ops weg — der Renderer muss
+    // das nicht wissen.
+    window.api?.syncEnqueue?.(ops).catch((e) => {
+      console.warn('Änderungen konnten nicht übergeben werden:', e?.message ?? e);
+    });
   }, [state]);
+
+  // Fremde Änderungen einspielen.
+  //
+  // Der Merge läuft im Updater, damit er auf dem tatsächlich aktuellen Stand
+  // aufsetzt und nicht auf einem, der zwischenzeitlich veraltet ist. Der
+  // Stempel-Wrapper wird bewusst umgangen: Eine fremde Änderung ist keine
+  // eigene und darf keine neuen Ops erzeugen — deshalb `prevSyncedRef` **vor**
+  // dem Setzen nachziehen, sonst dreht sich die Echo-Schleife.
+  useEffect(() => {
+    if (isTimerOverlay) return;
+    if (!window.api?.onSyncOps) return;
+
+    return window.api.onSyncOps((incoming) => {
+      const ops = incoming as Op[];
+      if (!Array.isArray(ops) || ops.length === 0) return;
+
+      setStateRaw((prev) => {
+        if (!prev) return prev;
+        const { state: merged, conflicts } = applyOps(prev, ops);
+        prevSyncedRef.current = merged;
+        if (conflicts.length > 0 && import.meta.env.DEV) {
+          console.debug(`[sync] ${conflicts.length} Konflikt(e)`, conflicts);
+        }
+        return merged;
+      });
+    });
+  }, []);
 
   useEffect(() => {
     if (!window.api?.onStoreUpdated) return;
@@ -274,7 +383,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return window.api.onStoreUpdated((key, data) => {
       if (key !== STORAGE_KEY) return;
       skipNextPersistRef.current = true;
-      setState(migrateData(data, { recoverRunningTimer: false }));
+      // Das andere Fenster hat bereits gestempelt — der Stand kommt fertig an.
+      setStateRaw(migrateData(data, { recoverRunningTimer: false }));
     });
   }, []);
 

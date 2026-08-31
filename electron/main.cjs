@@ -145,6 +145,184 @@ ipcMain.handle('get-encryption-status', () => {
   };
 });
 
+// === Gerätesynchronisation: Kennung dieses Geräts ===
+// Liegt unter einem eigenen Store-Schlüssel statt im AppState — wie
+// `auto_backup_config`. Läge sie im State, würde ein eingespieltes Backup die
+// Kennung auf ein zweites Gerät klonen, und zwei Geräte mit derselben Kennung
+// machen die Lamport-Reihenfolge unauflösbar.
+const SYNC_DEVICE_KEY = 'sync_device_id';
+
+// === Nummernkreise ==========================================================
+// Rechnungsnummern dürfen sich zwischen Geräten nie doppeln. Drei Fälle:
+//
+//   Sync gar nicht eingerichtet → lokaler Zähler, wie seit jeher.
+//   Sync an und online          → atomar aus der Datenbank.
+//   Sync an und offline         → aus einer vorab gezogenen Reserve.
+//
+// Und wenn Sync an ist, offline und die Reserve leer: dann gibt es **keine**
+// Nummer. Auf den lokalen Zähler zurückzufallen wäre bequem und würde genau
+// die Dublette erzeugen, gegen die dieser ganze Aufwand betrieben wird.
+const SYNC_RESERVE_KEY = 'sync_number_reserve';
+const RESERVE_TARGET = 10;
+
+let syncEngine = null;
+
+/** Schickt an alle offenen Fenster — Haupt- und Overlay-Fenster. */
+function broadcastToRenderers(channel, payload) {
+  BrowserWindow.getAllWindows().forEach((win) => {
+    if (!win.isDestroyed()) win.webContents.send(channel, payload);
+  });
+}
+
+function initSyncEngine() {
+  if (syncEngine || !store) return syncEngine;
+  try {
+    const { createEngine } = require('./sync/engine.cjs');
+    syncEngine = createEngine({
+      store,
+      userDataPath: app.getPath('userData'),
+      safeStorage,
+      broadcast: broadcastToRenderers,
+    });
+    // Nur der Main-Prozess kennt das Anhang-Verzeichnis und den Geräteschlüssel.
+    // Über diese Haken kommt der Motor an die Belege heran, ohne die Krypto
+    // ein zweites Mal zu enthalten.
+    syncEngine.setAttachmentHooks({
+      listLocalIds: async () => {
+        try {
+          if (!fs.existsSync(ATTACHMENT_DIR)) return [];
+          return fs.readdirSync(ATTACHMENT_DIR)
+            .filter((f) => f.endsWith('.pdf.enc'))
+            .map((f) => f.replace(/\.pdf\.enc$/, ''));
+        } catch (_) { return []; }
+      },
+      readPlain: async (id) => readAttachmentPlain(id),
+      writePlain: async (id, plaintext) => writeAttachmentPlain(id, plaintext),
+    });
+
+    // Eine bestehende Anmeldung wiederaufnehmen — ohne erneute Passphrase.
+    syncEngine.restore().catch((e) => console.warn('Sync-Wiederaufnahme:', e.message));
+  } catch (e) {
+    console.warn('Sync-Motor nicht verfügbar:', e.message);
+    syncEngine = null;
+  }
+  return syncEngine;
+}
+
+function getSyncClient() {
+  return syncEngine?._internals?.api ?? null;
+}
+
+// === Sync-IPC ===============================================================
+// Jeder Kanal steht laut CLAUDE.md an drei Stellen: hier, in `preload.cjs` und
+// in der `Window['api']`-Deklaration in `src/types/index.ts`.
+
+/** Wirft die Fehlermeldung an den Renderer durch, statt still `null` zu liefern. */
+function withEngine(fn) {
+  return async (event, ...args) => {
+    if (!syncEngine) throw new Error('Synchronisierung ist auf diesem Gerät nicht verfügbar.');
+    return fn(syncEngine, event, ...args);
+  };
+}
+
+ipcMain.handle('sync-get-status', () => syncEngine?.status() ?? {
+  state: 'off', account: null, lastSyncAt: null, pendingOps: 0, error: null, deviceId: null,
+});
+
+ipcMain.handle('sync-sign-in', withEngine((e, _ev, email, password) => e.signIn(email, password)));
+ipcMain.handle('sync-sign-out', withEngine((e) => e.signOut()));
+ipcMain.handle('sync-has-keys', withEngine((e) => e.hasKeys()));
+ipcMain.handle('sync-setup-passphrase', withEngine((e, _ev, passphrase) => e.setupPassphrase(passphrase)));
+ipcMain.handle('sync-unlock', withEngine((e, _ev, secret) => e.unlock(secret)));
+ipcMain.handle('sync-start', withEngine((e) => e.start()));
+ipcMain.handle('sync-enqueue', withEngine((e, _ev, ops) => e.enqueue(ops)));
+ipcMain.handle('sync-now', withEngine((e) => e.sync().then(() => e.status())));
+ipcMain.handle('sync-fetch-all', withEngine((e) => e.fetchAll()));
+ipcMain.handle('sync-accept-cursor', withEngine((e, _ev, seq) => { e.acceptCursor(seq); return true; }));
+ipcMain.handle('sync-list-devices', withEngine((e) => e.listDevices()));
+ipcMain.handle('sync-revoke-device', withEngine((e, _ev, id) => e.revokeDevice(id)));
+
+function reserveBucket(kind, year) {
+  const all = store?.get(SYNC_RESERVE_KEY) || {};
+  const bucket = all[`${kind}:${year}`];
+  return Array.isArray(bucket) ? bucket : [];
+}
+
+function setReserveBucket(kind, year, values) {
+  const all = store?.get(SYNC_RESERVE_KEY) || {};
+  all[`${kind}:${year}`] = values;
+  store?.set(SYNC_RESERVE_KEY, all);
+}
+
+/** Nimmt die kleinste vorgemerkte Nummer. Reserven laufen aufsteigend ab. */
+function popReserve(kind, year) {
+  const values = reserveBucket(kind, year);
+  if (values.length === 0) return null;
+  const [first, ...rest] = values;
+  setReserveBucket(kind, year, rest);
+  return first;
+}
+
+/**
+ * Füllt die Reserve auf, solange Netz da ist. Läuft im Hintergrund — ein
+ * Fehlschlag darf die gerade laufende Vergabe nicht aufhalten.
+ */
+async function topUpReserve(api, kind, year) {
+  const values = reserveBucket(kind, year);
+  if (values.length >= RESERVE_TARGET) return;
+  const missing = RESERVE_TARGET - values.length;
+  try {
+    const first = await api.allocateNumber(kind, year, missing);
+    const block = Array.from({ length: missing }, (_, i) => first + i);
+    setReserveBucket(kind, year, [...values, ...block]);
+  } catch (e) {
+    console.warn('Nummern-Reserve konnte nicht aufgefüllt werden:', e.message);
+  }
+}
+
+ipcMain.handle('sync-allocate-number', async (_event, kind, year) => {
+  if (kind !== 'invoice' && kind !== 'debtor') throw new Error('Unbekannter Nummernkreis.');
+  const api = getSyncClient();
+  if (!api) return { source: 'local' };
+
+  let user = null;
+  try {
+    user = await api.getUser();
+  } catch (_) { /* keine Sitzung lesbar → wie nicht angemeldet behandeln */ }
+  if (!user) return { source: 'local' };
+
+  try {
+    const value = await api.allocateNumber(kind, year, 1);
+    // Nicht abwarten: Die Nummer steht schon fest, das Auffüllen ist Vorsorge.
+    topUpReserve(api, kind, year);
+    return { source: 'server', value };
+  } catch (e) {
+    const fromReserve = popReserve(kind, year);
+    if (fromReserve !== null) return { source: 'reserve', value: fromReserve };
+    return { source: 'unavailable', error: e.message };
+  }
+});
+
+ipcMain.handle('sync-reserve-status', (_event, kind, year) => ({
+  kind, year, remaining: reserveBucket(kind, year).length, target: RESERVE_TARGET,
+}));
+
+ipcMain.handle('sync-get-device-info', () => {
+  if (!store) return null;
+  let id = store.get(SYNC_DEVICE_KEY);
+  if (typeof id !== 'string' || !id) {
+    id = crypto.randomUUID();
+    store.set(SYNC_DEVICE_KEY, id);
+  }
+  let name;
+  try {
+    name = require('os').hostname();
+  } catch (_) {
+    name = 'Unbekanntes Gerät';
+  }
+  return { id, name, platform: process.platform };
+});
+
 // === Automatisches Backup ==================================================
 // Läuft komplett im Main-Prozess: nur hier liegen Schlüssel, Store und
 // Dateisystem-Zugriff. Backups werden mit demselben AES-256-GCM-Verfahren
@@ -368,7 +546,10 @@ ipcMain.handle('wipe-all-data', async () => {
       try { store.clear(); } catch (_) { /* ignorieren, wir löschen die Dateien gleich */ }
     }
     const userDataDir = app.getPath('userData');
-    const filesToRemove = ['kavoma.key', 'kavoma-time-data.json'];
+    // `kavoma-sync.key` gehört dazu: Bleibt der Datenschlüssel liegen, könnte
+    // ein späteres Gerät mit derselben Anmeldung die Cloud-Daten wieder
+    // entschlüsseln — nach einem „alles löschen" wäre das eine böse Überraschung.
+    const filesToRemove = ['kavoma.key', 'kavoma-time-data.json', 'kavoma-sync.key'];
     for (const name of filesToRemove) {
       const p = path.join(userDataDir, name);
       try { if (fs.existsSync(p)) fs.rmSync(p, { force: true }); } catch (_) { /* skip */ }
@@ -397,55 +578,76 @@ ipcMain.handle('wipe-all-data', async () => {
 // IV(12) | AuthTag(16) | Ciphertext(N) — kompakt, kein JSON-Wrapper.
 const ATTACHMENT_DIR = path.join(app.getPath('userData'), 'attachments');
 
-ipcMain.handle('attachment-write', async (_event, { id, base64Plain }) => {
+// Gemeinsame Bausteine — vorher lag dieselbe AES-Logik zweimal in den
+// Handlern. Jetzt braucht sie auch der Sync-Motor, der Belege für den
+// Transport umschlüsselt.
+function assertAttachmentId(id) {
+  if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error('Ungültige Anhang-ID.');
+  }
+  return id;
+}
+
+const attachmentPath = (id) => path.join(ATTACHMENT_DIR, `${assertAttachmentId(id)}.pdf.enc`);
+
+/** Klartext → geräteverschlüsselte Datei. Format: IV(12) | AuthTag(16) | Ciphertext. */
+function writeAttachmentPlain(id, plaintext) {
   if (!currentEncryptionKey) {
     throw new Error('Verschlüsselung nicht verfügbar — Anhang wurde abgebrochen.');
   }
-  if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
-    throw new Error('Ungültige Anhang-ID.');
-  }
   fs.mkdirSync(ATTACHMENT_DIR, { recursive: true });
-  const plaintext = Buffer.from(base64Plain, 'base64');
-  const iv  = crypto.randomBytes(12);
-  const key = Buffer.from(currentEncryptionKey, 'hex');
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(currentEncryptionKey, 'hex'), iv);
   const enc = Buffer.concat([cipher.update(plaintext), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  const blob = Buffer.concat([iv, tag, enc]);
-  fs.writeFileSync(path.join(ATTACHMENT_DIR, `${id}.pdf.enc`), blob);
-  return { sizeBytes: plaintext.length };
-});
+  fs.writeFileSync(attachmentPath(id), Buffer.concat([iv, cipher.getAuthTag(), enc]));
+  return plaintext.length;
+}
 
-ipcMain.handle('attachment-read', async (_event, id) => {
+/** Geräteverschlüsselte Datei → Klartext. */
+function readAttachmentPlain(id) {
   if (!currentEncryptionKey) {
     throw new Error('Verschlüsselung nicht verfügbar — Anhang kann nicht gelesen werden.');
   }
-  if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
-    throw new Error('Ungültige Anhang-ID.');
-  }
-  const file = path.join(ATTACHMENT_DIR, `${id}.pdf.enc`);
+  const file = attachmentPath(id);
   if (!fs.existsSync(file)) throw new Error('Anhang nicht gefunden.');
   const blob = fs.readFileSync(file);
-  // Format: IV(12) | AuthTag(16) | Ciphertext(≥0). Mindestlänge 28.
-  if (blob.length < 28) {
-    throw new Error('Anhang-Datei beschädigt: zu kurz für IV+AuthTag.');
+  if (blob.length < 28) throw new Error('Anhang-Datei beschädigt: zu kurz für IV+AuthTag.');
+  const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(currentEncryptionKey, 'hex'), blob.subarray(0, 12));
+  decipher.setAuthTag(blob.subarray(12, 28));
+  return Buffer.concat([decipher.update(blob.subarray(28)), decipher.final()]);
+}
+
+ipcMain.handle('attachment-write', async (_event, { id, base64Plain }) => {
+  const plaintext = Buffer.from(base64Plain, 'base64');
+  const sizeBytes = writeAttachmentPlain(id, plaintext);
+  // Hochladen im Hintergrund: Der Beleg liegt lokal bereits sicher, und der
+  // Nutzer soll nicht auf das Netz warten, um weiterzuarbeiten. Schlägt es
+  // fehl (etwa offline), holt `reconcileAttachments()` im Motor es beim
+  // nächsten Abgleich nach — dort wird die Platte gegen die Ablage verglichen.
+  syncEngine?.uploadAttachment(id, async () => plaintext)
+    .catch((e) => console.warn('Beleg nicht hochgeladen:', e.message));
+  return { sizeBytes };
+});
+
+ipcMain.handle('attachment-read', async (_event, id) => {
+  assertAttachmentId(id);
+  // Metadaten wandern sofort mit, die Datei erst auf Abruf. Fehlt sie hier,
+  // ist der Beleg auf einem anderen Gerät entstanden.
+  if (!fs.existsSync(attachmentPath(id)) && syncEngine) {
+    await syncEngine.downloadAttachment(id, async (_id, plaintext) => writeAttachmentPlain(_id, plaintext));
   }
-  const iv  = blob.subarray(0, 12);
-  const tag = blob.subarray(12, 28);
-  const enc = blob.subarray(28);
-  const key = Buffer.from(currentEncryptionKey, 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-  decipher.setAuthTag(tag);
-  const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
-  return dec.toString('base64');
+  return readAttachmentPlain(id).toString('base64');
+});
+
+/** Liegt der Beleg schon auf diesem Gerät? Steuert das Wolkensymbol in den Listen. */
+ipcMain.handle('attachment-has', (_event, id) => {
+  try { return fs.existsSync(attachmentPath(id)); } catch (_) { return false; }
 });
 
 ipcMain.handle('attachment-delete', async (_event, id) => {
-  if (typeof id !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(id)) {
-    throw new Error('Ungültige Anhang-ID.');
-  }
-  const file = path.join(ATTACHMENT_DIR, `${id}.pdf.enc`);
+  const file = attachmentPath(id);
   if (fs.existsSync(file)) fs.rmSync(file, { force: true });
+  await syncEngine?.deleteAttachment(id);
   return true;
 });
 
@@ -1521,6 +1723,8 @@ app.whenReady().then(() => {
     ...(encryptionKey ? { encryptionKey } : {}),
   });
   currentTimerState = store.get('kavoma_time');
+
+  initSyncEngine();
 
   setupApplicationMenu();
 

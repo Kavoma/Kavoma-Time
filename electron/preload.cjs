@@ -1,4 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const syncConfig = require('./sync/config.cjs');
 
 contextBridge.exposeInMainWorld('api', {
   // Plattform, damit der Renderer die Titelleiste korrekt layouten kann
@@ -6,6 +7,13 @@ contextBridge.exposeInMainWorld('api', {
   platform: process.platform,
   /** Ob dieses System das schwebende Timer-Overlay anbietet (macOS: nein). */
   overlaySupported: process.platform !== 'darwin',
+  /** Serverstandort der Synchronisierung — steht so in der Datenschutzerklärung.
+   *  Kommt aus `electron/sync/config.cjs`, damit Erklärung und Wirklichkeit
+   *  nicht auseinanderlaufen können. */
+  syncRegion: syncConfig.region,
+  /** Liegt der Standort außerhalb von EU/EWR? Dann braucht die Erklärung den
+   *  Hinweis auf die Drittlandübermittlung. */
+  syncRegionIsThirdCountry: Boolean(syncConfig.regionIsThirdCountry),
 
   saveData: (key, data) => ipcRenderer.invoke('store-set', key, data),
   loadData: (key) => ipcRenderer.invoke('store-get', key),
@@ -85,8 +93,39 @@ contextBridge.exposeInMainWorld('api', {
   attachmentWrite: (id, base64Plain) => ipcRenderer.invoke('attachment-write', { id, base64Plain }),
   attachmentRead: (id) => ipcRenderer.invoke('attachment-read', id),
   attachmentDelete: (id) => ipcRenderer.invoke('attachment-delete', id),
+  attachmentHas: (id) => ipcRenderer.invoke('attachment-has', id),
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   getEncryptionStatus: () => ipcRenderer.invoke('get-encryption-status'),
+
+  // Gerätesynchronisation
+  syncGetDeviceInfo: () => ipcRenderer.invoke('sync-get-device-info'),
+
+  // Gerätesynchronisation — Konto, Schlüssel, Abgleich
+  syncGetStatus: () => ipcRenderer.invoke('sync-get-status'),
+  syncSignIn: (email, password) => ipcRenderer.invoke('sync-sign-in', email, password),
+  syncSignOut: () => ipcRenderer.invoke('sync-sign-out'),
+  syncHasKeys: () => ipcRenderer.invoke('sync-has-keys'),
+  syncSetupPassphrase: (passphrase) => ipcRenderer.invoke('sync-setup-passphrase', passphrase),
+  syncUnlock: (secret) => ipcRenderer.invoke('sync-unlock', secret),
+  syncStart: () => ipcRenderer.invoke('sync-start'),
+  syncEnqueue: (ops) => ipcRenderer.invoke('sync-enqueue', ops),
+  syncNow: () => ipcRenderer.invoke('sync-now'),
+  syncFetchAll: () => ipcRenderer.invoke('sync-fetch-all'),
+  syncAcceptCursor: (seq) => ipcRenderer.invoke('sync-accept-cursor', seq),
+  syncListDevices: () => ipcRenderer.invoke('sync-list-devices'),
+  syncRevokeDevice: (id) => ipcRenderer.invoke('sync-revoke-device', id),
+  onSyncOps: (cb) => {
+    const handler = (_event, ops) => cb(ops);
+    ipcRenderer.on('sync-ops', handler);
+    return () => ipcRenderer.removeListener('sync-ops', handler);
+  },
+  onSyncStatus: (cb) => {
+    const handler = (_event, status) => cb(status);
+    ipcRenderer.on('sync-status', handler);
+    return () => ipcRenderer.removeListener('sync-status', handler);
+  },
+  syncAllocateNumber: (kind, year) => ipcRenderer.invoke('sync-allocate-number', kind, year),
+  syncReserveStatus: (kind, year) => ipcRenderer.invoke('sync-reserve-status', kind, year),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   installDownloadedUpdate: () => ipcRenderer.invoke('install-downloaded-update'),

@@ -6,6 +6,7 @@ import { SettingsCard } from './SettingsCard';
 import { InfoTooltip } from './InfoTooltip';
 import { Checkbox } from '../Checkbox';
 import { NumberInput } from '../NumberInput';
+import { SyncCard } from './SyncCard';
 
 interface DataTabProps {
   /** Wird aufgerufen, wenn ein Backup eingespielt werden soll (öffnet ConfirmRestoreModal im Parent). */
@@ -163,6 +164,8 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
   return (
     <div className="flex flex-col gap-6">
       {/* Backup */}
+      <SyncCard />
+
       <SettingsCard
         icon={Database}
         title="Backup"
