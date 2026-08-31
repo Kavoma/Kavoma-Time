@@ -11,6 +11,8 @@ Package-Manager: **pnpm** (Workspace via `pnpm-workspace.yaml`, Lockfile `pnpm-l
 ## Commands
 
 ```bash
+pnpm test             # vitest — Sync-Logik (Merge, Krypto, Nummern)
+pnpm typecheck        # tsc --noEmit
 pnpm dev              # Vite dev server (Port 5173, strictPort)
 pnpm electron:dev     # Vite + Electron parallel (Standard-Dev-Loop)
 pnpm electron         # Electron gegen bereits laufenden Vite (oder gegen dist/)
@@ -41,7 +43,15 @@ lädt seine ~250 MB Binary genau im `postinstall` herunter — fehlt der Eintrag
 bleibt `node_modules/…/electron/dist` leer und nichts startet. Der frühere
 `pnpm`-Block in der `package.json` wird von pnpm 11 nicht mehr gelesen.
 
-Es gibt **keine Tests / kein Test-Framework**. Type-Check läuft implizit via `tsc --noEmit` Settings in `tsconfig.json`, wird aber nicht durch ein Script aufgerufen — bei Bedarf `npx tsc --noEmit` manuell.
+Tests gibt es **nur für die Synchronisierung** (`pnpm test`, vitest): Merge,
+Krypto, Nummernvergabe, Motor. Der Rest der App ist ungetestet — das ist eine
+bewusste Grenze, keine Lücke, die nebenbei geschlossen werden sollte.
+
+`pnpm typecheck` läuft `tsc --noEmit`. Achtung: Ohne `"ignoreDeprecations": "6.0"`
+in der `tsconfig.json` bricht TypeScript 6 mit TS5107 ab, **bevor** es eine
+einzige Datei prüft — der Typecheck meldet dann fälschlich Erfolg. Baseline sind
+drei vorbestehende Fehler in `src/utils/attachments.ts` und
+`src/utils/invoicePdf.ts`.
 
 ## Architektur — die Teile, die mehrere Dateien zusammen ergeben
 
@@ -126,6 +136,39 @@ Drei unabhängige Netze, alle abschaltbar:
 
 Statisches `switch` in `App.tsx` (`renderView`). Kein React Router. Sichtbare Views: `tracker | projects | customers | statistics | finance | settings`. `ExportView.tsx` existiert noch im Code, ist aber **nicht mehr gerouted** — die Export-Funktionalität ist in `FinanceView` aufgegangen. Strg+1…6 navigiert sequentiell durch die Views.
 
+### Gerätesynchronisation (Issue #31)
+
+Ende-zu-Ende verschlüsselter Abgleich über Supabase. **Standardmäßig aus** — ohne
+Einrichtung verhält sich die App wie zuvor.
+
+**Die wichtigste Regel: niemals Ops von Hand schreiben.** Das Änderungsprotokoll
+entsteht in `src/sync/diff.ts`, aufgerufen im Persist-Effekt von
+`AppStateContext`. Wer eine neue Mutation einbaut, muss nichts tun — der Diff
+findet sie. Wer anfängt, Ops manuell zu erzeugen, baut die Fehlerquelle wieder
+ein, die dieser Aufbau vermeidet.
+
+- **Was synchronisiert wird**, steht ausschließlich in `src/sync/classify.ts`.
+  Laufender Timer, Overlay-Schalter, Tastenkürzel, AFK- und Erinnerungs-
+  Einstellungen sind bewusst gerätelokal.
+- **`setState` stempelt.** Der Provider umhüllt den Setter, damit
+  `syncVersions` und `syncLamport` im selben Update entstehen wie die Änderung.
+  Ladevorgänge, Backup-Restore und Fenster-zu-Fenster-Sync gehen über
+  `setStateRaw` — sie sind keine Änderungen und dürfen nichts stempeln.
+- **Echo-Falle:** Fremde Ops werden über `applyOps` eingespielt, und
+  `prevSyncedRef` wird **vor** dem Setzen nachgezogen. Sonst meldet der nächste
+  Diff die fremde Änderung als eigene zurück.
+- **Krypto und Transport liegen im Main-Prozess** (`electron/sync/`), der
+  Datenschlüssel verlässt ihn nie. Zusammengeführt wird im Renderer — als reine,
+  testbare Funktion.
+- **Rechnungsnummern** entstehen erst beim Finalisieren, nie beim Anlegen eines
+  Entwurfs. Ist Sync an und weder Server noch Offline-Reserve verfügbar, wird
+  die Vergabe **verweigert** statt auf den lokalen Zähler zurückzufallen — das
+  wäre genau die Dublette, die zu vermeiden ist.
+- **Tests:** `pnpm test` (vitest). Getestet wird ausschließlich `src/sync/*` und
+  `electron/sync/*` — der Teil, der nicht falsch sein darf.
+- **Serverstandort** steht in `electron/sync/config.cjs` und wird von dort in die
+  Datenschutzerklärung durchgereicht. Beides muss zusammenpassen.
+
 ### Finanzen-Modul & Anhänge
 
 `FinanceView` ist ein Tab-Container; die echten Tabs liegen unter `src/components/finance/`. PDFs (Eingangsrechnungen / Verträge) werden **nie** in den State serialisiert — nur `Attachment`-Metadaten (`id`, `sha256`, `sizeBytes`) liegen im Store, der Inhalt wird über `attachmentWrite/Read/Delete` IPC verschlüsselt auf Platte gehalten (`userData/attachments/`). `wipe-all-data` löscht dieses Verzeichnis mit.
@@ -165,4 +208,7 @@ Wenn `safeStorage.isEncryptionAvailable()` false ist, zeigt die App beim Start e
 
 ## Branding & Docs
 
-`branding/` enthält Markdown-Briefings (`APP_SUMMARY.md`, `DSGVO.md`, `FINANZEN.md`, `V2_IDEAS.md`, `Kavoma_Suite_Masterplan_Ultimate.md`) — gute Kontextquelle für fachliche Fragen. **Hinweis**: `branding/Token.md` enthält einen GitHub-PAT im Klartext und ist nicht via `.gitignore` geschützt — beim Anfassen dieser Datei vorsichtig sein.
+`branding/` enthält Markdown-Briefings (`APP_SUMMARY.md`, `DSGVO.md`, `FINANZEN.md`, `V2_IDEAS.md`, `Kavoma_Suite_Masterplan_Ultimate.md`) — gute Kontextquelle für fachliche Fragen. **Hinweis**: `branding/Token.md` enthält einen GitHub-PAT im Klartext. Der ganze
+Ordner steht in der `.gitignore` und war nie eingecheckt (auch nicht in der
+Historie) — die Datei bleibt trotzdem etwas, das man nicht versehentlich
+weiterreicht.
