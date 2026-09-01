@@ -40,6 +40,21 @@ existiert nicht", alle wollen es anlegen. Einer gewinnt, die übrigen bekommen
 Upload. Beim 1.1.2-Release blieb so nur die `.blockmap` übrig, der Installer
 fehlte. Das Release sah fertig aus und war leer.
 
+**Der Tag allein genügt nicht.** Beim 1.1.4-Release existierte `v1.1.4` vorher,
+trotzdem meldeten zwei Publisher gleichzeitig „release doesn't exist" und legten
+es beide an — von den macOS-Artefakten überlebte nur eine `.blockmap`. Fehlt ein
+**GitHub-Release** zum Tag, läuft der Wettlauf trotzdem. Deshalb nach jedem
+`dist:publish` prüfen:
+
+```bash
+gh release view v1.1.4 --json assets --jq '.assets[].name'
+```
+
+Erwartet werden zwölf Dateien (mac arm64/x64 je dmg+zip+blockmaps, NSIS-exe +
+blockmap, `latest.yml`, `latest-mac.yml`). Fehlendes liegt noch in `release/`
+und lässt sich mit `gh release upload <tag> <datei> --clobber` nachreichen —
+`latest-mac.yml` nicht vergessen, ohne sie sieht der Updater unter macOS nichts.
+
 **Beide Zielsysteme lassen sich von macOS aus bauen** — electron-builder bringt für
 NSIS eigene native Binaries mit, Wine wird nicht gebraucht. Umgekehrt geht es nicht:
 macOS-Builds brauchen einen Mac (`codesign`, `hdiutil`).
