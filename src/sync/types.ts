@@ -63,7 +63,12 @@ export type ConflictReason =
   | 'lamport'
   /** Finalisierte oder stornierte Rechnung schlägt Entwurf. */
   | 'invoice-status'
-  /** Einmal bezahlt bleibt bezahlt. */
+  /**
+   * Altbestand: „einmal bezahlt bleibt bezahlt". Wird nicht mehr erzeugt — die
+   * Regel nahm der Person die Möglichkeit, eine falsch gesetzte Markierung
+   * zurückzunehmen. Der Wert bleibt im Typ, weil er in bereits gespeicherten
+   * Konfliktprotokollen steht.
+   */
   | 'paid-monotonic'
   /** Upsert traf auf eine Löschung. */
   | 'tombstone'

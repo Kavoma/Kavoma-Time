@@ -143,8 +143,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('sync-status', handler);
     return () => ipcRenderer.removeListener('sync-status', handler);
   },
-  syncAllocateNumber: (kind, year) => ipcRenderer.invoke('sync-allocate-number', kind, year),
-  syncReserveStatus: (kind, year) => ipcRenderer.invoke('sync-reserve-status', kind, year),
+  syncAllocateNumber: (kind, year, floor) => ipcRenderer.invoke('sync-allocate-number', kind, year, floor),
   getUpdateStatus: () => ipcRenderer.invoke('get-update-status'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   installDownloadedUpdate: () => ipcRenderer.invoke('install-downloaded-update'),

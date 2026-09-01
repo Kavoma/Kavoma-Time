@@ -16,6 +16,7 @@ import { collectDescriptionSuggestions } from '../utils/descriptionSuggestions';
 import { UndoToast } from '../components/UndoToast';
 import { SwipeRow } from '../components/SwipeRow';
 import { newNumericId } from '../sync/ids';
+import { NO_PROJECT_ID, NO_PROJECT_LABEL, projectLabel } from '../utils/projects';
 
 /** Wie lange sich eine Löschung zurückholen lässt. */
 const UNDO_WINDOW_MS = 8000;
@@ -323,7 +324,7 @@ export function TrackerView() {
             if (!searchTerm.trim()) return true;
             const q = searchTerm.toLowerCase();
             const cName = customers.find(c => c.id === e.customerId)?.name?.toLowerCase() ?? '';
-            const pName = projects.find(p => p.id === e.projectId)?.name?.toLowerCase() ?? '';
+            const pName = projectLabel(projects, e.projectId).toLowerCase();
             return e.description.toLowerCase().includes(q) || cName.includes(q) || pName.includes(q);
           });
 
@@ -355,7 +356,13 @@ export function TrackerView() {
           }
           for (const [pid, ents] of map) {
             const project = projects.find(p => p.id === pid);
-            const customer = customers.find(c => c.id === project?.customerId);
+            // Ohne Projekt gibt es keinen Kunden über den Umweg des Projekts.
+            // Tragen alle Einträge der Gruppe denselben Kunden, ist er trotzdem
+            // eindeutig — nur bei gemischten Kunden bleibt die Zeile leer.
+            const customerId = project
+              ? project.customerId
+              : (ents.every(e => e.customerId === ents[0].customerId) ? ents[0].customerId : undefined);
+            const customer = customers.find(c => c.id === customerId);
             projectGroups.push({ projectId: pid, project, customer, entries: ents, total: ents.reduce((s, e) => s + e.durationSeconds, 0) });
           }
           projectGroups.sort((a, b) => b.total - a.total);
@@ -363,7 +370,6 @@ export function TrackerView() {
 
         const renderEntry = (entry: TimeEntry) => {
           const customer = customers.find(c => c.id === entry.customerId);
-          const project = projects.find(p => p.id === entry.projectId);
           const d = new Date(entry.startedAt);
           const selected = selectedIds.has(entry.id);
           return (
@@ -384,7 +390,7 @@ export function TrackerView() {
               )}
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <div className="truncate text-xs font-bold text-ink">{entry.description || '(ohne Beschreibung)'}</div>
-                <div className="truncate text-[11px] text-muted">{customer?.name} · {project?.name}</div>
+                <div className="truncate text-[11px] text-muted">{customer?.name} · {projectLabel(projects, entry.projectId)}</div>
               </div>
               <div className="flex flex-col items-end gap-0.5">
                 <div className="text-[11px] text-muted tabular-nums">
@@ -512,7 +518,9 @@ export function TrackerView() {
                         )}
                         <ChevronRight size={14} className={`shrink-0 text-muted transition-transform ${expanded ? 'rotate-90' : ''}`} />
                         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <div className="truncate text-xs font-bold text-ink">{g.project?.name ?? 'Unbekannt'}</div>
+                          <div className="truncate text-xs font-bold text-ink">
+                            {g.projectId === NO_PROJECT_ID ? NO_PROJECT_LABEL : (g.project?.name ?? 'Unbekannt')}
+                          </div>
                           <div className="truncate text-[11px] text-muted">
                             {g.customer?.name ?? '—'} · {g.entries.length} {g.entries.length === 1 ? 'Eintrag' : 'Einträge'}
                           </div>

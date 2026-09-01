@@ -97,7 +97,7 @@ export type Database = {
     Views: { [_ in never]: never }
     Functions: {
       allocate_number: {
-        Args: { p_count?: number; p_kind: string; p_year: number }
+        Args: { p_kind: string; p_min?: number; p_year: number }
         Returns: number
       }
     }

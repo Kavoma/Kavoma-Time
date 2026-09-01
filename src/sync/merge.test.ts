@@ -159,7 +159,11 @@ describe('Rechnungen', () => {
     expect(applyOps(lokal, [storno]).state.invoices[0].status).toBe('cancelled');
   });
 
-  it('„bezahlt" ist monoton — ein alter Stand macht es nicht rückgängig', () => {
+  // Hier stand einmal die Umkehrung: „bezahlt" war monoton und liess sich nicht
+  // zurücknehmen. Wer sich verklickte, bekam die Markierung beim naechsten
+  // Abgleich zurueck — fuer die Person davor sah das aus, als entscheide die
+  // App selbst.
+  it('eine neuere Ruecknahme von „bezahlt" setzt sich durch', () => {
     const lokal = localChange(baseState(), (s) => ({
       ...s, invoices: [invoice({ paid: true, paidAt: 5000 })],
     }));
@@ -169,8 +173,42 @@ describe('Rechnungen', () => {
       lamport: (lokal.syncLamport ?? 0) + 10, deviceId: DEV_B,
     });
     const { state } = applyOps(lokal, [unbezahlt]);
+    expect(state.invoices[0].paid).toBe(false);
+  });
+
+  it('ein aelterer Stand macht „bezahlt" nicht rueckgaengig', () => {
+    // Gegen verspaetete Altstaende schuetzt die Lamport-Ordnung — dafuer
+    // braucht es keine Sonderregel fuer ein einzelnes Feld.
+    //
+    // Zwei lokale Schritte, damit der eigene Zaehler wirklich ueber dem der
+    // fremden Op liegt: Bei Gleichstand entscheidet die Geraete-Kennung, und
+    // DEV_B laege alphabetisch vorn.
+    const angelegt = localChange(baseState(), (s) => ({
+      ...s, invoices: [invoice({ paid: false })],
+    }));
+    const lokal = localChange(angelegt, (s) => ({
+      ...s, invoices: [invoice({ paid: true, paidAt: 5000 })],
+    }));
+    const alt = op({
+      entity: 'invoice', entityId: 'inv-1', op: 'upsert',
+      payload: invoice({ paid: false }),
+      lamport: 1, deviceId: DEV_B,
+    });
+    const { state } = applyOps(lokal, [alt]);
     expect(state.invoices[0].paid).toBe(true);
     expect(state.invoices[0].paidAt).toBe(5000);
+  });
+
+  it('markiert eine fremde Zahlung auch hier als bezahlt', () => {
+    const lokal = localChange(baseState(), (s) => ({ ...s, invoices: [invoice({ paid: false })] }));
+    const bezahlt = op({
+      entity: 'invoice', entityId: 'inv-1', op: 'upsert',
+      payload: invoice({ paid: true, paidAt: 7000 }),
+      lamport: (lokal.syncLamport ?? 0) + 5, deviceId: DEV_B,
+    });
+    const { state } = applyOps(lokal, [bezahlt]);
+    expect(state.invoices[0].paid).toBe(true);
+    expect(state.invoices[0].paidAt).toBe(7000);
   });
 
   it('vereinigt Mahnungen statt sie zu ersetzen', () => {
@@ -326,5 +364,68 @@ describe('Zusammenspiel von Diff und Merge', () => {
       op({ entity: 'customer', entityId: '9', op: 'upsert', payload: customer(9, 'X'), lamport: 40 }),
     ]);
     expect(state.syncLamport).toBeGreaterThan(40);
+  });
+});
+
+// ============================================================
+// Die Grundlinie des Aenderungsprotokolls
+// ============================================================
+// `AppStateContext` fuehrt neben dem Zustand eine Grundlinie mit: den Stand,
+// von dem der naechste Diff ausgeht. Trifft ein Abgleich ein, bekommt die
+// Grundlinie **dieselben Ops** — sie darf nicht durch den fertigen
+// Merge-Zustand ersetzt werden.
+//
+// Genau das war der Fehler: Eine gerade lokal gesetzte Markierung („bezahlt")
+// stand dann schon in der Grundlinie und galt damit als abgeglichen, obwohl sie
+// nie uebertragen worden war. Auf dem einen Geraet bezahlt, auf dem anderen
+// nicht — und beim zweiten Klick ging es dann.
+describe('Grundlinie beim Einspielen fremder Aenderungen', () => {
+  function invoice(patch: Partial<Invoice> = {}): Invoice {
+    return {
+      id: 'inv-1', number: '2026-001', customerId: 5, projectId: null, mode: 'hourly',
+      periodFrom: 0, periodTo: 0, createdAt: 0, dueDate: 0, items: [], entryIds: [],
+      subtotal: 100, vatRate: 19, vatAmount: 19, total: 119, notes: '',
+      paid: false, status: 'active', reminders: [], ...patch,
+    };
+  }
+
+  /** Kunde vom fremden Geraet — beruehrt die Rechnung nicht. */
+  const fremdeOps: Op[] = [op({
+    entity: 'customer', entityId: '5', op: 'upsert',
+    payload: customer(5, 'Fremd GmbH'), lamport: 50, deviceId: DEV_B,
+  })];
+
+  it('behaelt die noch nicht uebertragene eigene Aenderung im Diff', () => {
+    const grundlinie = localChange(baseState(), (s) => ({
+      ...s, customers: [customer(5, 'Alt')], invoices: [invoice({ paid: false })],
+    }));
+
+    // Die Person klickt „bezahlt" — noch nicht uebertragen.
+    const zustand = localChange(grundlinie, (s) => ({
+      ...s, invoices: [invoice({ paid: true, paidAt: 5000 })],
+    }));
+
+    // Der Abgleich trifft ein. Beide Seiten bekommen dieselben Ops.
+    const neueGrundlinie = applyOps(grundlinie, fremdeOps).state;
+    const neuerZustand = applyOps(zustand, fremdeOps).state;
+
+    expect(neuerZustand.invoices[0].paid).toBe(true);
+
+    const ops = diffState(neueGrundlinie, neuerZustand, DEV_A, 99);
+    const rechnungsOps = ops.filter((o) => o.entity === 'invoice');
+    expect(rechnungsOps).toHaveLength(1);
+    expect((rechnungsOps[0].payload as Invoice).paid).toBe(true);
+  });
+
+  it('meldet nichts zurueck, wenn nur Fremdes eingespielt wurde', () => {
+    // Die Gegenprobe: Ohne eigene Aenderung darf kein Echo entstehen.
+    const grundlinie = localChange(baseState(), (s) => ({
+      ...s, customers: [customer(5, 'Alt')], invoices: [invoice()],
+    }));
+
+    const neueGrundlinie = applyOps(grundlinie, fremdeOps).state;
+    const neuerZustand = applyOps(grundlinie, fremdeOps).state;
+
+    expect(diffState(neueGrundlinie, neuerZustand, DEV_A, 99)).toHaveLength(0);
   });
 });

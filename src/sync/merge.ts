@@ -66,6 +66,18 @@ function mergeReminders(a: Invoice, b: Invoice): Invoice['reminders'] {
  * wie neu der ist. Sonst könnte ein Gerät, das offline noch am Entwurf
  * gearbeitet hat, eine bereits verschickte Rechnung zurück in den Entwurf
  * verwandeln.
+ *
+ * **„Bezahlt" folgt dagegen der jüngsten Änderung wie jedes andere Feld.**
+ * Hier stand einmal eine Monotonie-Regel — einmal bezahlt, immer bezahlt, mit
+ * der Begründung, Geld komme nicht wieder weg. Das Geld nicht, die
+ * *Markierung* schon: Wer sich verklickt oder die falsche Rechnung erwischt,
+ * muss das zurücknehmen können. Die Regel griff zudem unabhängig davon, welche
+ * Seite gewann, und holte ein „bezahlt" auch dann zurück, wenn die lokale
+ * Fassung die neuere war. Für die Person davor sah das aus, als entscheide die
+ * App selbst — genau die Unberechenbarkeit, die gemeldet wurde.
+ *
+ * Gegen verspätet eintreffende Altstände schützt die Lamport-Ordnung, nicht
+ * eine Sonderregel für ein einzelnes Feld.
  */
 function resolveInvoice(
   local: Invoice,
@@ -89,16 +101,9 @@ function resolveInvoice(
     reason = 'lamport';
   }
 
-  // „Bezahlt" ist monoton: Geld, das angekommen ist, kommt nicht wieder weg.
-  const paid = Boolean(local.paid) || Boolean(remote.paid);
-  const paidAt = local.paidAt ?? remote.paidAt;
-  if (paid !== Boolean(base.paid)) reason = 'paid-monotonic';
-
   return {
     winner: {
       ...base,
-      paid,
-      ...(paid && paidAt !== undefined ? { paidAt } : {}),
       reminders: mergeReminders(local, remote),
     },
     reason,

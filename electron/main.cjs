@@ -153,17 +153,36 @@ ipcMain.handle('get-encryption-status', () => {
 const SYNC_DEVICE_KEY = 'sync_device_id';
 
 // === Nummernkreise ==========================================================
-// Rechnungsnummern dürfen sich zwischen Geräten nie doppeln. Drei Fälle:
+// Rechnungsnummern dürfen sich zwischen Geräten nie doppeln. Zwei Fälle:
 //
 //   Sync gar nicht eingerichtet → lokaler Zähler, wie seit jeher.
-//   Sync an und online          → atomar aus der Datenbank.
-//   Sync an und offline         → aus einer vorab gezogenen Reserve.
+//   Sync an                     → atomar aus der Datenbank, mit Untergrenze.
 //
-// Und wenn Sync an ist, offline und die Reserve leer: dann gibt es **keine**
-// Nummer. Auf den lokalen Zähler zurückzufallen wäre bequem und würde genau
-// die Dublette erzeugen, gegen die dieser ganze Aufwand betrieben wird.
+// Ist Sync an und der Server nicht erreichbar, gibt es **keine** Nummer. Auf
+// den lokalen Zähler zurückzufallen wäre bequem und würde genau die Dublette
+// erzeugen, gegen die dieser ganze Aufwand betrieben wird.
+//
+// Früher stand hier ein Vorrat von zehn vorab gezogenen Nummern für den
+// Offline-Fall. Er ist ersatzlos entfallen: Er zog nach *jeder* Vergabe still
+// zehn weitere Nummern und verbrauchte sie nie — der Nummernkreis sprang
+// dadurch bei jedem Gerät einmal um zehn. Der Abgleich braucht ohnehin nur
+// Sekunden, und eine Rechnung ohne Netz zu finalisieren ist der seltenere Fall
+// als ein Nummernkreis mit Löchern.
 const SYNC_RESERVE_KEY = 'sync_number_reserve';
-const RESERVE_TARGET = 10;
+
+/**
+ * Wirft den Nummern-Vorrat der alten Fassung weg.
+ *
+ * Die Werte darin wurden vorab gezogen und liegen deshalb **unterhalb** des
+ * heutigen Zählerstands. Würden sie noch verwendet, entstünde genau die
+ * Dublette, die der ganze Umbau verhindern soll. Einmal löschen genügt; der
+ * Schlüssel wird nirgends mehr geschrieben.
+ */
+function discardStaleNumberReserve() {
+  try {
+    if (store?.get(SYNC_RESERVE_KEY) !== undefined) store.delete(SYNC_RESERVE_KEY);
+  } catch (_) { /* Aufräumen darf den Start nie aufhalten */ }
+}
 
 let syncEngine = null;
 
@@ -254,45 +273,7 @@ ipcMain.handle('sync-accept-cursor', withEngine((e, _ev, seq) => { e.acceptCurso
 ipcMain.handle('sync-list-devices', withEngine((e) => e.listDevices()));
 ipcMain.handle('sync-revoke-device', withEngine((e, _ev, id) => e.revokeDevice(id)));
 
-function reserveBucket(kind, year) {
-  const all = store?.get(SYNC_RESERVE_KEY) || {};
-  const bucket = all[`${kind}:${year}`];
-  return Array.isArray(bucket) ? bucket : [];
-}
-
-function setReserveBucket(kind, year, values) {
-  const all = store?.get(SYNC_RESERVE_KEY) || {};
-  all[`${kind}:${year}`] = values;
-  store?.set(SYNC_RESERVE_KEY, all);
-}
-
-/** Nimmt die kleinste vorgemerkte Nummer. Reserven laufen aufsteigend ab. */
-function popReserve(kind, year) {
-  const values = reserveBucket(kind, year);
-  if (values.length === 0) return null;
-  const [first, ...rest] = values;
-  setReserveBucket(kind, year, rest);
-  return first;
-}
-
-/**
- * Füllt die Reserve auf, solange Netz da ist. Läuft im Hintergrund — ein
- * Fehlschlag darf die gerade laufende Vergabe nicht aufhalten.
- */
-async function topUpReserve(api, kind, year) {
-  const values = reserveBucket(kind, year);
-  if (values.length >= RESERVE_TARGET) return;
-  const missing = RESERVE_TARGET - values.length;
-  try {
-    const first = await api.allocateNumber(kind, year, missing);
-    const block = Array.from({ length: missing }, (_, i) => first + i);
-    setReserveBucket(kind, year, [...values, ...block]);
-  } catch (e) {
-    console.warn('Nummern-Reserve konnte nicht aufgefüllt werden:', e.message);
-  }
-}
-
-ipcMain.handle('sync-allocate-number', async (_event, kind, year) => {
+ipcMain.handle('sync-allocate-number', async (_event, kind, year, floor) => {
   if (kind !== 'invoice' && kind !== 'debtor') throw new Error('Unbekannter Nummernkreis.');
   const api = getSyncClient();
   if (!api) return { source: 'local' };
@@ -303,21 +284,18 @@ ipcMain.handle('sync-allocate-number', async (_event, kind, year) => {
   } catch (_) { /* keine Sitzung lesbar → wie nicht angemeldet behandeln */ }
   if (!user) return { source: 'local' };
 
+  // Die Untergrenze kommt aus dem Renderer, weil nur dort der Datenbestand
+  // liegt. Sie kann den Zähler in der Datenbank nur anheben, nie senken —
+  // ein Gerät mit veraltetem Stand richtet damit keinen Schaden an.
+  const min = Number.isFinite(floor) && floor > 0 ? Math.floor(floor) : 1;
+
   try {
-    const value = await api.allocateNumber(kind, year, 1);
-    // Nicht abwarten: Die Nummer steht schon fest, das Auffüllen ist Vorsorge.
-    topUpReserve(api, kind, year);
+    const value = await api.allocateNumber(kind, year, min);
     return { source: 'server', value };
   } catch (e) {
-    const fromReserve = popReserve(kind, year);
-    if (fromReserve !== null) return { source: 'reserve', value: fromReserve };
     return { source: 'unavailable', error: e.message };
   }
 });
-
-ipcMain.handle('sync-reserve-status', (_event, kind, year) => ({
-  kind, year, remaining: reserveBucket(kind, year).length, target: RESERVE_TARGET,
-}));
 
 ipcMain.handle('sync-get-device-info', () => {
   if (!store) return null;
@@ -1737,6 +1715,7 @@ app.whenReady().then(() => {
     ...(encryptionKey ? { encryptionKey } : {}),
   });
   currentTimerState = store.get('kavoma_time');
+  discardStaleNumberReserve();
 
   initSyncEngine();
 

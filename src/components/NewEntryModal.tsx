@@ -7,6 +7,7 @@ import { CustomAutocomplete } from './CustomAutocomplete';
 import { CustomInput } from './CustomInput';
 import { DatePicker } from './DatePicker';
 import { newNumericId } from '../sync/ids';
+import { NO_PROJECT_ID, NO_PROJECT_OPTION } from '../utils/projects';
 
 interface Props {
   open: boolean;
@@ -79,8 +80,10 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
       setError('Die Endzeit muss nach der Startzeit liegen.');
       return;
     }
-    if (!customerId || !projectId) {
-      setError('Kunde und Projekt wählen');
+    // Nur der Kunde ist Pflicht. Ein Projekt lässt sich später nachtragen —
+    // den Eintrag deswegen abzulehnen, verlöre die Zeit, um die es geht.
+    if (!customerId) {
+      setError('Kunde wählen');
       return;
     }
 
@@ -175,14 +178,14 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
                     const id = v as number;
                     setCustomerId(id);
                     const first = projects.find(p => p.customerId === id);
-                    setProjectId(first?.id ?? 0);
+                    setProjectId(first?.id ?? NO_PROJECT_ID);
                   }}
                 />
                 <CustomSelect
                   id="newEntryProject"
                   label="Projekt"
                   value={projectId}
-                  options={availableProjects}
+                  options={[NO_PROJECT_OPTION, ...availableProjects]}
                   onChange={(v) => setProjectId(v as number)}
                 />
               </div>

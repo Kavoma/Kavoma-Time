@@ -148,9 +148,11 @@ function createSyncClient(store, { url = config.url, key = config.publishableKey
     // === Nummernkreise ===
     // Der einzige Grund, warum hier eine Datenbank steht: Diese Vergabe ist
     // atomar. Zwei Geräte können nicht dieselbe Rechnungsnummer ziehen.
-    async allocateNumber(kind, year, count = 1) {
+    // `p_min` ist die Untergrenze aus dem Datenbestand des Geräts. Sie hebt
+    // einen zurückgebliebenen Zähler an und kann ihn nie senken.
+    async allocateNumber(kind, year, min = 1) {
       const { data, error } = await client.rpc('allocate_number', {
-        p_kind: kind, p_year: year, p_count: count,
+        p_kind: kind, p_year: year, p_min: min,
       });
       if (error) throw new Error(error.message);
       return Number(data);

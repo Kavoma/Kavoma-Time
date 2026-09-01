@@ -8,7 +8,7 @@ import { Checkbox } from '../Checkbox';
 import type { Issuer } from '../../types';
 import { isValidIban, getBankName, isValidBic, formatIban, formatBic, formatPhone, formatTaxId } from '../../utils/iban';
 import { collectEInvoiceIssues } from '../../utils/eInvoiceXml';
-import { formatInvoiceNumber } from '../../sync/numbers';
+import { counterFromInvoiceNumber, formatInvoiceNumber, invoiceFloor } from '../../sync/numbers';
 
 interface FieldInputProps {
   label: string;
@@ -89,7 +89,24 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
     setState(s => s ? { ...s, issuer: next } : null);
   };
 
-  const previewNumber = formatInvoiceNumber(state.invoicePrefix, state.nextInvoiceCounter);
+  // Was tatsächlich als Nächstes käme — aus dem Bestand errechnet, nicht aus dem
+  // Zähler allein. Bei aktiver Synchronisierung vergibt der Server die Nummer;
+  // der Zähler daneben ist nur noch ein Spiegel und kann zurückliegen.
+  const currentYear = new Date().getFullYear();
+  const nextCounter = invoiceFloor(
+    state.invoices, state.invoicePrefix, currentYear, state.nextInvoiceCounter,
+  );
+  const previewNumber = formatInvoiceNumber(state.invoicePrefix, nextCounter, currentYear);
+
+  // Die zuletzt tatsächlich vergebene Nummer. Entwürfe tragen keine.
+  const lastIssued = state.invoices
+    .filter(i => i.number.trim() !== '')
+    .map(i => ({
+      number: i.number,
+      counter: counterFromInvoiceNumber(i.number, state.invoicePrefix, new Date(i.createdAt).getFullYear()) ?? -1,
+      createdAt: i.createdAt,
+    }))
+    .sort((a, b) => (b.counter - a.counter) || (b.createdAt - a.createdAt))[0];
 
   // Nur die Absender-Stammdaten prüfen — Kundendaten hängen an der jeweiligen Rechnung
   const eInvoiceIssues = collectEInvoiceIssues(localIssuer);
@@ -101,7 +118,7 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Nächste Nummer</div>
-            <NumberInput min={1} value={state.nextInvoiceCounter} onChange={updateInvoiceCounter} className="w-full" />
+            <NumberInput min={1} value={nextCounter} onChange={updateInvoiceCounter} className="w-full" />
           </div>
           <div>
             <div className="mb-2 flex items-center gap-1.5">
@@ -122,9 +139,17 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
             />
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between rounded bg-paper/50 px-3 py-2">
-          <span className="text-xs text-muted">Vorschau nächste Rechnung</span>
-          <span className="text-sm font-bold text-accent tabular-nums">{previewNumber}</span>
+        <div className="mt-4 flex flex-col gap-px overflow-hidden rounded">
+          <div className="flex items-center justify-between bg-paper/50 px-3 py-2">
+            <span className="text-xs text-muted">Zuletzt vergeben</span>
+            <span className="text-sm font-bold tabular-nums text-ink">
+              {lastIssued ? lastIssued.number : 'noch keine'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between bg-paper/50 px-3 py-2">
+            <span className="text-xs text-muted">Vorschau nächste Rechnung</span>
+            <span className="text-sm font-bold tabular-nums text-accent">{previewNumber}</span>
+          </div>
         </div>
       </SettingsCard>
 

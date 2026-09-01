@@ -13,7 +13,7 @@ import { Checkbox } from '../components/Checkbox';
 import { collectTags, tagColors } from '../utils/tagColor';
 import type { NavIntent, ViewKey } from '../App';
 import { newNumericId } from '../sync/ids';
-import { allocateNumber } from '../sync/numbers';
+import { advanceCounter, allocateNumber, debtorFloor } from '../sync/numbers';
 
 type SortBy = 'name' | 'recent' | 'revenue' | 'hours';
 type ViewMode = 'list' | 'cards';
@@ -154,12 +154,14 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
     // DATEV-Export braucht sie eindeutig. Hat der Nutzer selbst eine
     // eingetragen, bleibt die stehen.
     let debtorNumber = data.debtorNumber ?? '';
-    let bumpCounter = false;
+    let allocatedValue: number | null = null;
     if (!debtorNumber) {
       try {
-        const allocated = await allocateNumber('debtor', state.nextDebtorNumber, new Date().getFullYear());
+        // Ohne Jahr: Eine Debitorennummer gehört dauerhaft zu einem Kunden.
+        const floor = debtorFloor(state.customers, state.nextDebtorNumber);
+        const allocated = await allocateNumber('debtor', floor);
         debtorNumber = String(allocated.value);
-        bumpCounter = allocated.bumpLocalCounter;
+        allocatedValue = allocated.value;
       } catch (e) {
         alert(e instanceof Error ? e.message : 'Debitorennummer konnte nicht vergeben werden.');
         return;
@@ -176,7 +178,9 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
     setState((s) => s ? {
       ...s,
       customers: [...s.customers, newCustomer],
-      ...(bumpCounter ? { nextDebtorNumber: s.nextDebtorNumber + 1 } : {}),
+      ...(allocatedValue !== null
+        ? { nextDebtorNumber: advanceCounter(s.nextDebtorNumber, allocatedValue) }
+        : {}),
     } : null);
     setEditingId(id);
     setCreating(false);

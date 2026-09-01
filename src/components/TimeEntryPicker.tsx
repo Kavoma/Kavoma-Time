@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Clock } from 'lucide-react';
 import type { TimeEntry, Customer, Project, InvoiceItem } from '../types';
+import { NO_PROJECT_LABEL } from '../utils/projects';
 
 interface Props {
   open: boolean;
@@ -236,7 +237,7 @@ export function TimeEntryPicker({
                               {e.description || '(keine Beschreibung)'}
                             </div>
                             <div className="text-[10px] text-muted">
-                              {fmtDate(e.startedAt)} · {project?.name ?? 'Kein Projekt'}
+                              {fmtDate(e.startedAt)} · {project?.name ?? NO_PROJECT_LABEL}
                             </div>
                           </div>
                           <div className="flex-shrink-0 text-right tabular-nums">

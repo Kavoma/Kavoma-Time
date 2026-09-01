@@ -362,18 +362,21 @@ declare global {
       /**
        * Zieht die nächste laufende Nummer.
        *
-       * `local`       — Sync nicht eingerichtet, der Aufrufer nimmt den lokalen Zähler.
+       * `floor` ist die Untergrenze aus dem eigenen Datenbestand: die kleinste
+       * Nummer, die noch frei sein muss. Sie hebt einen zurückgebliebenen
+       * Zähler auf dem Server an und kann ihn nie senken.
+       *
+       * `local`       — Sync nicht eingerichtet, der Aufrufer nimmt `floor`.
        * `server`      — atomar aus der Datenbank vergeben.
-       * `reserve`     — offline aus vorab gezogenem Vorrat.
-       * `unavailable` — Sync an, offline, Vorrat leer. Dann gibt es keine Nummer;
-       *                 auf den lokalen Zähler zurückzufallen erzeugte Dubletten.
+       * `unavailable` — Sync an, Server nicht erreichbar. Dann gibt es keine
+       *                 Nummer; auf den lokalen Zähler zurückzufallen erzeugte
+       *                 Dubletten.
        */
-      syncAllocateNumber: (kind: 'invoice' | 'debtor', year: number) => Promise<
+      syncAllocateNumber: (kind: 'invoice' | 'debtor', year: number, floor: number) => Promise<
         | { source: 'local' }
-        | { source: 'server' | 'reserve'; value: number }
+        | { source: 'server'; value: number }
         | { source: 'unavailable'; error?: string }
       >;
-      syncReserveStatus: (kind: 'invoice' | 'debtor', year: number) => Promise<{ kind: string; year: number; remaining: number; target: number }>;
 
       // === Gerätesynchronisation ===
       /** Serverstandort für die Datenschutzerklärung. */

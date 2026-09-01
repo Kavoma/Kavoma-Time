@@ -355,8 +355,25 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // Der Merge läuft im Updater, damit er auf dem tatsächlich aktuellen Stand
   // aufsetzt und nicht auf einem, der zwischenzeitlich veraltet ist. Der
   // Stempel-Wrapper wird bewusst umgangen: Eine fremde Änderung ist keine
-  // eigene und darf keine neuen Ops erzeugen — deshalb `prevSyncedRef` **vor**
-  // dem Setzen nachziehen, sonst dreht sich die Echo-Schleife.
+  // eigene und darf keine neuen Ops erzeugen.
+  //
+  // Die Grundlinie bekommt **dieselben Ops**, statt den fertigen Zustand
+  // übergestülpt zu bekommen. Der Unterschied ist der zwischen „abgeglichen"
+  // und „verschluckt":
+  //
+  //   Grundlinie := Grundlinie + fremde Ops     — richtig
+  //   Grundlinie := Zustand nach dem Merge      — verliert eigene Änderungen
+  //
+  // Die zweite Fassung stand hier und war die Ursache dafür, dass eine
+  // Rechnung auf einem Gerät als bezahlt markiert war und auf dem anderen
+  // nicht: Traf ein Abgleich ein, bevor der Persist-Effekt die eigene Änderung
+  // ableiten konnte, enthielt die Grundlinie diese Änderung bereits. Der
+  // nächste Diff fand dann keinen Unterschied mehr und die Markierung wurde nie
+  // übertragen — sichtbar als „manchmal muss man zweimal klicken".
+  //
+  // Die Grundlinie wird außerhalb des Updaters nachgezogen: Sie hängt nur von
+  // den eingehenden Ops ab, nicht vom aktuellen Zustand, und ein Updater muss
+  // frei von Seiteneffekten bleiben (React ruft ihn unter Umständen mehrfach).
   useEffect(() => {
     if (isTimerOverlay) return;
     if (!window.api?.onSyncOps) return;
@@ -365,10 +382,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const ops = incoming as Op[];
       if (!Array.isArray(ops) || ops.length === 0) return;
 
+      const baseline = prevSyncedRef.current;
+      if (baseline) prevSyncedRef.current = applyOps(baseline, ops).state;
+
       setStateRaw((prev) => {
         if (!prev) return prev;
         const { state: merged, conflicts } = applyOps(prev, ops);
-        prevSyncedRef.current = merged;
+        if (!baseline) prevSyncedRef.current = merged;
         if (conflicts.length > 0 && import.meta.env.DEV) {
           console.debug(`[sync] ${conflicts.length} Konflikt(e)`, conflicts);
         }

@@ -22,7 +22,13 @@ export function CustomSelect({ id, label, value, options, onChange }: CustomSele
       <select 
         id={id}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value) || e.target.value)}
+        onChange={(e) => {
+          // Über die Option zurücksuchen statt zu casten: `Number('0') || '0'`
+          // ergab für die Option mit der id 0 den String '0' — die Auswahl
+          // „Ohne Projekt" wäre damit nie als Zahl angekommen.
+          const picked = options.find(o => String(o.id) === e.target.value);
+          onChange(picked ? picked.id : e.target.value);
+        }}
         className="h-11 w-full rounded-md border border-divider bg-paper px-3 text-sm font-bold text-ink outline-none transition-colors focus:border-accent"
       >
         {options.map(opt => (

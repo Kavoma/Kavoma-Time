@@ -6,6 +6,7 @@ import { CustomSelect } from './CustomSelect';
 import { CustomAutocomplete } from './CustomAutocomplete';
 import { CustomInput } from './CustomInput';
 import { DatePicker } from './DatePicker';
+import { NO_PROJECT_ID, NO_PROJECT_OPTION } from '../utils/projects';
 
 interface EditModalProps {
   entry: TimeEntry | null;
@@ -170,14 +171,14 @@ export function EditModal({ entry, customers, projects, onSave, onCancel, recent
                   options={customers}
                   onChange={(v) => { 
                     setCustomerId(v as number); 
-                    setProjectId(projects.find(p => p.customerId === v)?.id || 0); 
+                    setProjectId(projects.find(p => p.customerId === v)?.id || NO_PROJECT_ID); 
                   }}
                 />
                 <CustomSelect
                   id="editModalProject"
                   label="Projekt"
                   value={projectId}
-                  options={availableProjects}
+                  options={[NO_PROJECT_OPTION, ...availableProjects]}
                   onChange={(v) => setProjectId(v as number)}
                 />
               </div>

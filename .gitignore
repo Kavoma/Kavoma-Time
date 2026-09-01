@@ -32,3 +32,6 @@ env
 .codex
 AGENTS.md
 documentation
+
+# Supabase-Migrationen — bleiben lokal, nicht auf GitHub
+supabase

@@ -196,9 +196,23 @@ ein, die dieser Aufbau vermeidet.
   Datenschlüssel verlässt ihn nie. Zusammengeführt wird im Renderer — als reine,
   testbare Funktion.
 - **Rechnungsnummern** entstehen erst beim Finalisieren, nie beim Anlegen eines
-  Entwurfs. Ist Sync an und weder Server noch Offline-Reserve verfügbar, wird
-  die Vergabe **verweigert** statt auf den lokalen Zähler zurückzufallen — das
-  wäre genau die Dublette, die zu vermeiden ist.
+  Entwurfs. Ist Sync an und der Server nicht erreichbar, wird die Vergabe
+  **verweigert** statt auf den lokalen Zähler zurückzufallen — das wäre genau
+  die Dublette, die zu vermeiden ist. Einen Offline-Vorrat gibt es bewusst
+  nicht mehr; er zog nach jeder Vergabe still zehn weitere Nummern und riss
+  damit Löcher in den Nummernkreis.
+- **Die Untergrenze ist der Kern der Vergabe.** `invoiceFloor`/`debtorFloor` in
+  `src/sync/numbers.ts` errechnen aus dem *tatsächlichen* Bestand, welche Nummer
+  noch frei sein muss; `allocate_number` hebt den Server-Zähler darauf an und
+  kann ihn nie senken. Ohne diesen Wert begann der Server bei 1 und vergab die
+  001 ein zweites Mal — der Fehler vom 1. September 2026. Wer eine neue
+  Vergabestelle einbaut, muss die Untergrenze mitgeben.
+  Debitorennummern laufen **ohne** Jahresbindung (`DEBTOR_YEAR = 0`), weil eine
+  Debitorennummer dauerhaft zu einem Kunden gehört.
+- **Datenbank-Migrationen liegen in `supabase/migrations/`** und müssen **vor
+  oder mit** dem App-Update eingespielt werden. Die App ruft die Vergabe mit der
+  Untergrenze auf; ohne die Migration kennt die Datenbank den Aufruf nicht und
+  das Finalisieren schlägt fehl.
 - **Tests:** `pnpm test` (vitest). Getestet wird ausschließlich `src/sync/*` und
   `electron/sync/*` — der Teil, der nicht falsch sein darf.
 - **Serverstandort** steht in `electron/sync/config.cjs` und wird von dort in die
@@ -216,6 +230,12 @@ ein, die dieser Aufbau vermeidet.
 
 - **Sprache**: Identifier englisch (`startTimer`, `entries`), User-Facing-Strings + Kommentare deutsch. Niemals `ä/ö/ü/ß` durch ASCII-Ersatz ausschreiben.
 - **Styling**: Tailwind v4 (via `@tailwindcss/vite`-Plugin, kein `tailwind.config.js` — Konfiguration in `src/style.css` als `@theme`). Eigene Design-Tokens: `bg-paper`, `bg-surface`, `border-divider`, `text-ink`, `text-muted`, `text-accent`, `font-display`.
+  Die Tokens beschreiben heute ein **fest dunkles** Aussehen; daneben stehen rund
+  520 direkte Farb-Utilities (`text-green-300`, `bg-red-500/10`, …) und rund 90
+  fest eingetragene Farbwerte im Quelltext. Neuer Code sollte keine weiteren
+  hinzufügen — das geplante Oberflächen-Update stellt genau diese Stellen auf
+  eine semantische Token-Schicht mit Hell- und Dunkelmodus um. Konzept:
+  `documentation/erscheinungsbild.md`.
 - **Icons**: ausschließlich `lucide-react`.
 - **State-Updates in Effects**: explizit erlaubt (`react-hooks/set-state-in-effect: off` in `eslint.config.js`) — wird für Form-Init in Modals genutzt.
 - **`window.api`** ist optional (`?.`) — Code muss auch ohne Electron lauffähig sein (Browser-Preview via `pnpm dev` ohne `electron`).

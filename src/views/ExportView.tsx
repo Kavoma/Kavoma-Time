@@ -14,7 +14,7 @@ import { AnimatedNumber } from '../components/AnimatedNumber';
 import { createCancellationInvoice } from '../utils/analytics';
 import { Tooltip } from '../components/Tooltip';
 import type { NavIntent, ViewKey } from '../App';
-import { allocateNumber, formatInvoiceNumber, DRAFT_NUMBER_LABEL } from '../sync/numbers';
+import { advanceCounter, allocateNumber, formatInvoiceNumber, invoiceFloor, DRAFT_NUMBER_LABEL } from '../sync/numbers';
 
 interface ExportViewProps {
   navigateTo?: (view: ViewKey, intent?: NavIntent) => void;
@@ -189,13 +189,14 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     // eines Entwurfs: Der verbrennt sonst eine Nummer, auch wenn er nie
     // verschickt wird, und auf zwei Geräten dieselbe.
     let finalized = invoice;
-    let bumpCounter = false;
+    let allocatedValue: number | null = null;
     if (!invoice.number.trim()) {
       const year = new Date(invoice.createdAt).getFullYear();
       try {
-        const allocated = await allocateNumber('invoice', state.nextInvoiceCounter, year);
+        const floor = invoiceFloor(state.invoices, state.invoicePrefix, year, state.nextInvoiceCounter);
+        const allocated = await allocateNumber('invoice', floor, year);
         finalized = { ...invoice, number: formatInvoiceNumber(state.invoicePrefix, allocated.value, year) };
-        bumpCounter = allocated.bumpLocalCounter;
+        allocatedValue = allocated.value;
       } catch (e) {
         // Lieber gar keine Rechnung als zwei mit derselben Nummer.
         alert(e instanceof Error ? e.message : 'Rechnungsnummer konnte nicht vergeben werden.');
@@ -206,7 +207,9 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     setState(s => {
       if (!s) return null;
       const exists = s.invoices.some(i => i.id === finalized.id);
-      const counter = bumpCounter ? { nextInvoiceCounter: s.nextInvoiceCounter + 1 } : {};
+      const counter = allocatedValue !== null
+        ? { nextInvoiceCounter: advanceCounter(s.nextInvoiceCounter, allocatedValue) }
+        : {};
       return exists
         ? { ...s, ...counter, invoices: s.invoices.map(i => i.id === finalized.id ? finalized : i) }
         : { ...s, ...counter, invoices: [finalized, ...s.invoices] };
@@ -265,12 +268,16 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
 
       const createdAt = Date.now();
       let number = d.number.trim();
-      let bumpCounter = false;
+      let allocatedValue: number | null = null;
       if (!number) {
+        const year = new Date(createdAt).getFullYear();
         try {
-          const allocated = await allocateNumber('invoice', state.nextInvoiceCounter, new Date(createdAt).getFullYear());
-          number = formatInvoiceNumber(state.invoicePrefix, allocated.value, new Date(createdAt).getFullYear());
-          bumpCounter = allocated.bumpLocalCounter;
+          // Die Untergrenze wird in jedem Durchlauf neu gebildet: Die zuvor in
+          // dieser Schleife vergebene Nummer steht dann schon im State.
+          const floor = invoiceFloor(state.invoices, state.invoicePrefix, year, state.nextInvoiceCounter);
+          const allocated = await allocateNumber('invoice', floor, year);
+          number = formatInvoiceNumber(state.invoicePrefix, allocated.value, year);
+          allocatedValue = allocated.value;
         } catch (e) {
           // Abbrechen statt weitermachen: Die bereits finalisierten bleiben
           // gültig, der Rest bleibt Entwurf und kann später erneut ran.
@@ -282,7 +289,9 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
       const final: Invoice = { ...d, number, status: 'active', createdAt };
       setState(s => s ? {
         ...s,
-        ...(bumpCounter ? { nextInvoiceCounter: s.nextInvoiceCounter + 1 } : {}),
+        ...(allocatedValue !== null
+          ? { nextInvoiceCounter: advanceCounter(s.nextInvoiceCounter, allocatedValue) }
+          : {}),
         invoices: s.invoices.map(i => i.id === d.id ? final : i),
       } : null);
       await downloadInvoicePdf(final, state.issuer, customer, d.entryIds.length > 0 ? state.entries : undefined, eInvoiceOptions);
@@ -295,9 +304,19 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
   const togglePaid = (id: string) => {
     setState(s => s ? {
       ...s,
-      invoices: s.invoices.map(inv => inv.id === id
-        ? { ...inv, paid: !inv.paid, paidAt: !inv.paid ? Date.now() : undefined }
-        : inv),
+      invoices: s.invoices.map(inv => {
+        if (inv.id !== id) return inv;
+        if (inv.paid) {
+          // Schlüssel wirklich entfernen, nicht auf `undefined` setzen: Beim
+          // Übertragen fällt ein `undefined` aus dem JSON heraus, im lokalen
+          // Zustand bleibt es stehen. Die beiden Fassungen sähen dann
+          // dauerhaft verschieden aus und erzeugten bei jedem Abgleich eine
+          // Änderung, die keine ist.
+          const { paidAt: _entfernt, ...ohneZahldatum } = inv;
+          return { ...ohneZahldatum, paid: false };
+        }
+        return { ...inv, paid: true, paidAt: Date.now() };
+      }),
     } : null);
   };
 
@@ -347,7 +366,8 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     const year = new Date().getFullYear();
     let allocated;
     try {
-      allocated = await allocateNumber('invoice', state.nextInvoiceCounter, year);
+      const floor = invoiceFloor(state.invoices, state.invoicePrefix, year, state.nextInvoiceCounter);
+      allocated = await allocateNumber('invoice', floor, year);
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Storno-Nummer konnte nicht vergeben werden.');
       return;
@@ -357,7 +377,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
 
     setState(s => s ? {
       ...s,
-      ...(allocated.bumpLocalCounter ? { nextInvoiceCounter: s.nextInvoiceCounter + 1 } : {}),
+      nextInvoiceCounter: advanceCounter(s.nextInvoiceCounter, allocated.value),
       invoices: [
         stornoInv,
         ...s.invoices.map(i => i.id === original.id
