@@ -31,6 +31,8 @@ env
 # Arbeitsdateien für KI-Agenten und lokale Dokumentation — bleiben auf dem Rechner
 .codex
 AGENTS.md
+
+.VSCodeCounter
 documentation
 
 # Supabase-Migrationen — bleiben lokal, nicht auf GitHub

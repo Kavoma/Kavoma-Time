@@ -103,12 +103,12 @@ export function InvoiceDetailDrawer({
   const displayTotal = invoice.total + totalFees;
 
   const statusChip = (() => {
-    if (isDraft) return { label: 'Entwurf', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' };
-    if (isCancelled) return { label: 'Storniert', cls: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30' };
-    if (isStorno) return { label: 'Storno-Rechnung', cls: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30' };
-    if (invoice.paid) return { label: 'Bezahlt', cls: 'bg-green-500/15 text-green-300 border-green-500/30' };
-    if (overdue) return { label: 'Überfällig', cls: 'bg-red-500/15 text-red-300 border-red-500/30' };
-    return { label: 'Offen', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' };
+    if (isDraft) return { label: 'Entwurf', cls: 'bg-warning-soft text-warning border-warning-line' };
+    if (isCancelled) return { label: 'Storniert', cls: 'bg-neutral-soft text-muted border-neutral-line' };
+    if (isStorno) return { label: 'Storno-Rechnung', cls: 'bg-neutral-soft text-muted border-neutral-line' };
+    if (invoice.paid) return { label: 'Bezahlt', cls: 'bg-success-soft text-success border-success-line' };
+    if (overdue) return { label: 'Überfällig', cls: 'bg-danger-soft text-danger border-danger-line' };
+    return { label: 'Offen', cls: 'bg-warning-soft text-warning border-warning-line' };
   })();
 
   return (
@@ -122,7 +122,7 @@ export function InvoiceDetailDrawer({
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-scrim backdrop-blur-[2px]"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -153,7 +153,7 @@ export function InvoiceDetailDrawer({
                       {statusChip.label}
                     </span>
                     {invoice.recurringId && (
-                      <span className="rounded-full border border-blue-500/30 bg-blue-500/15 px-1.5 py-0.5 text-blue-300" title="Aus wiederkehrender Rechnung">
+                      <span className="rounded-full border border-info-line bg-info-soft px-1.5 py-0.5 text-info" title="Aus wiederkehrender Rechnung">
                         <Repeat size={9} />
                       </span>
                     )}
@@ -202,12 +202,12 @@ export function InvoiceDetailDrawer({
                       onClick={() => onTogglePaid(invoice.id)}
                       className={`flex items-center justify-between rounded-lg border p-3 transition-all ${
                         invoice.paid
-                          ? 'border-green-500/30 bg-green-500/5'
+                          ? 'border-success-line bg-success-soft'
                           : 'border-divider bg-paper hover:border-ink/40'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-full ${invoice.paid ? 'bg-green-500/20 text-green-400' : 'bg-muted/10 text-muted'}`}>
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-full ${invoice.paid ? 'bg-success-soft text-success' : 'bg-neutral-soft text-muted'}`}>
                           <Check size={14} strokeWidth={3} />
                         </div>
                         <div className="text-left">
@@ -239,7 +239,7 @@ export function InvoiceDetailDrawer({
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
                       <Field label="Erstellt">{fmtDate(invoice.createdAt)}</Field>
                       <Field label="Fällig">
-                        <span className={overdue ? 'font-bold text-red-300' : ''}>{fmtDate(invoice.dueDate)}</span>
+                        <span className={overdue ? 'font-bold text-danger' : ''}>{fmtDate(invoice.dueDate)}</span>
                       </Field>
                       <Field label="Leistungszeitraum">
                         {fmtDate(invoice.periodFrom)} – {fmtDate(invoice.periodTo)}
@@ -281,7 +281,7 @@ export function InvoiceDetailDrawer({
                           <span className="shrink-0 text-[10px] text-muted tabular-nums">
                             {it.quantity} {it.unit}
                           </span>
-                          <span className={`shrink-0 tabular-nums ${it.total < 0 ? 'text-amber-300' : 'text-ink'}`}>
+                          <span className={`shrink-0 tabular-nums ${it.total < 0 ? 'text-warning' : 'text-ink'}`}>
                             {fmtEuro(it.total)}
                           </span>
                         </li>
@@ -296,11 +296,11 @@ export function InvoiceDetailDrawer({
                         {invoice.reminders.map((r, i) => (
                           <li
                             key={i}
-                            className="flex items-center justify-between rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2 text-[12px]"
+                            className="flex items-center justify-between rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-[12px]"
                           >
                             <div className="flex items-center gap-2">
-                              <AlertTriangle size={11} className="text-red-400" />
-                              <span className="font-bold text-red-200">Mahnstufe {r.level}</span>
+                              <AlertTriangle size={11} className="text-danger" />
+                              <span className="font-bold text-danger">Mahnstufe {r.level}</span>
                               <span className="text-[10px] text-muted">{fmtDate(r.sentAt)}</span>
                             </div>
                             <span className="tabular-nums text-muted">{fmtEuro(r.fee)} Gebühr</span>
@@ -318,7 +318,7 @@ export function InvoiceDetailDrawer({
                         <button
                           type="button"
                           onClick={() => onRemoveReminder(invoice.id)}
-                          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 text-[10px] font-bold uppercase tracking-widest text-red-300 transition-all hover:bg-red-500/20"
+                          className="kv-btn kv-btn-danger"
                         >
                           <Trash2 size={11} /> Letzte Mahnung entfernen
                         </button>
@@ -328,8 +328,8 @@ export function InvoiceDetailDrawer({
 
                   {/* Storno-Info */}
                   {(isCancelled || isStorno) && (
-                    <div className="rounded-md border border-zinc-500/30 bg-zinc-500/5 px-3 py-2.5 text-[12px]">
-                      <div className="flex items-center gap-1.5 font-bold text-zinc-300">
+                    <div className="rounded-md border border-neutral-line bg-neutral-soft px-3 py-2.5 text-[12px]">
+                      <div className="flex items-center gap-1.5 font-bold text-ink">
                         <Ban size={12} />
                         {isStorno ? 'Dies ist eine Storno-Rechnung' : 'Diese Rechnung wurde storniert'}
                       </div>
@@ -369,22 +369,22 @@ export function InvoiceDetailDrawer({
                     </div>
 
                     {confirmDelete && (
-                      <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-red-500/40 bg-red-500/5 px-3 py-2">
-                        <span className="text-[12px] text-red-200">
+                      <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-danger-line bg-danger-soft px-3 py-2">
+                        <span className="text-[12px] text-danger">
                           {isDraft ? 'Entwurf verwerfen?' : 'Unwiderruflich löschen? (GoBD: lieber stornieren)'}
                         </span>
                         <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={() => setConfirmDelete(false)}
-                            className="cursor-pointer rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                            className="kv-btn kv-btn-quiet"
                           >
                             Nein
                           </button>
                           <button
                             type="button"
                             onClick={() => { setConfirmDelete(false); onDelete(invoice.id); }}
-                            className="cursor-pointer rounded-md bg-red-500/20 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-red-300 transition-all hover:bg-red-500 hover:text-white"
+                            className="kv-btn kv-btn-danger"
                           >
                             Ja, {isDraft ? 'verwerfen' : 'löschen'}
                           </button>
@@ -395,7 +395,7 @@ export function InvoiceDetailDrawer({
                 </div>
               ) : (
                 /* PDF-Tab */
-                <div className="h-full bg-black/40">
+                <div className="h-full bg-scrim">
                   {pdfUrl ? (
                     <iframe
                       src={pdfUrl}
@@ -404,7 +404,7 @@ export function InvoiceDetailDrawer({
                     />
                   ) : (
                     <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-                      <FileWarning size={26} className="text-amber-300" />
+                      <FileWarning size={26} className="text-warning" />
                       <div className="text-sm font-bold">Vorschau nicht verfügbar</div>
                       <div className="max-w-xs text-[11px] text-muted">
                         Die PDF-Vorschau konnte nicht erzeugt werden. Lade die Rechnung über „Rechnung-PDF" herunter.
@@ -436,7 +436,7 @@ function Row({ label, children, tone }: { label: string; children: React.ReactNo
   return (
     <div className="flex items-center justify-between">
       <dt className="text-muted">{label}</dt>
-      <dd className={`tabular-nums ${tone === 'warn' ? 'text-amber-300' : 'text-ink'}`}>{children}</dd>
+      <dd className={`tabular-nums ${tone === 'warn' ? 'text-warning' : 'text-ink'}`}>{children}</dd>
     </div>
   );
 }
@@ -483,16 +483,12 @@ function ActionButton({
   primary?: boolean;
   danger?: boolean;
 }) {
-  const cls = primary
-    ? 'border-ink bg-ink text-paper hover:bg-accent hover:border-accent'
-    : danger
-      ? 'border-red-500/40 bg-red-500/10 text-red-300 hover:border-red-400 hover:bg-red-500/20'
-      : 'border-divider bg-paper text-ink hover:border-ink';
+  const variant = primary ? 'kv-btn-primary' : danger ? 'kv-btn-danger' : 'kv-btn-outline';
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-[11px] font-bold uppercase tracking-widest transition-all active:scale-95 ${cls}`}
+      className={`kv-btn ${variant}`}
     >
       <Icon size={12} /> {label}
     </button>
