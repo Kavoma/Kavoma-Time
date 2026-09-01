@@ -25,10 +25,10 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
 };
 
 const STATUS_COLOR: Record<ProjectStatus, string> = {
-  active: 'bg-green-500/15 text-green-300 border-green-500/30',
-  'on-hold': 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  completed: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  archived: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
+  active: 'bg-success-soft text-success border-success-line',
+  'on-hold': 'bg-warning-soft text-warning border-warning-line',
+  completed: 'bg-info-soft text-info border-info-line',
+  archived: 'bg-neutral-soft text-muted border-neutral-line',
 };
 
 const PRIORITY_RANK: Record<NonNullable<Project['priority']>, number> = {
@@ -339,7 +339,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
                 onClick={() => setOverBudgetOnly((v) => !v)}
                 className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-3 text-[10px] font-bold uppercase tracking-widest transition-all ${
                   overBudgetOnly
-                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                    ? 'border-warning-line bg-warning-soft text-warning'
                     : 'border-divider bg-paper text-muted hover:border-ink hover:text-ink'
                 }`}
               >
@@ -387,7 +387,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
               <div className="mb-2 flex items-center justify-between border-b border-divider pb-2">
                 <button
                   onClick={selectAllVisible}
-                  className="flex cursor-pointer items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted hover:text-ink"
+                  className="flex cursor-pointer items-center gap-2 kv-label hover:text-ink"
                 >
                   {allVisibleSelected ? <CheckSquare size={12} /> : <Square size={12} />}
                   {allVisibleSelected ? 'Auswahl aufheben' : 'Alle auswählen'}
@@ -464,7 +464,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
 
       {/* Bulk-Bar */}
       {someSelected && (
-        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg border border-divider bg-surface px-3 py-2 shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 kv-overlay px-3 py-2">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-widest text-ink">
               {selected.size} ausgewählt
@@ -484,7 +484,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
             </button>
             <button
               onClick={() => setBulkConfirmDelete(true)}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 text-[10px] font-bold uppercase tracking-widest text-red-300 transition-all hover:border-red-400 hover:bg-red-500/20"
+              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-danger-line bg-danger-soft px-2.5 text-[10px] font-bold uppercase tracking-widest text-danger transition-all hover:border-danger-line hover:bg-danger-soft"
             >
               <Trash2 size={11} /> Löschen
             </button>
@@ -609,7 +609,7 @@ function ProjectRow({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="truncate text-sm font-bold text-ink">{project.name}</span>
         {priority === 'high' && (
-          <Flag size={11} className="shrink-0 text-red-400" />
+          <Flag size={11} className="shrink-0 text-danger" />
         )}
         {status !== 'active' && (
           <span className={`shrink-0 rounded-full border px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider ${STATUS_COLOR[status]}`}>
@@ -641,7 +641,7 @@ function ProjectRow({
       </span>
       {project.budgetHours && project.budgetHours > 0 && (
         <Tooltip content={overBudget ? `Budget überschritten: ${(stats?.budgetUsage ?? 0).toFixed(0)}%` : `Budgetauslastung: ${(stats?.budgetUsage ?? 0).toFixed(0)}%`}>
-          <span className={`w-16 shrink-0 text-right text-[11px] tabular-nums ${overBudget ? 'text-amber-300 font-bold' : 'text-muted'}`}>
+          <span className={`w-16 shrink-0 text-right text-[11px] tabular-nums ${overBudget ? 'text-warning font-bold' : 'text-muted'}`}>
             {(stats?.budgetUsage ?? 0).toFixed(0)}%
           </span>
         </Tooltip>
@@ -691,7 +691,7 @@ function ProjectCard({
         <div className="flex items-center gap-2">
           <span className="size-2.5 shrink-0 rounded-full" style={{ background: accentColor }} />
           <div className="truncate text-sm font-bold text-ink">{project.name}</div>
-          {priority === 'high' && <Flag size={11} className="shrink-0 text-red-400" />}
+          {priority === 'high' && <Flag size={11} className="shrink-0 text-danger" />}
         </div>
         <div className="mt-0.5 truncate text-[10px] text-muted">{customer?.name ?? 'Ohne Kunde'}</div>
       </div>
@@ -707,13 +707,13 @@ function ProjectCard({
           <div className="mb-2">
             <div className="mb-0.5 flex justify-between text-[9px] font-bold uppercase tracking-widest text-muted">
               <span>Budget</span>
-              <span className={overBudget ? 'text-amber-300 font-bold' : ''}>
+              <span className={overBudget ? 'text-warning font-bold' : ''}>
                 {(stats?.hours ?? 0).toFixed(1)} / {project.budgetHours} h
               </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-paper">
               <div
-                className={`h-full rounded-full ${overBudget ? 'bg-red-500 animate-pulse' : (stats?.budgetUsage ?? 0) >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
+                className={`h-full rounded-full ${overBudget ? 'bg-danger-solid animate-pulse' : (stats?.budgetUsage ?? 0) >= 80 ? 'bg-warning-solid' : 'bg-accent'}`}
                 style={{ width: `${Math.min(100, stats?.budgetUsage ?? 0)}%` }}
               />
             </div>

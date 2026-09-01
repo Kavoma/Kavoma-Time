@@ -28,9 +28,9 @@ const STATUS_LABEL: Record<CustomerStatus, string> = {
 };
 
 const STATUS_STYLE: Record<CustomerStatus, string> = {
-  active: 'bg-green-500/15 text-green-300 border-green-500/30',
-  paused: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  archived: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
+  active: 'bg-success-soft text-success border-success-line',
+  paused: 'bg-warning-soft text-warning border-warning-line',
+  archived: 'bg-neutral-soft text-muted border-neutral-line',
 };
 
 interface Props {
@@ -340,7 +340,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col">
-          <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Status</label>
+          <label className="mb-2 kv-label">Status</label>
           <select
             value={status}
             onChange={(e) => { setStatus(e.target.value as CustomerStatus); markDirty(); }}
@@ -382,7 +382,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
       </div>
 
       <div className="flex flex-col">
-        <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Tags</label>
+        <label className="mb-2 kv-label">Tags</label>
         <TagInput
           value={tags}
           onChange={(t) => { setTags(t); markDirty(); }}
@@ -398,7 +398,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
 
       {state && state.customers.length > 1 && (
         <div className="flex flex-col">
-          <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Empfohlen von</label>
+          <label className="mb-2 kv-label">Empfohlen von</label>
           <select
             value={referredBy ?? ''}
             onChange={(e) => { setReferredBy(e.target.value ? Number(e.target.value) : undefined); markDirty(); }}
@@ -413,7 +413,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
       )}
 
       <div className="flex flex-col">
-        <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Notizen</label>
+        <label className="mb-2 kv-label">Notizen</label>
         <textarea
           value={notes}
           onChange={(e) => { setNotes(e.target.value); markDirty(); }}
@@ -425,7 +425,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
 
       {/* Farbe */}
       <div className="flex flex-col">
-        <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Farbe</label>
+        <label className="mb-2 kv-label">Farbe</label>
         <div className="flex flex-wrap gap-2.5">
           {PALETTE.map((c) => (
             <button
@@ -498,9 +498,9 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
 // ──────────────────── Sub-Komponenten ────────────────────
 
 function InvoiceChip({ invoice }: { invoice: { paid: boolean; dueDate: number; status: string } }) {
-  if (invoice.status === 'cancelled') return <span className="rounded-full bg-zinc-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-400">Storno</span>;
-  if (invoice.status === 'draft') return <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-blue-300">Entwurf</span>;
-  if (invoice.paid) return <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-green-300">Bezahlt</span>;
-  if (invoice.dueDate < Date.now()) return <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-300">Überfällig</span>;
-  return <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">Offen</span>;
+  if (invoice.status === 'cancelled') return <span className="rounded-full bg-neutral-soft px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-muted">Storno</span>;
+  if (invoice.status === 'draft') return <span className="rounded-full bg-info-soft px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-info">Entwurf</span>;
+  if (invoice.paid) return <span className="rounded-full bg-success-soft px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-success">Bezahlt</span>;
+  if (invoice.dueDate < Date.now()) return <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-danger">Überfällig</span>;
+  return <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-warning">Offen</span>;
 }

@@ -454,28 +454,28 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         <div
           onClick={() => setFilterStatus(filterStatus === 'paid' ? 'all' : 'paid')}
           className={`cursor-pointer rounded-xl border p-5 transition-all hover:scale-[1.02] ${
-            filterStatus === 'paid' ? 'border-green-500 bg-green-500/5 shadow-lg shadow-green-500/10' : 'border-divider bg-surface'
+            filterStatus === 'paid' ? 'border-success-line bg-success-soft shadow-lg shadow-success-line' : 'border-divider bg-surface'
           }`}
         >
           <div className="flex items-baseline justify-between">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Bezahlt</div>
+            <div className="kv-label">Bezahlt</div>
             <div className="text-[10px] tabular-nums text-muted">{paidCount}×</div>
           </div>
-          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-green-500">
+          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-success">
             <AnimatedNumber value={paidRevenue} />
           </div>
         </div>
         <div
           onClick={() => setFilterStatus(filterStatus === 'open' ? 'all' : 'open')}
           className={`cursor-pointer rounded-xl border p-5 transition-all hover:scale-[1.02] ${
-            filterStatus === 'open' ? 'border-amber-500 bg-amber-500/5 shadow-lg shadow-amber-500/10' : 'border-divider bg-surface'
+            filterStatus === 'open' ? 'border-warning-line bg-warning-soft shadow-lg shadow-warning-line' : 'border-divider bg-surface'
           }`}
         >
           <div className="flex items-baseline justify-between">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Offen</div>
+            <div className="kv-label">Offen</div>
             <div className="text-[10px] tabular-nums text-muted">{openCount}×{overdueInvoices.length > 0 ? ` · ${overdueInvoices.length} überfällig` : ''}</div>
           </div>
-          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-amber-400">
+          <div className="mt-2 font-display text-2xl font-bold tabular-nums text-warning">
             <AnimatedNumber value={openRevenue} />
           </div>
         </div>
@@ -486,7 +486,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
           }`}
         >
           <div className="flex items-baseline justify-between">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Gesamt</div>
+            <div className="kv-label">Gesamt</div>
             <div className="text-[10px] tabular-nums text-muted">{paidCount + openCount}×</div>
           </div>
           <div className="mt-2 font-display text-2xl font-bold tabular-nums text-ink">
@@ -500,20 +500,20 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         <div
           onClick={() => setFilterStatus(filterStatus === 'dunning' ? 'all' : 'dunning')}
           className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
-            filterStatus === 'dunning' ? 'border-red-500 bg-red-500/5 shadow-lg shadow-red-500/10' : 'border-divider bg-surface'
+            filterStatus === 'dunning' ? 'border-danger-line bg-danger-soft shadow-lg shadow-danger-line' : 'border-divider bg-surface'
           }`}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertTriangle size={14} className="text-red-400" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Mahnungen</span>
+              <AlertTriangle size={14} className="text-danger" />
+              <span className="kv-label">Mahnungen</span>
             </div>
             <span className="text-[10px] tabular-nums text-muted">
               {dunningFees > 0 ? `${dunningFees.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} Gebühren` : ''}
             </span>
           </div>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-display text-xl font-bold tabular-nums text-red-400">{dunningInvoices.length}</span>
+            <span className="font-display text-xl font-bold tabular-nums text-danger">{dunningInvoices.length}</span>
             <span className="text-[11px] text-muted">{dunningInvoices.length === 1 ? 'in Mahnung' : 'in Mahnung'}</span>
           </div>
         </div>
@@ -521,20 +521,20 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         <div
           onClick={() => setFilterStatus(filterStatus === 'cancelled' ? 'all' : 'cancelled')}
           className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
-            filterStatus === 'cancelled' ? 'border-zinc-400 bg-zinc-500/5 shadow-lg shadow-zinc-500/10' : 'border-divider bg-surface'
+            filterStatus === 'cancelled' ? 'border-neutral-line bg-neutral-soft shadow-lg shadow-neutral-line' : 'border-divider bg-surface'
           }`}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Ban size={14} className="text-zinc-400" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Stornierungen</span>
+              <Ban size={14} className="text-muted" />
+              <span className="kv-label">Stornierungen</span>
             </div>
             <span className="text-[10px] tabular-nums text-muted">
               {cancelledVolume > 0 ? `${cancelledVolume.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}` : ''}
             </span>
           </div>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-display text-xl font-bold tabular-nums text-zinc-400">{cancelledCount}</span>
+            <span className="font-display text-xl font-bold tabular-nums text-muted">{cancelledCount}</span>
             <span className="text-[11px] text-muted">{cancelledCount === 1 ? 'storniert' : 'storniert'}</span>
           </div>
         </div>
@@ -542,21 +542,21 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         <div
           onClick={() => setFilterStatus(filterStatus === 'draft' ? 'all' : 'draft')}
           className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
-            filterStatus === 'draft' ? 'border-amber-500 bg-amber-500/5 shadow-lg shadow-amber-500/10' : 'border-divider bg-surface'
+            filterStatus === 'draft' ? 'border-warning-line bg-warning-soft shadow-lg shadow-warning-line' : 'border-divider bg-surface'
           }`}
           title="Entwürfe sind nicht in den Umsatz-Statistiken enthalten"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Edit2 size={14} className="text-amber-300" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Entwürfe</span>
+              <Edit2 size={14} className="text-warning" />
+              <span className="kv-label">Entwürfe</span>
             </div>
             <span className="text-[10px] tabular-nums text-muted">
               {recurringDraftCount > 0 ? `${recurringDraftCount}× Recurring` : ''}
             </span>
           </div>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-display text-xl font-bold tabular-nums text-amber-300">{draftInvoices.length}</span>
+            <span className="font-display text-xl font-bold tabular-nums text-warning">{draftInvoices.length}</span>
             <span className="text-[11px] text-muted">{draftInvoices.length === 1 ? 'offen' : 'offen'}</span>
           </div>
         </div>
@@ -564,15 +564,15 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
 
       {/* Recurring-Banner — fällige automatische Drafts */}
       {recurringDraftCount > 0 && filterStatus !== 'draft' && (
-        <div className="mb-6 flex items-center gap-3 rounded-lg border border-blue-500/40 bg-blue-500/5 px-4 py-2.5">
-          <Repeat size={15} className="flex-shrink-0 text-blue-300" />
-          <div className="flex-1 text-[12px] text-blue-100">
+        <div className="mb-6 flex items-center gap-3 rounded-lg border border-info-line bg-info-soft px-4 py-2.5">
+          <Repeat size={15} className="flex-shrink-0 text-info" />
+          <div className="flex-1 text-[12px] text-info">
             <span className="font-bold">{recurringDraftCount}</span>{' '}
             {recurringDraftCount === 1 ? 'wiederkehrende Rechnung wartet' : 'wiederkehrende Rechnungen warten'} als Entwurf — bitte prüfen und finalisieren.
           </div>
           <button
             onClick={() => setFilterStatus('draft')}
-            className="cursor-pointer rounded-md bg-blue-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-blue-100 transition-colors hover:bg-blue-500/40"
+            className="cursor-pointer rounded-md bg-info-soft px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-info transition-colors hover:bg-info-soft"
           >
             Anzeigen
           </button>
@@ -657,7 +657,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
             onClick={toggleSelectAll}
             className="text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink transition-colors flex items-center gap-1.5 py-1"
           >
-            <Check size={12} className={selectedIds.length === filteredInvoices.length ? 'text-green-500' : ''} />
+            <Check size={12} className={selectedIds.length === filteredInvoices.length ? 'text-success' : ''} />
             {selectedIds.length === filteredInvoices.length ? 'Alle abwählen' : 'Alle auswählen'}
           </button>
 
@@ -666,7 +666,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
               <div className="h-3 w-px bg-divider mx-1" />
               <button
                 onClick={() => setSelectedIds([])}
-                className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-500 transition-colors flex items-center gap-1.5 py-1"
+                className="text-[10px] font-bold uppercase tracking-widest text-danger hover:text-danger transition-colors flex items-center gap-1.5 py-1"
               >
                 <Ban size={12} /> Auswahl aufheben
               </button>
@@ -676,7 +676,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                   <button
                     onClick={finalizeSelectedDrafts}
                     disabled={isFinalizing}
-                    className="flex items-center gap-1.5 rounded-md bg-amber-500/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-200 transition-colors hover:bg-amber-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex items-center gap-1.5 rounded-md bg-warning-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-warning transition-colors hover:bg-warning-soft disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Wand2 size={12} /> {isFinalizing ? 'Finalisiere…' : `Entwürfe finalisieren (${selectedIds.length})`}
                   </button>
@@ -719,7 +719,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                 onClick={() => setDrawerInvoiceId(inv.id)}
                 className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border p-5 transition-all hover:shadow-2xl hover:shadow-black/20 cursor-pointer ${
                   isSelected ? 'border-ink bg-ink/[0.03]'
-                  : isDraft ? 'border-amber-500/30 bg-amber-500/[0.02] hover:border-amber-400/60'
+                  : isDraft ? 'border-warning-line bg-warning-soft hover:border-warning-line'
                   : 'border-divider bg-surface hover:border-accent/40'
                 }`}
                 title="Klick öffnet die Detail-Ansicht · Rechtsklick für Schnellaktionen"
@@ -745,19 +745,19 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                 <div className="mb-4 flex items-start justify-between gap-2 pr-7">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`font-display text-lg font-bold tabular-nums ${inv.status === 'cancelled' ? 'text-muted line-through' : isDraft ? 'text-amber-100' : 'text-ink'}`}>{inv.number || DRAFT_NUMBER_LABEL}</span>
+                      <span className={`font-display text-lg font-bold tabular-nums ${inv.status === 'cancelled' ? 'text-muted line-through' : isDraft ? 'text-warning' : 'text-ink'}`}>{inv.number || DRAFT_NUMBER_LABEL}</span>
                       {isDraft && (
-                        <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-300">
+                        <span className="flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-warning">
                           <Edit2 size={9} /> Entwurf
                         </span>
                       )}
                       {inv.recurringId && (
-                        <span className="flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-blue-300" title="Aus wiederkehrender Rechnung erzeugt">
+                        <span className="flex items-center gap-1 rounded-full bg-info-soft px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-info" title="Aus wiederkehrender Rechnung erzeugt">
                           <Repeat size={9} />
                         </span>
                       )}
                       {inv.reminders.length > 0 && (
-                        <span className="flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-red-400">
+                        <span className="flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-danger">
                           <AlertTriangle size={10} /> M{inv.reminders.reduce((m, r) => Math.max(m, r.level), 0)}
                         </span>
                       )}
@@ -778,9 +778,9 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                         onClick={(e) => { e.stopPropagation(); togglePaid(inv.id); }}
                         className={`flex h-6 w-fit items-center gap-1.5 rounded-full px-2.5 transition-all hover:scale-105 active:scale-95 ${
                           inv.paid
-                            ? 'bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-paper'
+                            ? 'bg-success-soft text-success hover:bg-success-solid hover:text-paper'
                             : overdue
-                              ? 'bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-paper'
+                              ? 'bg-danger-soft text-danger hover:bg-danger-solid hover:text-paper'
                               : 'bg-divider text-muted hover:bg-ink hover:text-paper'
                         }`}
                         title="Klick wechselt den Zahlungsstatus"
@@ -791,7 +791,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                         </span>
                       </button>
                     ) : (
-                      <span className="flex h-6 w-fit items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 text-amber-200">
+                      <span className="flex h-6 w-fit items-center gap-1.5 rounded-full bg-warning-soft px-2.5 text-warning">
                         <Edit2 size={10} />
                         <span className="text-[9px] font-black uppercase tracking-wider">Entwurf</span>
                       </span>
@@ -800,7 +800,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                   <div className="text-right tabular-nums">
                     <div className="text-xl font-bold text-ink">{fmtEuro(displayTotal)}</div>
                     {totalFees > 0 && (
-                      <div className="text-[10px] font-bold text-red-400">
+                      <div className="text-[10px] font-bold text-danger">
                         + {fmtEuro(totalFees)} Gebühr
                       </div>
                     )}

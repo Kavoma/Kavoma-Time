@@ -200,7 +200,7 @@ export function TagInput({
                 maxWidth: 320,
                 zIndex: 1000,
               }}
-              className="rounded-lg border border-divider bg-surface p-1 shadow-2xl"
+              className="kv-overlay p-1"
             >
               {filtered.map((s, idx) => {
                 const c = tagColors(s);

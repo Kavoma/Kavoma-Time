@@ -16,10 +16,10 @@ const CATEGORY_LABELS: Record<VendorInvoiceCategory, string> = {
 };
 
 const CATEGORY_COLORS: Record<VendorInvoiceCategory, string> = {
-  hardware: 'bg-sky-500/15 text-sky-200',
+  hardware: 'bg-info-soft text-info',
   software: 'bg-violet-500/15 text-violet-200',
-  office: 'bg-amber-500/15 text-amber-200',
-  travel: 'bg-emerald-500/15 text-emerald-200',
+  office: 'bg-warning-soft text-warning',
+  travel: 'bg-success-soft text-success',
   service: 'bg-pink-500/15 text-pink-200',
   other: 'bg-divider text-muted',
 };
@@ -146,21 +146,21 @@ export function VendorInvoicesTab() {
       </div>
 
       <div className="mb-4 grid grid-cols-3 gap-3">
-        <div className="rounded-lg border border-divider bg-surface px-4 py-3">
+        <div className="kv-card px-4 py-3">
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted">Brutto gesamt</div>
           <div className="mt-1 font-display text-lg font-bold tabular-nums">{EUR.format(totals.gross)}</div>
         </div>
-        <div className="rounded-lg border border-divider bg-surface px-4 py-3">
+        <div className="kv-card px-4 py-3">
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted">davon USt</div>
           <div className="mt-1 font-display text-lg font-bold tabular-nums text-muted">{EUR.format(totals.vat)}</div>
         </div>
-        <div className="rounded-lg border border-divider bg-surface px-4 py-3">
+        <div className="kv-card px-4 py-3">
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted">Netto gesamt</div>
           <div className="mt-1 font-display text-lg font-bold tabular-nums">{EUR.format(totals.net)}</div>
         </div>
       </div>
 
-      <div className="mb-4 flex items-center gap-3 rounded-lg border border-divider bg-surface px-3 py-2">
+      <div className="mb-4 flex items-center gap-3 kv-card px-3 py-2">
         <div className="flex flex-1 items-center gap-2">
           <Search size={14} className="text-muted" />
           <input

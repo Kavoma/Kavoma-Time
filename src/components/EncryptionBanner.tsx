@@ -25,11 +25,11 @@ export function EncryptionBanner() {
     <div
       role="alert"
       aria-live="polite"
-      className="flex items-center gap-3 border-b border-red-500/40 bg-red-500/10 px-4 py-2 text-[12px] text-red-200"
+      className="flex items-center gap-3 border-b border-danger-line bg-danger-soft px-4 py-2 text-[12px] text-danger"
     >
       <ShieldAlert size={14} className="shrink-0" />
       <div className="flex-1">
-        <strong className="font-bold text-red-100">Verschlüsselung deaktiviert.</strong>{' '}
+        <strong className="font-bold text-danger">Verschlüsselung deaktiviert.</strong>{' '}
         Deine Daten werden in dieser Sitzung unverschlüsselt gespeichert. Wir empfehlen,
         die App zu beenden und das System auf verfügbare DPAPI / Schlüsselbund-Funktion
         zu prüfen, bevor du echte Kundendaten erfasst.

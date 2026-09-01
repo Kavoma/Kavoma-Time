@@ -426,7 +426,7 @@ export function InvoiceDetailDrawer({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{title}</h4>
+      <h4 className="kv-label">{title}</h4>
       {children}
     </div>
   );

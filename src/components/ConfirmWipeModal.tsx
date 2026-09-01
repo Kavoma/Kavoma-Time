@@ -30,7 +30,7 @@ export function ConfirmWipeModal({ open, onConfirm, onCancel }: ConfirmWipeModal
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-scrim backdrop-blur-sm"
             onClick={onCancel}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -38,7 +38,7 @@ export function ConfirmWipeModal({ open, onConfirm, onCancel }: ConfirmWipeModal
           />
 
           <motion.div
-            className="relative z-10 mx-4 w-full max-w-sm rounded-lg border border-red-500/40 bg-surface p-0 text-ink shadow-[0_25px_60px_-12px_rgba(127,29,29,0.45)]"
+            className="relative z-10 mx-4 w-full max-w-sm rounded-lg border border-danger-line bg-surface p-0 text-ink shadow-[0_25px_60px_-12px_rgba(127,29,29,0.45)]"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
@@ -49,7 +49,7 @@ export function ConfirmWipeModal({ open, onConfirm, onCancel }: ConfirmWipeModal
             aria-labelledby="confirmWipeTitle"
           >
             <div className="p-6">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/15 text-red-400">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-danger-soft text-danger">
                 <AlertTriangle size={18} />
               </div>
               <h3 id="confirmWipeTitle" className="mb-1.5 text-sm font-bold uppercase tracking-wide">Alle Daten löschen?</h3>
@@ -59,13 +59,13 @@ export function ConfirmWipeModal({ open, onConfirm, onCancel }: ConfirmWipeModal
                 Anschließend startet die App neu.
               </p>
               <p className="mt-3 text-[12px] leading-relaxed text-muted">
-                Tippe <span className="font-mono font-bold text-red-300">{CONFIRM_PHRASE}</span> zum Bestätigen:
+                Tippe <span className="font-mono font-bold text-danger">{CONFIRM_PHRASE}</span> zum Bestätigen:
               </p>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                className="mt-2 w-full rounded-md border border-divider bg-paper px-3 py-2 text-sm uppercase tracking-widest text-ink placeholder:text-muted focus:border-red-400 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-divider bg-paper px-3 py-2 text-sm uppercase tracking-widest text-ink placeholder:text-muted focus:border-danger-line focus:outline-none"
                 placeholder={CONFIRM_PHRASE}
                 aria-label={`Bitte ${CONFIRM_PHRASE} eingeben`}
                 autoComplete="off"
@@ -83,7 +83,7 @@ export function ConfirmWipeModal({ open, onConfirm, onCancel }: ConfirmWipeModal
               <button
                 onClick={onConfirm}
                 disabled={!matches}
-                className="cursor-pointer rounded-md bg-red-500/15 px-4 py-2 text-xs font-bold uppercase tracking-widest text-red-300 transition-all hover:bg-red-500 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-500/15 disabled:hover:text-red-300"
+                className="cursor-pointer rounded-md bg-danger-soft px-4 py-2 text-xs font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-danger-soft disabled:hover:text-danger"
               >
                 Endgültig löschen
               </button>

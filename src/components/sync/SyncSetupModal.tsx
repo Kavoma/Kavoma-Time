@@ -103,11 +103,11 @@ export function SyncSetupModal({ open, onClose, onDone }: Props) {
       {open && (
         <motion.div className="fixed inset-0 z-50 flex items-center justify-center"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-          <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={laeuft ? undefined : schliessen}
+          <motion.div className="absolute inset-0 bg-scrim backdrop-blur-sm" onClick={laeuft ? undefined : schliessen}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
 
           <motion.div
-            className="relative z-10 mx-4 w-full max-w-md rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 mx-4 w-full max-w-md kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }} transition={{ duration: 0.15, ease: 'easeOut' }}>
 
@@ -141,8 +141,8 @@ export function SyncSetupModal({ open, onClose, onDone }: Props) {
                   <p className="text-xs leading-relaxed text-muted">
                     Fertig. Deine Daten werden ab jetzt verschlüsselt abgeglichen.
                   </p>
-                  <div className="rounded-md border border-amber-500/30 bg-amber-500/[0.06] p-3">
-                    <div className="mb-1 flex items-center gap-2 text-amber-300">
+                  <div className="rounded-md border border-warning-line bg-warning-soft p-3">
+                    <div className="mb-1 flex items-center gap-2 text-warning">
                       <AlertTriangle size={13} />
                       <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Einmalig — bitte aufschreiben</span>
                     </div>
@@ -217,7 +217,7 @@ export function SyncSetupModal({ open, onClose, onDone }: Props) {
               )}
 
               {fehler && (
-                <p className="rounded-md border border-red-500/30 bg-red-500/[0.06] px-3 py-2 text-xs text-red-300">
+                <p className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-xs text-danger">
                   {fehler}
                 </p>
               )}

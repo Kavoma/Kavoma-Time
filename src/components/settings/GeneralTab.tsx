@@ -229,7 +229,7 @@ export function GeneralTab() {
         <p className="mt-3 text-[11px] text-muted">Esc bricht die Aufnahme ab.</p>
 
         <div className="mt-6 border-t border-divider pt-4">
-          <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Navigation (Schnellzugriff)</div>
+          <div className="mb-3 kv-label">Navigation (Schnellzugriff)</div>
           <div className="grid grid-cols-2 gap-x-8 gap-y-2">
             {NAV_SHORTCUTS.map(sc => (
               <div key={sc.key} className="flex items-center justify-between">

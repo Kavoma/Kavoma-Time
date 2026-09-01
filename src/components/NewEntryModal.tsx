@@ -115,12 +115,12 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-scrim backdrop-blur-sm"
             onClick={onCancel}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           />
           <motion.div
-            className="relative z-10 mx-4 w-full max-w-md rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 mx-4 w-full max-w-md kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
@@ -143,7 +143,7 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Von (Start)</label>
+                  <label className="mb-2 kv-label">Von (Start)</label>
                   <input
                     type="time"
                     value={startTime}
@@ -152,7 +152,7 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Bis (Ende)</label>
+                  <label className="mb-2 kv-label">Bis (Ende)</label>
                   <input
                     type="time"
                     value={endTime}
@@ -200,7 +200,7 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
                 options={recentDescriptions}
               />
 
-              {error && <div className="text-xs font-bold text-red-400/90">{error}</div>}
+              {error && <div className="text-xs font-bold text-danger/90">{error}</div>}
             </div>
 
             <div className="flex justify-end gap-2 border-t border-divider px-6 py-4">

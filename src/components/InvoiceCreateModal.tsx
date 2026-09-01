@@ -330,7 +330,7 @@ export function InvoiceCreateModal({
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-scrim backdrop-blur-sm"
             onClick={() => (dirty ? setConfirmClose(true) : onCancel())}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -338,7 +338,7 @@ export function InvoiceCreateModal({
           />
 
           <motion.div
-            className={`relative z-10 flex max-h-[94vh] w-full ${showPreview ? 'max-w-[1500px]' : 'max-w-3xl'} flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]`}
+            className={`relative z-10 flex max-h-[94vh] w-full ${showPreview ? 'max-w-[1500px]' : 'max-w-3xl'} flex-col overflow-hidden kv-overlay text-ink`}
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -419,7 +419,7 @@ export function InvoiceCreateModal({
                     <DatePicker label="Leistung bis" value={to} onChange={(v) => { setTo(v); markDirty(); }} />
                   </div>
                   {customerHasAddrIssue && (
-                    <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-200">
+                    <div className="mt-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[11px] text-warning">
                       Kunde hat keine Adresse hinterlegt — Rechnung kann so nicht finalisiert werden.
                     </div>
                   )}
@@ -428,7 +428,7 @@ export function InvoiceCreateModal({
                 {/* Positionen */}
                 <Section title="Positionen">
                   <div className="mb-3 flex flex-col">
-                    <label className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                    <label className="mb-1 kv-label">
                       Art der Leistung (Voreintrag für neue Zeit-Items)
                     </label>
                     <input
@@ -450,7 +450,7 @@ export function InvoiceCreateModal({
                 <Section title="Rechnungs-Meta" defaultOpen={false} hint="Nummer, Datum, Fälligkeit">
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex flex-col">
-                      <label className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Rechnungs-Nr.</label>
+                      <label className="mb-1 kv-label">Rechnungs-Nr.</label>
                       <input
                         type="text"
                         value={invoiceNumber}
@@ -482,7 +482,7 @@ export function InvoiceCreateModal({
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-full ${includeReport ? 'bg-ink/10 text-ink' : 'bg-muted/10 text-muted'}`}>
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-full ${includeReport ? 'bg-ink/10 text-ink' : 'bg-neutral-soft text-muted'}`}>
                           <ClipboardList size={13} />
                         </div>
                         <div>
@@ -522,10 +522,10 @@ export function InvoiceCreateModal({
                     {/* ZUGFeRD-Status — kein Schalter, die Einbettung wird global in den
                         Einstellungen gesteuert; hier zählt nur, ob sie greifen kann. */}
                     <div className={`flex items-start gap-3 rounded-lg border p-3 ${
-                      eInvoiceIssues.length > 0 ? 'border-amber-500/40 bg-amber-500/10' : 'border-divider bg-surface/50'
+                      eInvoiceIssues.length > 0 ? 'border-warning-line bg-warning-soft' : 'border-divider bg-surface/50'
                     }`}>
                       <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                        eInvoiceIssues.length > 0 ? 'bg-amber-500/20 text-amber-300' : 'bg-ink/10 text-ink'
+                        eInvoiceIssues.length > 0 ? 'bg-warning-soft text-warning' : 'bg-ink/10 text-ink'
                       }`}>
                         <FileCode2 size={13} />
                       </div>
@@ -599,7 +599,7 @@ export function InvoiceCreateModal({
                 </Section>
 
                 {error && (
-                  <div className="rounded-md border border-red-500/40 bg-red-500/5 px-3 py-2 text-[12px] text-red-300">{error}</div>
+                  <div className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-[12px] text-danger">{error}</div>
                 )}
               </div>
 
@@ -714,9 +714,9 @@ export function InvoiceCreateModal({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <div className="absolute inset-0 bg-black/70" onClick={() => setConfirmClose(false)} />
+                <div className="absolute inset-0 bg-scrim" onClick={() => setConfirmClose(false)} />
                 <motion.div
-                  className="relative z-10 w-full max-w-sm rounded-lg border border-divider bg-surface p-5 text-ink shadow-2xl"
+                  className="relative z-10 w-full max-w-sm kv-overlay p-5 text-ink"
                   initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.95, opacity: 0 }}
@@ -734,7 +734,7 @@ export function InvoiceCreateModal({
                     </button>
                     <button
                       onClick={() => { setConfirmClose(false); onCancel(); }}
-                      className="cursor-pointer rounded-md bg-red-500/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-red-300 transition-all hover:bg-red-500 hover:text-white"
+                      className="cursor-pointer rounded-md bg-danger-soft px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink"
                     >
                       Verwerfen
                     </button>

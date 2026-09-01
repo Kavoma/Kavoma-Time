@@ -240,7 +240,7 @@ export function TrackerView() {
   return (
     <>
       <header className="mb-3 text-center">
-        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+        <div className="kv-label">
           {state.isRunning && state.startedAt ? `Läuft seit ${new Date(state.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Bereit'}
         </div>
       </header>
@@ -258,7 +258,7 @@ export function TrackerView() {
         const h = Math.floor(todaySec / 3600);
         const m = Math.floor((todaySec % 3600) / 60);
         return (
-          <div className="mb-8 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+          <div className="mb-8 text-center kv-label">
             Heute: <span className="text-ink">{h}:{String(m).padStart(2, '0')} Std.</span>
           </div>
         );
@@ -300,7 +300,7 @@ export function TrackerView() {
           type="button"
           onClick={state.isRunning ? handlePause : handleStart}
           className={`flex-1 cursor-pointer rounded-md border px-4 py-3 text-sm font-bold uppercase tracking-widest transition-all active:scale-95 ${state.isRunning
-            ? 'border-amber-500 bg-amber-500 text-paper hover:bg-paper hover:text-amber-500'
+            ? 'border-warning-line bg-warning-solid text-paper hover:bg-paper hover:text-warning'
             : 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink'
             }`}
         >
@@ -488,7 +488,7 @@ export function TrackerView() {
                             onChange={(checked) => setGroupSelected(g.entries, checked)}
                           />
                         )}
-                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{g.label}</h3>
+                        <h3 className="kv-label">{g.label}</h3>
                       </div>
                       <span className="text-[11px] tabular-nums text-muted">{formatHM(g.total)} Std.</span>
                     </div>
@@ -555,7 +555,7 @@ export function TrackerView() {
                   exit={{ opacity: 0, y: 16 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                 >
-                  <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-divider bg-surface px-4 py-2.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]">
+                  <div className="pointer-events-auto flex items-center gap-3 kv-overlay px-4 py-2.5">
                     <span className="text-[11px] font-bold uppercase tracking-widest text-muted tabular-nums">
                       {selectedIds.size} ausgewählt
                     </span>
@@ -570,7 +570,7 @@ export function TrackerView() {
                     <button
                       onClick={() => setBulkDeleteOpen(true)}
                       disabled={selectedIds.size === 0}
-                      className="flex cursor-pointer items-center gap-1.5 rounded-md bg-red-500/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-red-400 transition-all hover:bg-red-500 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-500/15 disabled:hover:text-red-400"
+                      className="flex cursor-pointer items-center gap-1.5 rounded-md bg-danger-soft px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-danger-soft disabled:hover:text-danger"
                     >
                       <Trash2 size={12} />
                       Löschen{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
@@ -587,7 +587,7 @@ export function TrackerView() {
         {contextMenu && (
           <motion.div
             key={`ctx-${contextMenu.entryId}-${contextMenu.x}-${contextMenu.y}`}
-            className="fixed z-50 rounded-lg border border-divider bg-surface p-1.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]"
+            className="fixed z-50 kv-overlay p-1.5"
             style={{ top: Math.min(contextMenu.y, window.innerHeight - 100), left: Math.min(contextMenu.x, window.innerWidth - 160) }}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -610,7 +610,7 @@ export function TrackerView() {
             </button>
             <button
               onClick={() => { setDeleteModalEntryId(contextMenu.entryId); setContextMenu(null); }}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-red-400 transition-colors hover:bg-divider"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-danger transition-colors hover:bg-divider"
             >
               <Trash2 size={13} />
               Löschen

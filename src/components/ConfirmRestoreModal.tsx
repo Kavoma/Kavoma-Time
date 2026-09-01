@@ -20,7 +20,7 @@ export function ConfirmRestoreModal({ open, onConfirm, onCancel }: ConfirmRestor
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-scrim backdrop-blur-sm"
             onClick={onCancel}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -28,7 +28,7 @@ export function ConfirmRestoreModal({ open, onConfirm, onCancel }: ConfirmRestor
           />
 
           <motion.div
-            className="relative z-10 mx-4 w-full max-w-sm rounded-lg border border-divider bg-surface p-0 text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 mx-4 w-full max-w-sm kv-overlay p-0 text-ink"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
@@ -55,7 +55,7 @@ export function ConfirmRestoreModal({ open, onConfirm, onCancel }: ConfirmRestor
               </button>
               <button
                 onClick={onConfirm}
-                className="cursor-pointer rounded-md bg-accent/15 px-4 py-2 text-xs font-bold uppercase tracking-widest text-accent transition-all hover:bg-accent hover:text-white active:scale-95"
+                className="cursor-pointer rounded-md bg-accent/15 px-4 py-2 text-xs font-bold uppercase tracking-widest text-accent transition-all hover:bg-accent hover:text-ink active:scale-95"
               >
                 Wiederherstellen
               </button>

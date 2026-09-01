@@ -25,9 +25,9 @@ const STATUS_LABEL: Record<CustomerStatus, string> = {
 };
 
 const STATUS_COLOR: Record<CustomerStatus, string> = {
-  active: 'bg-green-500/15 text-green-300 border-green-500/30',
-  paused: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  archived: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
+  active: 'bg-success-soft text-success border-success-line',
+  paused: 'bg-warning-soft text-warning border-warning-line',
+  archived: 'bg-neutral-soft text-muted border-neutral-line',
 };
 
 interface Props {
@@ -382,7 +382,7 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
           <div className="mb-2 flex items-center justify-between border-b border-divider pb-2">
             <button
               onClick={selectAllVisible}
-              className="flex cursor-pointer items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted hover:text-ink"
+              className="flex cursor-pointer items-center gap-2 kv-label hover:text-ink"
             >
               {allVisibleSelected ? <CheckSquare size={12} /> : <Square size={12} />}
               {allVisibleSelected ? 'Auswahl aufheben' : 'Alle auswählen'}
@@ -428,7 +428,7 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
       )}
 
       {someSelected && (
-        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg border border-divider bg-surface px-3 py-2 shadow-2xl">
+        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 kv-overlay px-3 py-2">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-widest text-ink">
               {selected.size} ausgewählt
@@ -449,7 +449,7 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
             </button>
             <button
               onClick={() => setBulkConfirmDelete(true)}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 text-[10px] font-bold uppercase tracking-widest text-red-300 transition-all hover:border-red-400 hover:bg-red-500/20"
+              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-danger-line bg-danger-soft px-2.5 text-[10px] font-bold uppercase tracking-widest text-danger transition-all hover:border-danger-line hover:bg-danger-soft"
             >
               <Trash2 size={11} /> Löschen
             </button>
@@ -490,19 +490,19 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
             <div className="mt-2 flex items-center gap-1 border-t border-divider pt-2">
               <button
                 onClick={() => applyBulkStatus('active')}
-                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-green-500/30 bg-green-500/10 px-2.5 text-[10px] font-bold uppercase tracking-widest text-green-300 transition-all hover:bg-green-500/20"
+                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-success-line bg-success-soft px-2.5 text-[10px] font-bold uppercase tracking-widest text-success transition-all hover:bg-success-soft"
               >
                 <CheckCircle2 size={11} /> Aktiv
               </button>
               <button
                 onClick={() => applyBulkStatus('paused')}
-                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 text-[10px] font-bold uppercase tracking-widest text-amber-300 transition-all hover:bg-amber-500/20"
+                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-warning-line bg-warning-soft px-2.5 text-[10px] font-bold uppercase tracking-widest text-warning transition-all hover:bg-warning-soft"
               >
                 <Pause size={11} /> Pausiert
               </button>
               <button
                 onClick={() => applyBulkStatus('archived')}
-                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-zinc-500/30 bg-zinc-500/10 px-2.5 text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-all hover:bg-zinc-500/20"
+                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-neutral-line bg-neutral-soft px-2.5 text-[10px] font-bold uppercase tracking-widest text-muted transition-all hover:bg-neutral-soft"
               >
                 <Archive size={11} /> Archiviert
               </button>

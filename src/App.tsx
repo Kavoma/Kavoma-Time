@@ -246,7 +246,7 @@ export function App() {
           <nav className="flex flex-col gap-px">
             <div className={`mb-3 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
               {!isSidebarCollapsed && (
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                <div className="kv-label">
                   Navigation
                 </div>
               )}
@@ -312,7 +312,7 @@ export function App() {
                 animate={{ opacity: 1 }}
                 className="w-full"
               >
-                <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted flex justify-between items-center">
+                <div className="mb-2 kv-label flex justify-between items-center">
                   <span>Diese Woche</span>
                   <span className="text-accent">{percentComplete}%</span>
                 </div>
@@ -320,7 +320,7 @@ export function App() {
                   {formatHM(weekSeconds)}
                 </div>
                 <div className="mt-2 flex items-end justify-between">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted whitespace-nowrap">
+                  <div className="kv-label whitespace-nowrap">
                     von {targetHours} Std.
                   </div>
                 </div>
@@ -351,7 +351,7 @@ export function App() {
                   role="button"
                   aria-label="Show details"
                 >
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted mb-2">Details</div>
+                  <div className="kv-label mb-2">Details</div>
                   <div className="font-display text-lg font-bold">{formatHM(weekSeconds)}</div>
                   <div className="text-[10px] text-muted uppercase mt-1">von {targetHours}h</div>
                   <div className="mt-2 h-1 w-full bg-divider rounded-full overflow-hidden">
@@ -410,7 +410,7 @@ export function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-2xl"
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-scrim backdrop-blur-2xl"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -435,7 +435,7 @@ export function App() {
                 <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-ink">
                   Daten werden wiederhergestellt
                 </h2>
-                <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                <p className="mt-2 kv-label">
                   Einen Moment bitte…
                 </p>
               </div>

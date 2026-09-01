@@ -11,11 +11,11 @@ type Geraet = { id: string; name: string; platform: string; created_at: string; 
 
 const ZUSTAND_TEXT: Record<SyncStatus['state'], { text: string; ton: string }> = {
   off:     { text: 'Nicht eingerichtet', ton: 'text-muted' },
-  locked:  { text: 'Gesperrt — Passphrase fehlt', ton: 'text-amber-300' },
-  offline: { text: 'Keine Verbindung', ton: 'text-amber-300' },
+  locked:  { text: 'Gesperrt — Passphrase fehlt', ton: 'text-warning' },
+  offline: { text: 'Keine Verbindung', ton: 'text-warning' },
   syncing: { text: 'Gleicht ab…', ton: 'text-accent' },
-  synced:  { text: 'Abgeglichen', ton: 'text-emerald-300' },
-  error:   { text: 'Fehler', ton: 'text-red-300' },
+  synced:  { text: 'Abgeglichen', ton: 'text-success' },
+  error:   { text: 'Fehler', ton: 'text-danger' },
 };
 
 function relativ(iso: string | number | null): string {
@@ -129,7 +129,7 @@ export function SyncCard() {
               </dl>
 
               {status.error && (
-                <p className="rounded-md border border-red-500/30 bg-red-500/[0.06] px-3 py-2 text-xs text-red-300">
+                <p className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-xs text-danger">
                   {status.error}
                 </p>
               )}
@@ -155,7 +155,7 @@ export function SyncCard() {
 
               {geraete.length > 0 && (
                 <div>
-                  <h4 className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Angemeldete Geräte</h4>
+                  <h4 className="mb-2 kv-label">Angemeldete Geräte</h4>
                   <ul className="space-y-1">
                     {geraete.map((g) => {
                       const dieses = g.id === status.deviceId;
@@ -169,7 +169,7 @@ export function SyncCard() {
                           <span className="shrink-0 text-[10px] text-muted">{relativ(g.last_seen_at)}</span>
                           {!dieses && (
                             <button type="button" onClick={() => geraetAbmelden(g.id, g.name)}
-                              className="shrink-0 text-muted transition-colors hover:text-red-400" title="Gerät abmelden">
+                              className="shrink-0 text-muted transition-colors hover:text-danger" title="Gerät abmelden">
                               <Trash2 size={13} />
                             </button>
                           )}
@@ -186,7 +186,7 @@ export function SyncCard() {
                   {laeuft ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Jetzt abgleichen
                 </button>
                 <button type="button" onClick={abmelden} disabled={laeuft}
-                  className="flex h-9 items-center rounded-md border border-divider px-3 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:text-red-400 disabled:opacity-40">
+                  className="flex h-9 items-center rounded-md border border-divider px-3 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:text-danger disabled:opacity-40">
                   Abmelden
                 </button>
               </div>
@@ -196,7 +196,7 @@ export function SyncCard() {
           {konflikte.length > 0 && (
             <details className="rounded-md border border-divider bg-paper">
               <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs text-muted">
-                <AlertTriangle size={13} className="text-amber-400" />
+                <AlertTriangle size={13} className="text-warning" />
                 {konflikte.length} zusammengeführte Änderung{konflikte.length === 1 ? '' : 'en'}
               </summary>
               {/* Stillschweigend zusammenführen wäre bequem und intransparent —

@@ -93,7 +93,7 @@ export function SwipeRow({
       {offset > 0 && (
         <div
           className={`absolute inset-0 flex items-center gap-2 rounded-md px-4 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-            armed ? 'bg-red-500/25 text-red-300' : 'bg-red-500/10 text-red-400/70'
+            armed ? 'bg-danger-soft text-danger' : 'bg-danger-soft text-danger/70'
           }`}
           aria-hidden
         >

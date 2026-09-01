@@ -12,7 +12,7 @@ interface Props {
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ payload: { revenue: number; expenses: number; profit: number } }>; label?: string }) {
   if (!active || !payload || !payload.length) return null;
   const d = payload[0].payload;
-  const profitColor = d.profit < 0 ? 'text-red-400' : 'text-emerald-400';
+  const profitColor = d.profit < 0 ? 'text-danger' : 'text-success';
   return (
     <div className="rounded-md border border-divider bg-surface px-3 py-2 text-xs shadow-lg">
       <div className="mb-1 font-bold text-ink">{label}</div>
@@ -52,11 +52,11 @@ export function TrendChart({ entries }: Props) {
   }, [entries]);
 
   return (
-    <div className="mb-8 rounded-lg border border-divider bg-surface p-5">
+    <div className="mb-8 kv-card p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <LineChartIcon size={14} className="text-muted" />
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Trend</h3>
+          <h3 className="kv-label">Trend</h3>
         </div>
         {granularityLabel && (
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted">{granularityLabel}</div>

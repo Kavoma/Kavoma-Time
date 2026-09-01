@@ -42,10 +42,10 @@ export function ExpensesByCategory({ data }: Props) {
   const total = useMemo(() => data.reduce((s, d) => s + d.total, 0), [data]);
 
   return (
-    <div className="rounded-lg border border-divider bg-surface p-5">
+    <div className="kv-card p-5">
       <div className="mb-4 flex items-center gap-2">
         <PieChartIcon size={14} className="text-muted" />
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Ausgaben nach Kategorie</h3>
+        <h3 className="kv-label">Ausgaben nach Kategorie</h3>
       </div>
 
       {data.length === 0 ? (
@@ -82,7 +82,7 @@ export function ExpensesByCategory({ data }: Props) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between border-b border-divider pb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+            <div className="flex items-center justify-between border-b border-divider pb-1.5 kv-label">
               <span>Kategorie</span>
               <span>Summe</span>
             </div>

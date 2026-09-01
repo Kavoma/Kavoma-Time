@@ -97,7 +97,7 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
         </button>
       </div>
 
-      <div className="mb-4 flex items-center gap-3 rounded-lg border border-divider bg-surface px-3 py-2">
+      <div className="mb-4 flex items-center gap-3 kv-card px-3 py-2">
         <div className="flex flex-1 items-center gap-2">
           <Search size={14} className="text-muted" />
           <input
@@ -140,7 +140,7 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
               <button
                 key={c.id}
                 onClick={() => setViewerId(c.id)}
-                className="group cursor-pointer rounded-lg border border-divider bg-surface p-4 text-left transition-all hover:border-muted hover:bg-paper/40"
+                className="group cursor-pointer kv-card p-4 text-left transition-all hover:border-muted hover:bg-paper/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -156,7 +156,7 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
                   </div>
                   <div>
                     <div className="text-muted">Gültig bis</div>
-                    <div className={`mt-0.5 tabular-nums ${expired ? 'text-amber-300' : ''}`}>
+                    <div className={`mt-0.5 tabular-nums ${expired ? 'text-warning' : ''}`}>
                       {c.validUntil ? formatDate(c.validUntil) : '—'}
                     </div>
                   </div>

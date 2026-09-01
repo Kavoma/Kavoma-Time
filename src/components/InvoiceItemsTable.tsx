@@ -9,9 +9,9 @@ interface Props {
 }
 
 const KIND_META: Record<InvoiceItemKind, { label: string; Icon: typeof Clock; className: string; chipClass: string }> = {
-  time:     { label: 'Zeit',     Icon: Clock,   className: 'border-l-blue-400',   chipClass: 'bg-blue-500/15 text-blue-200' },
+  time:     { label: 'Zeit',     Icon: Clock,   className: 'border-l-info-line',   chipClass: 'bg-info-soft text-info' },
   flat:     { label: 'Pauschal', Icon: Package, className: 'border-l-violet-400', chipClass: 'bg-violet-500/15 text-violet-200' },
-  discount: { label: 'Rabatt',   Icon: Percent, className: 'border-l-amber-400', chipClass: 'bg-amber-500/15 text-amber-200' },
+  discount: { label: 'Rabatt',   Icon: Percent, className: 'border-l-amber-400', chipClass: 'bg-warning-soft text-warning' },
 };
 
 const fmtEuro = (n: number) =>
@@ -85,14 +85,14 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
   return (
     <div className="flex flex-col">
       <div className="mb-2 flex items-center justify-between">
-        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+        <label className="kv-label">
           Positionen ({items.length})
         </label>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => addItem('time')}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-blue-400 hover:bg-blue-500/5"
+            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-info-line hover:bg-info-soft"
           >
             <Clock size={12} /> + Zeit
           </button>
@@ -106,7 +106,7 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
           <button
             type="button"
             onClick={() => addItem('discount')}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-amber-400 hover:bg-amber-500/5"
+            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-warning-line hover:bg-warning-soft"
           >
             <Percent size={12} /> + Rabatt
           </button>
@@ -168,7 +168,7 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); removeItem(i); }}
-                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-red-300 transition-colors hover:bg-red-500/20 hover:text-red-200"
+                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-danger transition-colors hover:bg-danger-soft hover:text-danger"
                       title="Position entfernen"
                       aria-label="Position entfernen"
                     >
@@ -245,7 +245,7 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
                       </div>
                       <div className="col-span-4 flex flex-col">
                         <label className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-muted/70">Gesamt</label>
-                        <div className={`flex h-9 items-center justify-end rounded border border-divider bg-surface/60 px-3 text-[14px] font-bold tabular-nums ${it.total < 0 ? 'text-amber-300' : 'text-ink'}`}>
+                        <div className={`flex h-9 items-center justify-end rounded border border-divider bg-surface/60 px-3 text-[14px] font-bold tabular-nums ${it.total < 0 ? 'text-warning' : 'text-ink'}`}>
                           {fmtEuro(it.total)}
                         </div>
                       </div>

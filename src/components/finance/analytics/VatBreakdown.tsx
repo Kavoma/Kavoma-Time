@@ -22,11 +22,11 @@ export function VatBreakdown({ year, onYearChange, quarters }: Props) {
   const empty = totals.collected === 0 && totals.deductible === 0 && totals.missing === 0;
 
   return (
-    <div className="mb-8 rounded-lg border border-divider bg-surface p-5">
+    <div className="mb-8 kv-card p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Receipt size={14} className="text-muted" />
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Vorsteuer-Übersicht</h3>
+          <h3 className="kv-label">Vorsteuer-Übersicht</h3>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-md border border-divider bg-paper">
@@ -73,7 +73,7 @@ export function VatBreakdown({ year, onYearChange, quarters }: Props) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-divider text-left text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                <tr className="border-b border-divider text-left kv-label">
                   <th className="py-2 pr-3">Quartal</th>
                   <th className="py-2 px-3 text-right">USt vereinnahmt</th>
                   <th className="py-2 px-3 text-right">Vorsteuer abziehbar</th>
@@ -86,7 +86,7 @@ export function VatBreakdown({ year, onYearChange, quarters }: Props) {
                     <td className="py-2 pr-3 font-bold">Q{q.quarter} {year}</td>
                     <td className="py-2 px-3 text-right tabular-nums">{formatEuro(q.collected, 2)}</td>
                     <td className="py-2 px-3 text-right tabular-nums">{formatEuro(q.deductible, 2)}</td>
-                    <td className={`py-2 pl-3 text-right font-bold tabular-nums ${q.payable < 0 ? 'text-emerald-400' : ''}`}>
+                    <td className={`py-2 pl-3 text-right font-bold tabular-nums ${q.payable < 0 ? 'text-success' : ''}`}>
                       {formatEuro(q.payable, 2)}
                     </td>
                   </tr>
@@ -95,7 +95,7 @@ export function VatBreakdown({ year, onYearChange, quarters }: Props) {
                   <td className="py-2 pr-3 font-bold uppercase tracking-widest">Jahr {year}</td>
                   <td className="py-2 px-3 text-right font-bold tabular-nums">{formatEuro(totals.collected, 2)}</td>
                   <td className="py-2 px-3 text-right font-bold tabular-nums">{formatEuro(totals.deductible, 2)}</td>
-                  <td className={`py-2 pl-3 text-right font-bold tabular-nums ${totals.payable < 0 ? 'text-emerald-400' : ''}`}>
+                  <td className={`py-2 pl-3 text-right font-bold tabular-nums ${totals.payable < 0 ? 'text-success' : ''}`}>
                     {formatEuro(totals.payable, 2)}
                   </td>
                 </tr>
@@ -104,7 +104,7 @@ export function VatBreakdown({ year, onYearChange, quarters }: Props) {
           </div>
 
           {totals.missing > 0 && (
-            <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
+            <div className="mt-3 flex items-start gap-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[11px] text-warning">
               <AlertCircle size={12} className="mt-0.5 shrink-0" />
               <span>
                 {totals.missing} {totals.missing === 1 ? 'Eingangsrechnung wurde' : 'Eingangsrechnungen wurden'} ohne

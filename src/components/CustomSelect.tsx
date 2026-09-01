@@ -16,7 +16,7 @@ interface CustomSelectProps {
 export function CustomSelect({ id, label, value, options, onChange }: CustomSelectProps) {
   return (
     <div className="flex flex-col">
-      <label htmlFor={id} className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+      <label htmlFor={id} className="mb-2 kv-label">
         {label}
       </label>
       <select 

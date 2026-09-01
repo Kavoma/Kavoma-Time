@@ -31,9 +31,9 @@ export function TemplateManagementModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+          <div className="absolute inset-0 bg-scrim backdrop-blur-sm" onClick={onClose} />
           <motion.div
-            className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-2xl"
+            className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -113,7 +113,7 @@ export function TemplateManagementModal({
                                   onDelete(t.id);
                                   setConfirmDeleteId(null);
                                 }}
-                                className="cursor-pointer rounded-md bg-red-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-red-300 hover:bg-red-500 hover:text-white"
+                                className="cursor-pointer rounded-md bg-danger-soft px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-danger hover:bg-danger-solid hover:text-ink"
                               >
                                 Endgültig
                               </button>
@@ -121,7 +121,7 @@ export function TemplateManagementModal({
                           ) : (
                             <button
                               onClick={() => setConfirmDeleteId(t.id)}
-                              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-red-500/10 hover:text-red-300"
+                              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-danger-soft hover:text-danger"
                               title="Vorlage löschen"
                             >
                               <Trash2 size={13} />
@@ -134,7 +134,7 @@ export function TemplateManagementModal({
                             {templateRecurrings.map((r) => (
                               <div key={r.id} className="flex items-center justify-between text-[11px]">
                                 <div className="flex items-center gap-2">
-                                  <Repeat size={11} className={r.active ? 'text-blue-300' : 'text-muted'} />
+                                  <Repeat size={11} className={r.active ? 'text-info' : 'text-muted'} />
                                   <span className="font-bold uppercase tracking-widest text-muted">
                                     {r.cadence === 'monthly' ? 'Monatlich' : r.cadence === 'quarterly' ? 'Quartal' : 'Jährlich'}
                                   </span>
@@ -146,14 +146,14 @@ export function TemplateManagementModal({
                                   <button
                                     onClick={() => onToggleRecurring(r.id)}
                                     className={`cursor-pointer rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest transition-colors ${
-                                      r.active ? 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/30' : 'bg-muted/15 text-muted hover:bg-muted/30'
+                                      r.active ? 'bg-info-soft text-info hover:bg-info-soft' : 'bg-neutral-soft text-muted hover:bg-neutral-soft'
                                     }`}
                                   >
                                     {r.active ? 'Aktiv' : 'Pausiert'}
                                   </button>
                                   <button
                                     onClick={() => onDeleteRecurring(r.id)}
-                                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-red-500/10 hover:text-red-300"
+                                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-danger-soft hover:text-danger"
                                   >
                                     <Trash2 size={10} />
                                   </button>

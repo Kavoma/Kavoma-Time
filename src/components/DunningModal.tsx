@@ -74,12 +74,12 @@ export function DunningModal({ invoice, onConfirm, onCancel }: Props) {
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-scrim backdrop-blur-sm"
             onClick={onCancel}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           />
           <motion.div
-            className="relative z-10 w-full max-w-md rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 w-full max-w-md kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
@@ -87,8 +87,8 @@ export function DunningModal({ invoice, onConfirm, onCancel }: Props) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
-                <AlertTriangle size={18} className="text-red-400" />
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-danger-soft">
+                <AlertTriangle size={18} className="text-danger" />
               </div>
               <h3 className="mb-1.5 text-sm font-bold uppercase tracking-wide">{LEVEL_DEFAULTS[nextLevel].label}</h3>
               <p className="text-[13px] leading-relaxed text-muted">
@@ -96,7 +96,7 @@ export function DunningModal({ invoice, onConfirm, onCancel }: Props) {
               </p>
 
               <div className="mt-4 rounded-md border border-divider bg-paper p-3">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Zusammenfassung</div>
+                <div className="kv-label">Zusammenfassung</div>
                 <div className="mt-2 space-y-1 text-xs">
                   <div className="flex justify-between text-muted">
                     <span>Rechnungsbetrag:</span>
@@ -108,7 +108,7 @@ export function DunningModal({ invoice, onConfirm, onCancel }: Props) {
                       <span className="font-bold text-ink">{fmtEuro(currentFees)}</span>
                     </div>
                   )}
-                  <div className="mt-1 flex justify-between border-t border-divider pt-1 text-sm font-bold text-red-400">
+                  <div className="mt-1 flex justify-between border-t border-divider pt-1 text-sm font-bold text-danger">
                     <span>Gesamtforderung neu:</span>
                     <span>{fmtEuro(newTotal)}</span>
                   </div>
@@ -117,7 +117,7 @@ export function DunningModal({ invoice, onConfirm, onCancel }: Props) {
 
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div className="flex flex-col">
-                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                  <label className="mb-2 block kv-label">
                     {nextLevel === 1 ? 'Bearbeitungsgebühr' : 'Mahngebühr'} (€)
                   </label>
                   <input
@@ -130,12 +130,12 @@ export function DunningModal({ invoice, onConfirm, onCancel }: Props) {
                   <span className="mt-1 text-[9px] text-muted italic">Umsatzsteuerfrei gemäß BGB</span>
                 </div>
                 <div className="flex flex-col">
-                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Neue Frist bis</label>
+                  <label className="mb-2 block kv-label">Neue Frist bis</label>
                   <DatePicker value={dueDate} onChange={setDueDate} />
                 </div>
               </div>
 
-              <label className="mt-4 mb-2 block text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Interne Notiz</label>
+              <label className="mt-4 mb-2 block kv-label">Interne Notiz</label>
               <input
                 type="text"
                 value={notes}
@@ -153,7 +153,7 @@ export function DunningModal({ invoice, onConfirm, onCancel }: Props) {
               </button>
               <button
                 onClick={submit}
-                className="cursor-pointer rounded-md bg-red-500/15 px-4 py-2 text-xs font-bold uppercase tracking-widest text-red-400 transition-all hover:bg-red-500 hover:text-white active:scale-95"
+                className="cursor-pointer rounded-md bg-danger-soft px-4 py-2 text-xs font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink active:scale-95"
               >
                 Mahnung verbuchen
               </button>

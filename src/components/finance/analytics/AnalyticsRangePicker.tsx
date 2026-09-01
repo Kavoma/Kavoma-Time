@@ -66,7 +66,7 @@ export function AnalyticsRangePicker({ value, onChange, accountingMode, onAccoun
   };
 
   return (
-    <div className="mb-6 rounded-lg border border-divider bg-surface p-4">
+    <div className="mb-6 kv-card p-4">
       <div className="flex flex-wrap items-center gap-4">
         {/* Modus-Toggle */}
         <div className="flex items-center gap-1 rounded-md border border-divider bg-paper p-0.5">

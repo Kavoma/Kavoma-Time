@@ -99,9 +99,9 @@ export function FirstMergePreview({ open, onClose, onSettled }: Props) {
       {open && (
         <motion.div className="fixed inset-0 z-50 flex items-center justify-center"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-          <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <motion.div className="absolute inset-0 bg-scrim backdrop-blur-sm" />
           <motion.div
-            className="relative z-10 mx-4 w-full max-w-lg rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 mx-4 w-full max-w-lg kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }} transition={{ duration: 0.15, ease: 'easeOut' }}>
 
@@ -142,10 +142,10 @@ export function FirstMergePreview({ open, onClose, onSettled }: Props) {
                         {zeilen.map(([bereich, z]) => (
                           <tr key={bereich} className="border-t border-divider">
                             <td className="px-3 py-2 text-ink">{bereich}</td>
-                            <td className="px-3 py-2 text-right tabular-nums text-emerald-300">
+                            <td className="px-3 py-2 text-right tabular-nums text-success">
                               {z.added > 0 ? `+${z.added}` : '—'}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums text-amber-300">
+                            <td className="px-3 py-2 text-right tabular-nums text-warning">
                               {z.changed > 0 ? z.changed : '—'}
                             </td>
                           </tr>
@@ -166,7 +166,7 @@ export function FirstMergePreview({ open, onClose, onSettled }: Props) {
               )}
 
               <div className="flex items-start gap-2 rounded-md border border-divider bg-paper p-3">
-                <ShieldCheck size={13} className="mt-0.5 shrink-0 text-emerald-300" />
+                <ShieldCheck size={13} className="mt-0.5 shrink-0 text-success" />
                 <p className="text-[11px] leading-relaxed text-muted">
                   Vor dem Übernehmen wird eine verschlüsselte Sicherung deines jetzigen
                   Standes geschrieben — in jedem Fall, auch bei „Zusammenführen".
@@ -174,7 +174,7 @@ export function FirstMergePreview({ open, onClose, onSettled }: Props) {
               </div>
 
               {fehler && (
-                <p className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/[0.06] px-3 py-2 text-xs text-red-300">
+                <p className="flex items-start gap-2 rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-xs text-danger">
                   <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {fehler}
                 </p>
               )}

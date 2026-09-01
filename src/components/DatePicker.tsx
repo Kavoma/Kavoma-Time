@@ -172,7 +172,7 @@ export function DatePicker({ value, onChange, label, className = '' }: DatePicke
 
   return (
     <div className={`flex flex-col ${className}`} ref={containerRef}>
-      {label && <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</label>}
+      {label && <label className="mb-2 kv-label">{label}</label>}
       
       <div className="relative">
         <button
@@ -204,7 +204,7 @@ export function DatePicker({ value, onChange, label, className = '' }: DatePicke
                   width: POPUP_WIDTH,
                   zIndex: 1000,
                 }}
-                className="rounded-lg border border-divider bg-surface p-3 shadow-2xl"
+                className="kv-overlay p-3"
               >
                 <div className="mb-3 flex items-center justify-between">
                   <button

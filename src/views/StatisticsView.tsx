@@ -57,12 +57,12 @@ function ymd(d: Date): string {
 // === Card Wrapper ================================================
 function Card({ icon: Icon, label, value, rawValue, format = 'number', sub, diff }: { icon: any; label: string; value?: string; rawValue?: number; format?: 'currency' | 'number' | 'time'; sub?: string; diff?: number | null }) {
   return (
-    <div className="rounded-lg border border-divider bg-surface p-5">
+    <div className="kv-card p-5">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</span>
+        <span className="kv-label">{label}</span>
         <div className="flex items-center gap-2">
           {diff !== undefined && diff !== null && (
-            <span className={`text-[10px] font-bold tabular-nums ${diff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            <span className={`text-[10px] font-bold tabular-nums ${diff >= 0 ? 'text-success' : 'text-danger'}`}>
               {diff >= 0 ? '↑' : '↓'} {Math.abs(diff).toFixed(0)}%
             </span>
           )}
@@ -392,13 +392,13 @@ export function StatisticsView() {
         const currSec = topCustomer.hours * 3600;
         const topDiff = diffP(currSec, prevSec);
         const arrow = topDiff === null ? '' : topDiff > 0 ? '↑' : topDiff < 0 ? '↓' : '→';
-        const arrowColor = topDiff === null ? 'text-muted' : topDiff > 0 ? 'text-green-400' : topDiff < 0 ? 'text-red-400' : 'text-muted';
+        const arrowColor = topDiff === null ? 'text-muted' : topDiff > 0 ? 'text-success' : topDiff < 0 ? 'text-danger' : 'text-muted';
         return (
-          <div className="mb-6 rounded-lg border border-divider bg-surface p-4">
+          <div className="mb-6 kv-card p-4">
             <div className="flex items-center gap-3">
               <span className="size-3.5 shrink-0 rounded-full" style={{ background: topCustomer.color }} />
               <div className="flex-1">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Top-Kunde der Periode</div>
+                <div className="kv-label">Top-Kunde der Periode</div>
                 <div className="mt-0.5 text-sm font-bold text-ink">{topCustomer.name}</div>
               </div>
               <div className="text-right tabular-nums">
@@ -418,10 +418,10 @@ export function StatisticsView() {
       })()}
 
       {/* Bar Chart: Stunden pro Tag */}
-      <div className="mb-6 rounded-lg border border-divider bg-surface p-5">
+      <div className="mb-6 kv-card p-5">
         <div className="mb-4 flex items-center gap-2">
           <BarChart3 size={14} className="text-muted" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Stunden pro Tag</span>
+          <span className="kv-label">Stunden pro Tag</span>
         </div>
         <div className="h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -442,10 +442,10 @@ export function StatisticsView() {
       {/* Donut + Wochentage */}
       <div className="mb-6 grid grid-cols-2 gap-3">
         {/* Donut: Kunden */}
-        <div className="rounded-lg border border-divider bg-surface p-5">
+        <div className="kv-card p-5">
           <div className="mb-4 flex items-center gap-2">
             <BarChart3 size={14} className="text-muted" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Pro Kunde</span>
+            <span className="kv-label">Pro Kunde</span>
           </div>
           {customerData.length === 0 ? (
             <div className="py-8 text-center text-xs text-muted">Keine Daten</div>
@@ -471,7 +471,7 @@ export function StatisticsView() {
                       <span className="size-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
                       <span className="flex-1 truncate text-ink">{c.name}</span>
                       {d !== null && (
-                        <span className={`text-[10px] tabular-nums ${d > 0 ? 'text-green-400' : d < 0 ? 'text-red-400' : 'text-muted'}`}>
+                        <span className={`text-[10px] tabular-nums ${d > 0 ? 'text-success' : d < 0 ? 'text-danger' : 'text-muted'}`}>
                           {d > 0 ? '↑' : d < 0 ? '↓' : '→'} {Math.abs(d).toFixed(0)}%
                         </span>
                       )}
@@ -485,10 +485,10 @@ export function StatisticsView() {
         </div>
 
         {/* Wochentage */}
-        <div className="rounded-lg border border-divider bg-surface p-5">
+        <div className="kv-card p-5">
           <div className="mb-4 flex items-center gap-2">
             <Calendar size={14} className="text-muted" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Pro Wochentag</span>
+            <span className="kv-label">Pro Wochentag</span>
           </div>
           <div className="h-44 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -505,9 +505,9 @@ export function StatisticsView() {
       </div>
 
       {/* Top-Projekte Tabelle */}
-      <div className="rounded-lg border border-divider bg-surface">
+      <div className="kv-card">
         <div className="border-b border-divider px-4 py-3">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Top-Projekte</span>
+          <span className="kv-label">Top-Projekte</span>
         </div>
         {projectData.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted">Keine Daten in dieser Periode</div>
@@ -524,7 +524,7 @@ export function StatisticsView() {
                   <div className="flex items-center justify-end gap-2 text-sm font-bold text-ink">
                     {p.hours.toFixed(1)} h
                     {p.diff !== null && (
-                      <span className={`text-[10px] ${p.diff > 0 ? 'text-green-400' : p.diff < 0 ? 'text-red-400' : 'text-muted'}`}>
+                      <span className={`text-[10px] ${p.diff > 0 ? 'text-success' : p.diff < 0 ? 'text-danger' : 'text-muted'}`}>
                         {p.diff > 0 ? '↑' : p.diff < 0 ? '↓' : '→'} {Math.abs(p.diff).toFixed(0)}%
                       </span>
                     )}
@@ -540,11 +540,11 @@ export function StatisticsView() {
       </div>
 
       {yearForecast && yearForecast.yearToDateRevenue > 0 && (
-        <div className="mt-6 rounded-lg border border-divider bg-surface p-5">
+        <div className="mt-6 kv-card p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp size={14} className="text-muted" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Jahres-Hochrechnung</span>
+              <span className="kv-label">Jahres-Hochrechnung</span>
             </div>
             <div className="rounded-md bg-paper px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-muted border border-divider">
               {(yearForecast.workDayRatio * 100).toFixed(0)}% Arbeitstage
@@ -556,7 +556,7 @@ export function StatisticsView() {
               <div className="mt-1 font-display text-xl font-bold tabular-nums text-ink">{formatEuro(yearForecast.yearToDateRevenue)}</div>
               <div className="text-[10px] text-muted">{yearForecast.yearToDateWorkDays} Arbeitstage</div>
               {yearForecast.trackedRevenue > 0 && (
-                <div className="mt-0.5 text-[9px] text-amber-400/80">davon {formatEuro(yearForecast.trackedRevenue)} noch nicht abgerechnet</div>
+                <div className="mt-0.5 text-[9px] text-warning/80">davon {formatEuro(yearForecast.trackedRevenue)} noch nicht abgerechnet</div>
               )}
             </div>
             <div>
@@ -575,9 +575,9 @@ export function StatisticsView() {
 
       {/* === Profitabilität pro Kunde === */}
       {profitabilityCustomers.length > 0 && (
-        <div className="mt-6 rounded-lg border border-divider bg-surface">
+        <div className="mt-6 kv-card">
           <div className="border-b border-divider px-4 py-3">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Profitabilität pro Kunde</span>
+            <span className="kv-label">Profitabilität pro Kunde</span>
           </div>
           <ul className="divide-y divide-divider">
             {profitabilityCustomers.map(p => (
@@ -592,7 +592,7 @@ export function StatisticsView() {
                 <div className="text-right tabular-nums">
                   <div className="text-sm font-bold text-ink">{formatEuro(p.invoicedRevenue)}</div>
                   {p.openRevenue > 0 && (
-                    <div className="text-[11px] text-amber-400">{formatEuro(p.openRevenue)} offen</div>
+                    <div className="text-[11px] text-warning">{formatEuro(p.openRevenue)} offen</div>
                   )}
                 </div>
               </li>
@@ -603,9 +603,9 @@ export function StatisticsView() {
 
       {/* === Profitabilität pro Projekt mit Budget/Pauschal === */}
       {profitabilityProjects.filter(p => p.budgetHours || p.fixedPrice).length > 0 && (
-        <div className="mt-6 rounded-lg border border-divider bg-surface">
+        <div className="mt-6 kv-card">
           <div className="border-b border-divider px-4 py-3">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Projekte mit Budget / Pauschalpreis</span>
+            <span className="kv-label">Projekte mit Budget / Pauschalpreis</span>
           </div>
           <ul className="divide-y divide-divider">
             {profitabilityProjects.filter(p => p.budgetHours || p.fixedPrice).map(p => {
@@ -623,7 +623,7 @@ export function StatisticsView() {
                   </div>
                   <div className="text-right tabular-nums">
                     {p.budgetUsagePercent !== undefined && (
-                      <div className={`text-sm font-bold ${overBudget ? 'text-red-400' : 'text-ink'}`}>
+                      <div className={`text-sm font-bold ${overBudget ? 'text-danger' : 'text-ink'}`}>
                         {p.budgetUsagePercent.toFixed(0)}%
                       </div>
                     )}

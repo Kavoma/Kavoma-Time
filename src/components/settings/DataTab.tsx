@@ -247,7 +247,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col">
-                <label htmlFor={intervalId} className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                <label htmlFor={intervalId} className="mb-2 kv-label">
                   Intervall
                 </label>
                 <select
@@ -264,7 +264,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
                 </select>
               </div>
               <div className="flex flex-col">
-                <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                <label className="mb-2 kv-label">
                   Backups behalten
                 </label>
                 <NumberInput
@@ -279,7 +279,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
 
             <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1 rounded-md border border-divider bg-paper px-3 py-2 text-[11px]">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Zielordner</div>
+                <div className="kv-label">Zielordner</div>
                 <div className="truncate font-mono text-ink" title={autoBackup?.directory ?? ''}>
                   {autoBackup?.directory || '— noch nicht gewählt —'}
                 </div>
@@ -312,8 +312,8 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
             {(backupMessage || autoBackup?.lastError) && (
               <div className={`rounded-md border px-3 py-2 text-[11px] break-all ${
                 backupMessage?.ok
-                  ? 'border-green-500/40 bg-green-500/10 text-green-300'
-                  : 'border-red-500/40 bg-red-500/10 text-red-300'
+                  ? 'border-success-line/40 bg-success-soft text-success'
+                  : 'border-danger-line bg-danger-soft text-danger'
               }`}>
                 {backupMessage?.text ?? `Letztes automatisches Backup fehlgeschlagen: ${autoBackup?.lastError}`}
               </div>
@@ -330,13 +330,13 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
             <InfoTooltip ariaLabel="Hinweise zum JSON-Export">
               <div className="font-bold mb-1">Wann brauche ich das?</div>
               Strukturierte, offen lesbare JSON-Datei für die Übergabe an andere Software.
-              Die Datei ist <span className="font-bold text-amber-300">nicht verschlüsselt</span> — bewahre sie
+              Die Datei ist <span className="font-bold text-warning">nicht verschlüsselt</span> — bewahre sie
               sicher auf und lösche sie nach der Übertragung.
             </InfoTooltip>
           </div>
           <button
             onClick={exportPortableJson}
-            className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-amber-200 transition-all hover:border-amber-400 hover:bg-amber-500/20 active:scale-95"
+            className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-warning transition-all hover:border-warning-line hover:bg-warning-soft active:scale-95"
           >
             <Download size={13} /> JSON-Export
           </button>
@@ -352,7 +352,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
         </p>
         <button
           onClick={onRequestWipe}
-          className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-red-300 transition-all hover:border-red-400 hover:bg-red-500 hover:text-white active:scale-95"
+          className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-danger-line bg-danger-soft px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-danger transition-all hover:border-danger-line hover:bg-danger-solid hover:text-ink active:scale-95"
         >
           <Trash2 size={14} /> Alle Daten löschen
         </button>

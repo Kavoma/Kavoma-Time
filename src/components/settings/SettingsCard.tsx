@@ -28,14 +28,14 @@ export const SettingsCard: React.FC<SettingsCardProps> = ({
   const isDanger = tone === 'danger';
   return (
     <section
-      className={`rounded-lg border ${isDanger ? 'border-red-500/30 bg-red-500/[0.04]' : 'border-divider bg-surface'}`}
+      className={`rounded-lg border ${isDanger ? 'border-danger-line bg-danger-soft' : 'border-divider bg-surface'}`}
     >
       <header
-        className={`flex items-center justify-between gap-3 border-b px-4 py-3 ${isDanger ? 'border-red-500/20' : 'border-divider'}`}
+        className={`flex items-center justify-between gap-3 border-b px-4 py-3 ${isDanger ? 'border-danger-line' : 'border-divider'}`}
       >
         <div className="flex items-center gap-2">
-          <Icon size={14} className={isDanger ? 'text-red-400' : 'text-muted'} aria-hidden="true" />
-          <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isDanger ? 'text-red-300' : 'text-muted'}`}>
+          <Icon size={14} className={isDanger ? 'text-danger' : 'text-muted'} aria-hidden="true" />
+          <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isDanger ? 'text-danger' : 'text-muted'}`}>
             {title}
           </span>
         </div>

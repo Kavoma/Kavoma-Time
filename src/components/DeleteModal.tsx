@@ -22,7 +22,7 @@ export function DeleteModal({ entry, onConfirm, onCancel }: DeleteModalProps) {
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-scrim backdrop-blur-sm"
             onClick={onCancel}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -31,7 +31,7 @@ export function DeleteModal({ entry, onConfirm, onCancel }: DeleteModalProps) {
 
           {/* Dialog */}
           <motion.div
-            className="relative z-10 mx-4 w-full max-w-sm rounded-lg border border-divider bg-surface p-0 text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 mx-4 w-full max-w-sm kv-overlay p-0 text-ink"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
@@ -40,8 +40,8 @@ export function DeleteModal({ entry, onConfirm, onCancel }: DeleteModalProps) {
           >
             <div className="p-6">
               {/* Icon */}
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/10">
-                <Trash2 size={18} className="text-red-400" />
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-danger-soft">
+                <Trash2 size={18} className="text-danger" />
               </div>
 
               <h3 className="mb-1.5 text-sm font-bold uppercase tracking-wide">
@@ -63,7 +63,7 @@ export function DeleteModal({ entry, onConfirm, onCancel }: DeleteModalProps) {
               </button>
               <button
                 onClick={onConfirm}
-                className="cursor-pointer rounded-md bg-red-500/15 px-4 py-2 text-xs font-bold uppercase tracking-widest text-red-400 transition-all hover:bg-red-500 hover:text-white active:scale-95"
+                className="cursor-pointer rounded-md bg-danger-soft px-4 py-2 text-xs font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink active:scale-95"
               >
                 Löschen
               </button>

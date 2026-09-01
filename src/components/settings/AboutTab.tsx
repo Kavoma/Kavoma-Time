@@ -47,7 +47,7 @@ export function AboutTab({ onOpenLegal }: AboutTabProps) {
             <div className="text-sm font-bold text-ink">Update-Status</div>
             <div className="mt-0.5 text-xs text-muted">{updateStatus?.message ?? 'Bereit'}</div>
             {updateStatus?.error && (
-              <div className="mt-1 text-[11px] text-red-400">{updateStatus.error}</div>
+              <div className="mt-1 text-[11px] text-danger">{updateStatus.error}</div>
             )}
           </div>
           <div className="flex items-center gap-2">
