@@ -280,6 +280,56 @@ body.timer-overlay-body #root {
     pointer-events: none;
 }
 
+/* Die schwebende Uhr. Eigenes Fenster, aber nicht mehr eigene Farben:
+   `main.tsx` setzt dort fest `data-theme="dark"`, also loesen dieselben
+   Rollen wie im Rest der App auf ihre dunklen Werte auf.
+
+   Kleiner als zuvor (44 statt 54 px hoch, 168 statt 184 breit) und mit
+   derselben Rundung wie jede andere Ueberlagerung. Die Flaeche bleibt
+   halbdurchscheinend — sie liegt ueber fremden Fenstern und soll nicht
+   wie ein Kasten darauf kleben. */
+.timer-overlay-chip {
+    height: 44px;
+    width: 168px;
+    border-radius: var(--kv-r-overlay);
+    background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 0 color-mix(in srgb, var(--color-ink) 9%, transparent);
+}
+
+/* Beim Aufnehmen hebt sich die Uhr leicht. Kein Kippen: Ein rotierender
+   Kasten waere Jahrmarkt, keine Rueckmeldung. */
+.timer-overlay-chip.is-lifted {
+    box-shadow:
+        0 22px 56px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 0 color-mix(in srgb, var(--color-ink) 14%, transparent);
+}
+
+/* Die beiden Knoepfe der Uhr. Kleiner als eine Symbolschaltflaeche im
+   Hauptfenster, weil sie ueber fremden Fenstern schwebt und nicht mehr
+   Platz nehmen soll als noetig. */
+.timer-overlay-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    width: 32px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color var(--kv-dur-fast) var(--kv-ease),
+                color var(--kv-dur-fast) var(--kv-ease);
+}
+
+.timer-overlay-btn:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+}
+
 @keyframes timer-status-pulse {
     0%, 100% {
         transform: scale(1);
