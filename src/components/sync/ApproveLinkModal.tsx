@@ -127,11 +127,11 @@ export function ApproveLinkModal({ anfrage, onClose }: Props) {
 
               <footer className="flex justify-end gap-2 border-t border-divider px-5 py-4">
                 <button type="button" onClick={ablehnen} disabled={laeuft}
-                  className="flex h-10 items-center gap-2 rounded-md px-4 text-xs font-bold text-muted transition-colors hover:text-danger disabled:opacity-40">
+                  className="kv-btn kv-btn-danger">
                   <X size={13} /> Ablehnen
                 </button>
                 <button type="button" onClick={bestaetigen} disabled={laeuft || ziffern.length !== 6}
-                  className="flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-xs font-bold text-paper disabled:opacity-40">
+                  className="kv-btn kv-btn-primary">
                   {laeuft ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Verbinden
                 </button>
               </footer>

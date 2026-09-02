@@ -105,14 +105,14 @@ export function SyncCard() {
 
           {!eingerichtet && (
             <button type="button" onClick={() => setDialogOffen(true)}
-              className="flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-xs font-bold text-paper">
+              className="kv-btn kv-btn-primary">
               <Cloud size={13} /> Einrichten
             </button>
           )}
 
           {status?.state === 'locked' && (
             <button type="button" onClick={() => setDialogOffen(true)}
-              className="flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-xs font-bold text-paper">
+              className="kv-btn kv-btn-primary">
               <Unlock size={13} /> Passphrase eingeben
             </button>
           )}
@@ -144,7 +144,7 @@ export function SyncCard() {
                       <li key={a.id} className="flex items-center gap-2">
                         <span className="flex-1 truncate text-xs text-ink">{a.name}</span>
                         <button type="button" onClick={() => setGewaehlteAnfrage(a)}
-                          className="rounded-md bg-ink px-3 py-1 text-xs font-bold text-paper">
+                          className="kv-btn kv-btn-primary">
                           Verbinden
                         </button>
                       </li>
@@ -182,11 +182,11 @@ export function SyncCard() {
 
               <div className="flex gap-2">
                 <button type="button" onClick={jetztAbgleichen} disabled={laeuft}
-                  className="flex h-9 items-center gap-2 rounded-md border border-divider px-3 text-xs font-bold text-muted transition-colors hover:text-ink disabled:opacity-40">
+                  className="kv-btn kv-btn-quiet">
                   {laeuft ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Jetzt abgleichen
                 </button>
                 <button type="button" onClick={abmelden} disabled={laeuft}
-                  className="flex h-9 items-center rounded-md border border-divider px-3 text-xs font-bold text-muted transition-colors hover:text-danger disabled:opacity-40">
+                  className="kv-btn kv-btn-danger">
                   Abmelden
                 </button>
               </div>

@@ -376,7 +376,7 @@ export function InvoiceCreateModal({
                 )}
                 <button
                   onClick={() => setShowPreview(!showPreview)}
-                  className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2 text-xs font-bold text-muted transition-colors hover:border-ink hover:text-ink"
+                  className="kv-btn kv-btn-outline"
                   title={showPreview ? 'Vorschau ausblenden' : 'Vorschau einblenden'}
                 >
                   {showPreview ? <EyeOff size={11} /> : <Eye size={11} />}
@@ -553,7 +553,7 @@ export function InvoiceCreateModal({
                       <button
                         type="button"
                         onClick={() => setShowSaveTemplate(true)}
-                        className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink"
+                        className="kv-btn kv-btn-outline"
                       >
                         <Bookmark size={12} /> Als Vorlage speichern
                       </button>
@@ -571,14 +571,14 @@ export function InvoiceCreateModal({
                           type="button"
                           onClick={handleSaveTemplate}
                           disabled={!templateName.trim() || items.length === 0}
-                          className="cursor-pointer rounded-md bg-ink px-3 py-1.5 text-xs font-bold text-paper transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                          className="kv-btn kv-btn-primary"
                         >
                           Speichern
                         </button>
                         <button
                           type="button"
                           onClick={() => { setShowSaveTemplate(false); setTemplateName(''); }}
-                          className="cursor-pointer rounded-md px-2 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
+                          className="kv-btn kv-btn-quiet"
                         >
                           Abbrechen
                         </button>
@@ -589,7 +589,7 @@ export function InvoiceCreateModal({
                       type="button"
                       onClick={() => setRecurringOpen(true)}
                       disabled={!pendingTemplateId}
-                      className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                      className="kv-btn kv-btn-outline"
                       title={pendingTemplateId ? 'Wiederkehrende Rechnung an die aktuelle Vorlage anhängen' : 'Erst Vorlage speichern, dann Wiederkehrend anhängen'}
                     >
                       <Repeat size={12} /> Wiederkehrend einrichten
@@ -627,20 +627,20 @@ export function InvoiceCreateModal({
               <div className="flex gap-2">
                 <button
                   onClick={() => (dirty ? setConfirmClose(true) : onCancel())}
-                  className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
+                  className="kv-btn kv-btn-quiet"
                 >
                   Abbrechen
                 </button>
                 <button
                   onClick={handleSaveDraft}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-3 py-1.5 text-xs font-bold text-ink transition-colors hover:border-ink"
+                  className="kv-btn kv-btn-outline"
                   title="Strg+S: als Entwurf speichern"
                 >
                   <Save size={12} /> Entwurf
                 </button>
                 <button
                   onClick={handleFinalize}
-                  className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-xs font-bold text-paper transition-colors hover:bg-accent"
+                  className="kv-btn kv-btn-primary"
                   title="Strg+Enter: finalisieren und PDF erzeugen"
                 >
                   {editingDraft ? 'Finalisieren & PDF' : 'Erstellen & PDF'}
@@ -728,13 +728,13 @@ export function InvoiceCreateModal({
                   <div className="mt-4 flex justify-end gap-2">
                     <button
                       onClick={() => setConfirmClose(false)}
-                      className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
+                      className="kv-btn kv-btn-quiet"
                     >
                       Weiter bearbeiten
                     </button>
                     <button
                       onClick={() => { setConfirmClose(false); onCancel(); }}
-                      className="cursor-pointer rounded-md bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink"
+                      className="kv-btn kv-btn-danger"
                     >
                       Verwerfen
                     </button>

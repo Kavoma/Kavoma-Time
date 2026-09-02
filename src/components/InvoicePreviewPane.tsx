@@ -63,7 +63,7 @@ export function InvoicePreviewPane({ invoice, issuer, customer, entries, debounc
           type="button"
           onClick={render}
           disabled={!invoice || !customer || isRendering}
-          className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+          className="kv-btn kv-btn-quiet"
           title="Vorschau jetzt aktualisieren"
         >
           <RefreshCw size={11} className={isRendering ? 'animate-spin' : ''} />

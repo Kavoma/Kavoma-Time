@@ -643,7 +643,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
           <button
             onClick={() => setCreateOpen(true)}
             disabled={state.customers.length === 0}
-            className="flex h-12 cursor-pointer items-center gap-2 rounded-lg border border-ink bg-ink px-5 text-xs font-bold text-paper transition-colors hover:bg-paper hover:text-ink disabled:opacity-30"
+            className="kv-btn kv-btn-primary"
           >
             <Plus size={16} /> Rechnung
           </button>

@@ -258,7 +258,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 <button
                   onClick={handleDownload}
                   disabled={!blobUrl}
-                  className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="kv-btn kv-btn-outline"
                   title="Original-PDF herunterladen"
                 >
                   <Download size={12} /> Herunterladen
@@ -341,13 +341,13 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                   <div className="flex gap-2">
                     <button
                       onClick={() => setConfirmDelete(false)}
-                      className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
+                      className="kv-btn kv-btn-quiet"
                     >
                       Abbrechen
                     </button>
                     <button
                       onClick={() => { setConfirmDelete(false); onDelete(); }}
-                      className="cursor-pointer rounded-md bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink"
+                      className="kv-btn kv-btn-danger"
                     >
                       Endgültig löschen
                     </button>

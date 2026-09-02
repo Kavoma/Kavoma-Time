@@ -309,7 +309,7 @@ export function InvoiceDetailDrawer({
                         <button
                           type="button"
                           onClick={() => onDownloadDunning(invoice.id)}
-                          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-ink"
+                          className="kv-btn kv-btn-outline"
                         >
                           <Download size={11} /> Mahnung-PDF
                         </button>

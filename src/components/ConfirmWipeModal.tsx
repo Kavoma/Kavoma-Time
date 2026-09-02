@@ -76,14 +76,14 @@ export function ConfirmWipeModal({ open, onConfirm, onCancel }: ConfirmWipeModal
             <div className="flex justify-end gap-2 border-t border-divider px-6 py-4">
               <button
                 onClick={onCancel}
-                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink"
+                className="kv-btn kv-btn-quiet"
               >
                 Abbrechen
               </button>
               <button
                 onClick={onConfirm}
                 disabled={!matches}
-                className="cursor-pointer rounded-md bg-danger-soft px-4 py-2 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-danger-soft disabled:hover:text-danger"
+                className="kv-btn kv-btn-danger"
               >
                 Endgültig löschen
               </button>

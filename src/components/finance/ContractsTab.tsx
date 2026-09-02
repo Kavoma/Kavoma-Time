@@ -95,7 +95,7 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
         <button
           onClick={() => setUploadOpen(true)}
           disabled={customers.length === 0}
-          className="flex cursor-pointer items-center gap-2 rounded-md bg-ink px-3 py-2 text-xs font-bold text-paper transition-colors hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink disabled:cursor-not-allowed disabled:opacity-40"
+          className="kv-btn kv-btn-primary"
         >
           <Plus size={13} /> Vertrag hochladen
         </button>

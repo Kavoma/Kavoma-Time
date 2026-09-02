@@ -136,13 +136,13 @@ export function VendorInvoicesTab() {
           <button
             onClick={exportCsv}
             disabled={!filtered.length}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className="kv-btn kv-btn-outline"
           >
             <FileSpreadsheet size={13} /> CSV
           </button>
           <button
             onClick={() => setUploadOpen(true)}
-            className="flex cursor-pointer items-center gap-2 rounded-md bg-ink px-3 py-2 text-xs font-bold text-paper transition-colors hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink"
+            className="kv-btn kv-btn-primary"
           >
             <Plus size={13} /> Beleg hochladen
           </button>

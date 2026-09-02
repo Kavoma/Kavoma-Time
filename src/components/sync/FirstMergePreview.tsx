@@ -182,11 +182,11 @@ export function FirstMergePreview({ open, onClose, onSettled }: Props) {
 
             <footer className="flex justify-end gap-2 border-t border-divider px-5 py-4">
               <button type="button" disabled={laeuft} onClick={onClose}
-                className="flex h-10 items-center rounded-md px-4 text-xs font-bold text-muted transition-colors hover:text-ink disabled:opacity-40">
+                className="kv-btn kv-btn-quiet">
                 Später
               </button>
               <button type="button" disabled={laeuft || (!bilanz && !fehler)} onClick={uebernehmen}
-                className="flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-xs font-bold text-paper disabled:opacity-40">
+                className="kv-btn kv-btn-primary">
                 {laeuft ? <Loader2 size={13} className="animate-spin" /> : <ArrowLeftRight size={13} />}
                 {nichtsZuTun ? 'Abgleich starten' : 'Übernehmen'}
               </button>

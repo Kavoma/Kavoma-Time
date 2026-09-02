@@ -206,13 +206,13 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
             <div className="flex justify-end gap-2 border-t border-divider px-6 py-4">
               <button
                 onClick={onCancel}
-                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink"
+                className="kv-btn kv-btn-quiet"
               >
                 Abbrechen
               </button>
               <button
                 onClick={handleSave}
-                className="cursor-pointer rounded-md bg-ink px-4 py-2 text-xs font-bold text-paper transition-colors hover:bg-accent"
+                className="kv-btn kv-btn-primary"
               >
                 Hinzufügen
               </button>

@@ -92,21 +92,21 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
           <button
             type="button"
             onClick={() => addItem('time')}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-info-line hover:bg-info-soft"
+            className="kv-btn kv-btn-outline"
           >
             <Clock size={12} /> + Zeit
           </button>
           <button
             type="button"
             onClick={() => addItem('flat')}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-violet-400 hover:bg-violet-500/5"
+            className="kv-btn kv-btn-outline"
           >
             <Package size={12} /> + Pauschal
           </button>
           <button
             type="button"
             onClick={() => addItem('discount')}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-warning-line hover:bg-warning-soft"
+            className="kv-btn kv-btn-outline"
           >
             <Percent size={12} /> + Rabatt
           </button>

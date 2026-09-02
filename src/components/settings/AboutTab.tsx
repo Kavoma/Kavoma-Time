@@ -55,7 +55,7 @@ export function AboutTab({ onOpenLegal }: AboutTabProps) {
               type="button"
               disabled={isChecking}
               onClick={() => window.api?.checkForUpdates?.()}
-              className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-45"
+              className="kv-btn kv-btn-outline"
             >
               <RefreshCw size={13} className={isChecking ? 'animate-spin' : ''} />
               Prüfen
@@ -64,7 +64,7 @@ export function AboutTab({ onOpenLegal }: AboutTabProps) {
               <button
                 type="button"
                 onClick={() => window.api?.installDownloadedUpdate?.()}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-3 py-2 text-xs font-bold text-paper transition-colors hover:bg-paper hover:text-ink"
+                className="kv-btn kv-btn-primary"
               >
                 <Power size={13} />
                 Neustart

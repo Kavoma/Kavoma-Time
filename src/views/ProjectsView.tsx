@@ -301,7 +301,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
             <button
               onClick={openNew}
               disabled={state.customers.length === 0}
-              className="flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-4 py-2 text-xs font-bold text-paper transition-colors hover:border-accent hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+              className="kv-btn kv-btn-primary"
             >
               <Plus size={14} /> Neu
             </button>
@@ -471,19 +471,19 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
             <div className="mx-1 h-5 w-px bg-divider" />
             <button
               onClick={() => { setShowBulkTag(!showBulkTag); setShowBulkStatus(false); }}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-ink"
+              className="kv-btn kv-btn-outline"
             >
               <TagIcon size={11} /> Tag
             </button>
             <button
               onClick={() => { setShowBulkStatus(!showBulkStatus); setShowBulkTag(false); }}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-ink"
+              className="kv-btn kv-btn-outline"
             >
               <CheckCircle2 size={11} /> Status
             </button>
             <button
               onClick={() => setBulkConfirmDelete(true)}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-danger-line bg-danger-soft px-2.5 text-xs font-bold text-danger transition-colors hover:border-danger-line hover:bg-danger-soft"
+              className="kv-btn kv-btn-danger"
             >
               <Trash2 size={11} /> Löschen
             </button>
@@ -512,7 +512,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
               <button
                 onClick={applyBulkTags}
                 disabled={bulkTagDraft.length === 0}
-                className="flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-ink bg-ink px-3 text-xs font-bold text-paper transition-colors hover:bg-accent hover:border-accent disabled:cursor-not-allowed disabled:opacity-40"
+                className="kv-btn kv-btn-primary"
               >
                 Anwenden
               </button>
@@ -778,7 +778,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <p className="text-sm text-muted">Noch keine Projekte angelegt.</p>
       <button
         onClick={onCreate}
-        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-4 py-2 text-xs font-bold text-paper transition-colors hover:bg-accent hover:border-accent"
+        className="kv-btn kv-btn-primary mt-4"
       >
         <Plus size={14} /> Erstes Projekt anlegen
       </button>

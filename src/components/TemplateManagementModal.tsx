@@ -103,7 +103,7 @@ export function TemplateManagementModal({
                             <div className="flex gap-1">
                               <button
                                 onClick={() => setConfirmDeleteId(null)}
-                                className="cursor-pointer rounded-md px-2 py-1 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
+                                className="kv-btn kv-btn-quiet"
                               >
                                 Nein
                               </button>
@@ -113,7 +113,7 @@ export function TemplateManagementModal({
                                   onDelete(t.id);
                                   setConfirmDeleteId(null);
                                 }}
-                                className="cursor-pointer rounded-md bg-danger-soft px-2 py-1 text-xs font-bold text-danger hover:bg-danger-solid hover:text-ink"
+                                className="kv-btn kv-btn-danger"
                               >
                                 Endgültig
                               </button>
@@ -170,7 +170,7 @@ export function TemplateManagementModal({
             <div className="border-t border-divider px-5 py-3 text-right">
               <button
                 onClick={onClose}
-                className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-xs font-bold text-paper hover:bg-accent"
+                className="kv-btn kv-btn-primary"
               >
                 Schließen
               </button>

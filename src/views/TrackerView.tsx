@@ -497,7 +497,7 @@ export function TrackerView() {
                 )}
                 <button
                   onClick={() => setNewEntryOpen(true)}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider px-2.5 py-1 text-xs font-bold text-muted transition-colors hover:border-ink hover:text-ink"
+                  className="kv-btn kv-btn-quiet"
                 >
                   <Plus size={12} /> Nachtragen
                 </button>
@@ -623,7 +623,7 @@ export function TrackerView() {
                     <button
                       onClick={() => setBulkDeleteOpen(true)}
                       disabled={selectedIds.size === 0}
-                      className="flex cursor-pointer items-center gap-1.5 rounded-md bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-danger-soft disabled:hover:text-danger"
+                      className="kv-btn kv-btn-danger"
                     >
                       <Trash2 size={12} />
                       Löschen{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}

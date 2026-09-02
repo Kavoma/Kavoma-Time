@@ -261,14 +261,14 @@ export function TimeEntryPicker({
               <div className="flex gap-2">
                 <button
                   onClick={onCancel}
-                  className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
+                  className="kv-btn kv-btn-quiet"
                 >
                   Abbrechen
                 </button>
                 <button
                   onClick={confirm}
                   disabled={selected.size === 0}
-                  className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-xs font-bold text-paper transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+                  className="kv-btn kv-btn-primary"
                 >
                   Übernehmen ({selected.size})
                 </button>

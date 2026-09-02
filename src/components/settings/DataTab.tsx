@@ -286,7 +286,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
               </div>
               <button
                 onClick={() => chooseDirectory(false)}
-                className="shrink-0 cursor-pointer rounded-md border border-divider bg-paper px-3 py-2.5 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface"
+                className="kv-btn kv-btn-outline shrink-0"
               >
                 <FolderOpen size={14} />
               </button>
@@ -296,14 +296,14 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
               <button
                 onClick={runBackupNow}
                 disabled={!autoBackup?.directory || isBackingUp}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
+                className="kv-btn kv-btn-outline"
               >
                 <Download size={13} /> {isBackingUp ? 'Sichere …' : 'Jetzt sichern'}
               </button>
               <button
                 onClick={() => window.api?.autoBackupOpenDirectory()}
                 disabled={!autoBackup?.directory}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-muted transition-colors hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                className="kv-btn kv-btn-outline"
               >
                 <FolderOpen size={13} /> Ordner öffnen
               </button>
@@ -352,7 +352,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
         </p>
         <button
           onClick={onRequestWipe}
-          className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-danger-line bg-danger-soft px-4 py-2.5 text-xs font-bold text-danger transition-colors hover:border-danger-line hover:bg-danger-solid hover:text-ink"
+          className="kv-btn kv-btn-danger mt-3"
         >
           <Trash2 size={14} /> Alle Daten löschen
         </button>
