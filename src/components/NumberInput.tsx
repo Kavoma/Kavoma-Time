@@ -80,7 +80,7 @@ export const NumberInput: React.FC<NumberInputProps> = ({
         onBlur={handleBlur}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full rounded-md border border-divider bg-paper pl-3 pr-10 py-2 text-sm font-bold tabular-nums text-ink outline-none transition-colors focus:border-accent disabled:cursor-not-allowed disabled:bg-paper/40"
+        className="kv-input pr-10 font-semibold tabular-nums disabled:bg-paper/40"
       />
       <div className="absolute right-1 flex h-full flex-col justify-center gap-0.5 px-1 py-1">
         <button

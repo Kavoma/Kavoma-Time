@@ -60,7 +60,11 @@ export function App() {
   const [activeView, setActiveView] = useState<ViewKey>('tracker');
   const [navIntent, setNavIntent] = useState<NavIntent | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    return localStorage.getItem('sidebar-collapsed') === 'true';
+    // Eingeklappt ist die Vorgabe: Die sechs Ziele sind ueber ihre Symbole
+    // und Strg/Cmd+1…6 erreichbar, und der gewonnene Platz kommt dem Inhalt
+    // zugute. Wer sie ausklappt, behaelt das — die Wahl wird gemerkt.
+    const gemerkt = localStorage.getItem('sidebar-collapsed');
+    return gemerkt === null ? true : gemerkt === 'true';
   });
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);

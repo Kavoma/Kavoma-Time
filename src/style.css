@@ -85,6 +85,17 @@
     --color-neutral-soft: rgba(113, 113, 122, 0.15);
     --color-neutral-line: rgba(113, 113, 122, 0.30);
 
+    /* --- Rundungen ---------------------------------------------------
+       Tailwinds Skala wird auf das Masssystem gezogen. Ohne das truege
+       jedes verbliebene `rounded-md` weiterhin 6 px, waehrend die
+       Bausteine 10 px zeigen — zwei Formensprachen nebeneinander.
+       So folgt auch der noch nicht umgestellte Bestand dem System. */
+    --radius-sm: 6px;
+    --radius-md: 10px;   /* = --kv-r-control */
+    --radius-lg: 16px;   /* = --kv-r-card */
+    --radius-xl: 20px;   /* = --kv-r-overlay */
+    --radius-2xl: 24px;
+
     /* --- Schrift ---------------------------------------------------- */
     --font-sans: "Inter", system-ui, sans-serif;
     --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", "Inter", system-ui, sans-serif;
@@ -191,9 +202,13 @@
     /* Knopf, Feld, Auswahl, Suche, Filter, Segment */
     --kv-h-row: 44px;
     /* Tabellen- und Listenzeile (Mindesthöhe) */
-    --kv-r-control: 8px;
-    --kv-r-card: 12px;
-    --kv-r-overlay: 16px;
+    /* Etwas runder als das Konzept vorgab (8/12/16). Die Anleihe bei
+       aktuellen macOS-Oberflaechen kostet nichts ausser Konsequenz, und
+       10/16/20 traegt sie sichtbar, ohne dass Knoepfe zu Pillen werden —
+       eine 36 px hohe Kontrolle waere ab 18 px Radius eine Pille. */
+    --kv-r-control: 10px;
+    --kv-r-card: 16px;
+    --kv-r-overlay: 20px;
 
     --kv-dur-fast: 120ms;
     /* Hover, Fokus, Tastendruck */
@@ -318,7 +333,7 @@ body.timer-overlay-body #root {
     justify-content: center;
     height: 32px;
     width: 32px;
-    border-radius: 10px;
+    border-radius: 11px;
     border: 1px solid transparent;
     cursor: pointer;
     transition: background-color var(--kv-dur-fast) var(--kv-ease),
@@ -673,7 +688,7 @@ option:checked {
     .kv-raised {
         background: var(--color-raised);
         border: 1px solid var(--color-divider-soft);
-        border-radius: var(--kv-r-control);
+        border-radius: 12px;
     }
 
     /* --- Überlagerung: Drawer, Dialog, Kontextmenü ------------------- */
@@ -730,7 +745,7 @@ option:checked {
         height: 100%;
         min-width: 34px;
         padding-inline: 0.625rem;
-        border-radius: calc(var(--kv-r-control) - 2px);
+        border-radius: calc(var(--kv-r-control) - 3px);
         color: var(--color-muted);
         font-size: 12px;
         font-weight: 600;
@@ -762,7 +777,9 @@ option:checked {
         z-index: 50;
         min-width: 240px;
         padding: 0.75rem;
-        background: var(--color-overlay);
+        background: color-mix(in srgb, var(--color-overlay) 88%, transparent);
+        backdrop-filter: blur(30px) saturate(180%);
+        -webkit-backdrop-filter: blur(30px) saturate(180%);
         border: 1px solid var(--color-divider);
         border-radius: var(--kv-r-overlay);
         box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.45);
@@ -798,13 +815,23 @@ option:checked {
 
     /* Bedienungschrom: Seitenleiste, Titelleiste, schwebende Leisten. */
     .kv-glass {
-        background: color-mix(in srgb, var(--color-surface) 55%, transparent);
-        backdrop-filter: blur(24px) saturate(180%);
-        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        background: color-mix(in srgb, var(--color-surface) 38%, transparent);
+        backdrop-filter: blur(30px) saturate(200%);
+        -webkit-backdrop-filter: blur(30px) saturate(200%);
         /* Die feine Oberkante ist das, was Glas als Material lesbar macht:
            eine Lichtkante dort, wo die Schicht beginnt. Ohne sie ist eine
            durchscheinende Flaeche nur eine blassere Flaeche. */
-        box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--color-ink) 8%, transparent);
+        box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--color-ink) 12%, transparent);
+    }
+
+    /* Ueberlagerungen sind ebenfalls Glas — Doku 2 fuehrt sie in der
+       Materialtabelle ausdruecklich als „dezent mit klarer Kante und
+       Schatten". Nur der INHALT bleibt deckend: Tabellen, Formularzeilen
+       und Zahlenreihen bekommen kein Glas untergelegt. */
+    .kv-overlay {
+        background: color-mix(in srgb, var(--color-overlay) 88%, transparent);
+        backdrop-filter: blur(30px) saturate(180%);
+        -webkit-backdrop-filter: blur(30px) saturate(180%);
     }
 
     /* Schleier hinter Dialog und Drawer. */
@@ -936,6 +963,13 @@ option:checked {
     -webkit-backdrop-filter: none;
 }
 
+:root[data-glass='off'] .kv-overlay,
+:root[data-glass='off'] .kv-popover {
+    background: var(--color-overlay);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
 /* Der Systemwunsch sticht die App-Einstellung. Wer „Transparenz
    reduzieren" gesetzt hat, meint es — unabhaengig davon, was in den
    Einstellungen steht. */
@@ -946,7 +980,15 @@ option:checked {
         -webkit-backdrop-filter: none;
     }
 
-    .kv-scrim {
+    .kv-scrim,
+    .kv-popover {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    .kv-overlay,
+    .kv-popover {
+        background: var(--color-overlay);
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
     }

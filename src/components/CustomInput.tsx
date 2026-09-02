@@ -15,7 +15,7 @@ export function CustomInput({ id, label, ...props }: CustomInputProps) {
         id={id}
         type={props.type || 'text'}
         {...props}
-        className={`h-11 w-full font-bold placeholder:text-muted ${props.className || ''}`}
+        className={`kv-input ${props.className || ''}`}
       />
     </div>
   );

@@ -59,15 +59,14 @@ export function AppearanceTab() {
                     role="radio"
                     aria-checked={isActive}
                     onClick={() => updateAppearance(opt.key)}
-                    className={`flex cursor-pointer flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                    className={`flex h-9 cursor-pointer items-center justify-center gap-2 rounded-[10px] border text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                       isActive
                         ? 'border-accent bg-raised text-ink'
                         : 'border-divider bg-paper text-muted hover:border-ink hover:text-ink'
                     }`}
                   >
-                    <Icon size={16} aria-hidden="true" />
-                    <span className="text-sm font-bold">{opt.label}</span>
-
+                    <Icon size={14} aria-hidden="true" />
+                    {opt.label}
                   </button>
                 );
               })}
@@ -99,7 +98,7 @@ export function AppearanceTab() {
                     role="radio"
                     aria-checked={isActive}
                     onClick={() => updateAccent(a.key)}
-                    className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                    className={`flex h-9 cursor-pointer items-center gap-2 rounded-[10px] border px-3 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
                       isActive
                         ? 'border-accent bg-raised text-ink'
                         : 'border-divider bg-paper text-muted hover:border-ink hover:text-ink'
@@ -107,10 +106,10 @@ export function AppearanceTab() {
                   >
                     <span
                       aria-hidden="true"
-                      className="h-4 w-4 shrink-0 rounded-full border border-divider"
+                      className="h-3 w-3 shrink-0 rounded-full border border-divider"
                       style={{ background: a.swatch }}
                     />
-                    <span className="text-sm font-bold">{a.label}</span>
+                    {a.label}
                   </button>
                 );
               })}

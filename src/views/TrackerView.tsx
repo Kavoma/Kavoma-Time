@@ -113,8 +113,13 @@ export function TrackerView() {
     const validCustomer = state.customers.find(c => c.id === state.currentCustomerId);
     const targetCustomerId = validCustomer?.id ?? state.customers[0]?.id ?? 0;
 
-    const validProject = state.projects.find(p => p.id === state.currentProjectId && p.customerId === targetCustomerId);
-    const targetProjectId = validProject?.id ?? state.projects.find(p => p.customerId === targetCustomerId)?.id ?? 0;
+    // „Ohne Projekt" (NO_PROJECT_ID) ist eine gueltige Wahl, keine Luecke.
+    // Vorher sprang dieser Effekt bei 0 auf das erste Projekt des Kunden und
+    // ueberschrieb die Auswahl sofort wieder — „Ohne Projekt" liess sich
+    // dadurch gar nicht setzen, sobald der Kunde ein Projekt hatte.
+    const projektPasst = state.currentProjectId === NO_PROJECT_ID
+      || state.projects.some(p => p.id === state.currentProjectId && p.customerId === targetCustomerId);
+    const targetProjectId = projektPasst ? state.currentProjectId : NO_PROJECT_ID;
 
     if (targetCustomerId !== state.currentCustomerId || targetProjectId !== state.currentProjectId) {
       setState(s => s ? { ...s, currentCustomerId: targetCustomerId, currentProjectId: targetProjectId } : null);
