@@ -296,7 +296,8 @@ ein, die dieser Aufbau vermeidet.
   Ausgenommen von alldem ist `src/components/TimerOverlay.tsx`: eigenes
   transparentes Fenster, eigene Farben, fest dunkel.
 
-  Konzept und Abnahmeliste: `documentation/erscheinungsbild-2.md`.
+  Konzept: `documentation/erscheinungsbild-2.md`. Was davon umgesetzt ist
+  und was nicht, steht gemessen in `documentation/umsetzungsstand.md`.
 - **Icons**: ausschließlich `lucide-react`.
 - **State-Updates in Effects**: explizit erlaubt (`react-hooks/set-state-in-effect: off` in `eslint.config.js`) — wird für Form-Init in Modals genutzt.
 - **`window.api`** ist optional (`?.`) — Code muss auch ohne Electron lauffähig sein (Browser-Preview via `pnpm dev` ohne `electron`).
