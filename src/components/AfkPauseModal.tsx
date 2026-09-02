@@ -43,7 +43,7 @@ export function AfkPauseModal({ pause, onSubtract, onKeep }: AfkPauseModalProps)
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-scrim backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

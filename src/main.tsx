@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { MotionConfig } from 'framer-motion'
 import { App } from './App'
 import { TimerOverlay } from './components/TimerOverlay'
 import { AppStateProvider } from './state/AppStateContext'
@@ -21,10 +22,19 @@ if (isTimerOverlay) {
   applyStoredHint();
 }
 
+// `reducedMotion="user"` folgt dem Systemwunsch „Bewegung reduzieren".
+//
+// Der zweite Hebel neben der Media Query in `style.css`: Framer Motion
+// animiert ueber Inline-Styles, die keine Media Query erreicht. Ohne das
+// hier blieben Drawer, Dialoge und Reiterwechsel weiter geraeumlich
+// bewegt, obwohl das System etwas anderes sagt. Deckkraft bleibt erlaubt —
+// ohne sie faende man den Fokus nicht wieder.
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <AppStateProvider>
-      {isTimerOverlay ? <TimerOverlay /> : <App />}
-    </AppStateProvider>
+    <MotionConfig reducedMotion="user">
+      <AppStateProvider>
+        {isTimerOverlay ? <TimerOverlay /> : <App />}
+      </AppStateProvider>
+    </MotionConfig>
   </React.StrictMode>
 )

@@ -305,6 +305,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // `matchMedia` gibt es im Main-Prozess nicht.
   const appearance = state?.appearance ?? null;
   const accent = state?.accent ?? null;
+  const glass = state?.glassEnabled !== false;
   useEffect(() => {
     if (isTimerOverlay) return;
     // Solange nichts geladen ist, gilt der Hinweis, den `main.tsx` vor dem
@@ -313,14 +314,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     // Dunkel auf hellem System schluege die Farbe zweimal um.
     if (!appearance || !accent) return;
     const sync = () => {
-      const resolved = applyTheme(appearance, accent);
+      const resolved = applyTheme(appearance, accent, glass);
       window.api?.setNativeTheme?.(resolved);
     };
     sync();
     // Nur im Systemmodus kann sich etwas ohne Zutun der Person aendern.
     if (appearance !== 'system') return;
     return watchSystemAppearance(sync);
-  }, [appearance, accent, isTimerOverlay]);
+  }, [appearance, accent, glass, isTimerOverlay]);
 
   // Laden (einmalig)
   useEffect(() => {

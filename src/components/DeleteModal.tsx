@@ -22,7 +22,7 @@ export function DeleteModal({ entry, onConfirm, onCancel }: DeleteModalProps) {
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-scrim backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             onClick={onCancel}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

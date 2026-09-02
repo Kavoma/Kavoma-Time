@@ -35,7 +35,7 @@ export function RecurringSetupModal({ open, onConfirm, onCancel }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="absolute inset-0 bg-scrim backdrop-blur-sm" onClick={onCancel} />
+          <div className="absolute inset-0 kv-scrim" onClick={onCancel} />
           <motion.div
             className="relative z-10 w-full max-w-md overflow-hidden kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.96, y: 8 }}

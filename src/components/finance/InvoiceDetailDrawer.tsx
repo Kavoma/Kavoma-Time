@@ -122,7 +122,7 @@ export function InvoiceDetailDrawer({
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-scrim backdrop-blur-[2px]"
+            className="absolute inset-0 kv-scrim"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

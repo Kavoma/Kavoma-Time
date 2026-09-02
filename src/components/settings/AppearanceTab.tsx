@@ -1,7 +1,8 @@
-import { Palette, Sun, Moon, Monitor } from 'lucide-react';
+import { Palette, Sun, Moon, Monitor, Layers } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
 import { SettingsCard } from './SettingsCard';
+import { Switch } from './Switch';
 import { ACCENTS, resolveAppearance, type Accent, type Appearance } from '../../utils/theme';
 
 const APPEARANCE_ICON: Record<Appearance, LucideIcon> = {
@@ -22,10 +23,12 @@ export function AppearanceTab() {
 
   const appearance: Appearance = state.appearance ?? 'system';
   const accent: Accent = state.accent ?? 'neutral';
+  const glass = state.glassEnabled !== false;
   const resolved = resolveAppearance(appearance);
 
   const updateAppearance = (next: Appearance) => setState(s => s ? { ...s, appearance: next } : null);
   const updateAccent = (next: Accent) => setState(s => s ? { ...s, accent: next } : null);
+  const updateGlass = (next: boolean) => setState(s => s ? { ...s, glassEnabled: next } : null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,9 +112,27 @@ export function AppearanceTab() {
             </div>
           </div>
 
+          {/* Glas */}
+          <div className="border-t border-divider pt-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm font-bold text-ink">Dezentes Glas</div>
+                <div className="mt-0.5 text-xs text-muted">
+                  Lässt Seitenleiste, Titelleiste und schwebende Leisten leicht durchscheinen.
+                  Aus ist eine vollwertige Einstellung: Dieselben Flächen stehen dann deckend
+                  da, keine Funktion hängt daran. Gilt nur auf diesem Gerät, weil Unschärfe
+                  Rechenzeit kostet.
+                </div>
+              </div>
+              <Switch checked={glass} onChange={updateGlass} ariaLabel="Dezentes Glas" />
+            </div>
+          </div>
+
           {/* Vorschau der Rollen — bewusst klein und nüchtern, keine Galerie. */}
           <div className="border-t border-divider pt-5">
-            <div className="kv-label mb-3">Vorschau</div>
+            <div className="kv-label mb-3 flex items-center gap-1.5">
+              <Layers size={11} aria-hidden="true" />Vorschau
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className="kv-btn kv-btn-primary">Primäraktion</button>
               <button type="button" className="kv-btn kv-btn-outline">Sekundär</button>

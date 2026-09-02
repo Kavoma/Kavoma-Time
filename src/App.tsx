@@ -242,7 +242,7 @@ export function App() {
         onKeepRunning={dismissLongRun}
       />
       <div className="app-content">
-        <aside className={`flex flex-col gap-8 border-r border-divider bg-paper p-8 transition-colors duration-300 ${isSidebarCollapsed ? 'px-4' : 'p-8'}`}>
+        <aside className={`kv-glass flex flex-col gap-8 border-r border-divider p-8 transition-colors duration-300 ${isSidebarCollapsed ? 'px-4' : 'p-8'}`}>
           <nav className="flex flex-col gap-px">
             <div className={`mb-3 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
               {!isSidebarCollapsed && (
@@ -409,7 +409,7 @@ export function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-scrim backdrop-blur-2xl"
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center kv-scrim"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}

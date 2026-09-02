@@ -47,7 +47,7 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
-          <div className="absolute inset-0 bg-scrim backdrop-blur-md" />
+          <div className="absolute inset-0 kv-scrim" />
 
           <motion.div
             className="relative z-10 flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-divider bg-surface text-ink shadow-[0_30px_80px_-12px_rgba(0,0,0,0.75)]"

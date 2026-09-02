@@ -721,6 +721,32 @@ option:checked {
         font-variant-numeric: tabular-nums;
     }
 
+    /* --- Material ---------------------------------------------------
+       Glas zeigt Schichtung, nicht Dekoration.
+
+       Es liegt auf Navigation, schwebender Bedienung und Ueberlagerungen —
+       nie unter Tabellen, Formularen, Zahlenreihen oder der PDF-Vorschau.
+       Deshalb traegt der SCHLEIER die Unschaerfe und nicht die Dialogflaeche
+       darueber: Dort steht der Inhalt, um den es geht.
+
+       Eine Stufe, nicht drei. „Deutliches Glas" wird bewusst nicht
+       angeboten — in einer Rechnungs- und Zeiterfassungs-App wuerde es die
+       Informationshierarchie schwaechen, ohne eine Aufgabe besser zu loesen. */
+
+    /* Bedienungschrom: Seitenleiste, Titelleiste, schwebende Leisten. */
+    .kv-glass {
+        background: color-mix(in srgb, var(--color-surface) 72%, transparent);
+        backdrop-filter: blur(20px) saturate(140%);
+        -webkit-backdrop-filter: blur(20px) saturate(140%);
+    }
+
+    /* Schleier hinter Dialog und Drawer. */
+    .kv-scrim {
+        background: var(--color-scrim);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+
     /* --- Werkzeugleiste --------------------------------------------- */
     /* Hält Suche, Filter, Umschalter und Primäraktion auf einer Linie.
        Alles darin ist `--kv-h-control` hoch. */
@@ -764,4 +790,66 @@ option:checked {
 
 .react-colorful__interactive:focus .react-colorful__pointer {
     transform: scale(1.1);
+}
+
+/* ============================================================
+   GLAS ABSCHALTEN
+   ============================================================
+   „Glas: Aus" ist eine vollwertige Einstellung, kein Notbehelf. Dieselben
+   Flaechen stehen dann deckend da, Rundungen, Raender und Schatten
+   bleiben. Keine Funktion und keine Information haengt am Glas.
+
+   Unschaerfe kostet Rechenzeit — auf schwacher Grafik koennen grossflaechige
+   Ebenen ruckeln. Deshalb ist der Schalter geraetelokal (siehe
+   DEVICE_LOCAL_KEYS in `src/sync/classify.ts`). */
+
+:root[data-glass='off'] .kv-glass {
+    background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+:root[data-glass='off'] .kv-scrim {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* Der Systemwunsch sticht die App-Einstellung. Wer „Transparenz
+   reduzieren" gesetzt hat, meint es — unabhaengig davon, was in den
+   Einstellungen steht. */
+@media (prefers-reduced-transparency: reduce) {
+    .kv-glass {
+        background: var(--color-surface);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    .kv-scrim {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+}
+
+/* ============================================================
+   BEWEGUNG REDUZIEREN
+   ============================================================
+   Raeumliche Bewegung, Skalierung, pulsierende Effekte und animierte
+   Unschaerfe fallen weg. Was bleibt, ist der kurze Wechsel von Farbe und
+   Deckkraft — ohne ihn faende man den Fokus nicht wieder.
+
+   Das gilt nur fuer CSS. Framer Motion animiert ueber Inline-Styles, die
+   keine Media Query erreicht; dort erledigt es `<MotionConfig
+   reducedMotion="user">` in `main.tsx`. Beide Hebel werden gebraucht. */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-property: opacity, color, background-color, border-color, box-shadow !important;
+        transition-duration: var(--kv-dur-fast) !important;
+        scroll-behavior: auto !important;
+    }
 }

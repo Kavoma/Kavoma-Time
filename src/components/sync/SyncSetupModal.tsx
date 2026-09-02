@@ -103,7 +103,7 @@ export function SyncSetupModal({ open, onClose, onDone }: Props) {
       {open && (
         <motion.div className="fixed inset-0 z-50 flex items-center justify-center"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-          <motion.div className="absolute inset-0 bg-scrim backdrop-blur-sm" onClick={laeuft ? undefined : schliessen}
+          <motion.div className="absolute inset-0 kv-scrim" onClick={laeuft ? undefined : schliessen}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} />
 
           <motion.div

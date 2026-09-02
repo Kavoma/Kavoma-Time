@@ -106,7 +106,7 @@ export function EditModal({ entry, customers, projects, onSave, onCancel, recent
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-scrim backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             onClick={onCancel}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           />

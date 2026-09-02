@@ -436,7 +436,7 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
       )}
 
       {someSelected && (
-        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 kv-overlay px-3 py-2">
+        <div className="kv-glass fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-[var(--kv-r-overlay)] border border-divider px-3 py-2 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)]">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-widest text-ink">
               {selected.size} ausgewählt

@@ -31,7 +31,7 @@ export function TemplateManagementModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="absolute inset-0 bg-scrim backdrop-blur-sm" onClick={onClose} />
+          <div className="absolute inset-0 kv-scrim" onClick={onClose} />
           <motion.div
             className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.96, y: 12 }}

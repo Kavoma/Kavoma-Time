@@ -50,13 +50,17 @@ export function resolveAppearance(appearance: Appearance): 'light' | 'dark' {
  * Thema zurück — der Aufrufer reicht es an den Main-Prozess weiter, damit
  * Fensterrahmen und Titelleiste mitziehen.
  */
-export function applyTheme(appearance: Appearance, accent: Accent): 'light' | 'dark' {
+export function applyTheme(appearance: Appearance, accent: Accent, glass = true): 'light' | 'dark' {
   const resolved = resolveAppearance(appearance);
   const root = document.documentElement;
   root.dataset.theme = resolved;
   root.dataset.accent = accent;
+  // Nur der Aus-Fall wird markiert. „An" ist die Vorgabe und braucht kein
+  // Attribut — so bleibt das DOM im Normalfall unbeschriftet.
+  if (glass) delete root.dataset.glass;
+  else root.dataset.glass = 'off';
   try {
-    localStorage.setItem(HINT_KEY, JSON.stringify({ appearance, accent }));
+    localStorage.setItem(HINT_KEY, JSON.stringify({ appearance, accent, glass }));
   } catch { /* localStorage gesperrt — dann eben ein Aufblitzen beim nächsten Start */ }
   return resolved;
 }
@@ -71,12 +75,12 @@ export function applyStoredHint(): void {
   try {
     const raw = localStorage.getItem(HINT_KEY);
     if (!raw) return;
-    const hint = JSON.parse(raw) as { appearance?: Appearance; accent?: Accent };
+    const hint = JSON.parse(raw) as { appearance?: Appearance; accent?: Accent; glass?: boolean };
     const appearance = hint.appearance === 'light' || hint.appearance === 'dark' || hint.appearance === 'system'
       ? hint.appearance
       : 'system';
     const accent = hint.accent === 'crimson' ? 'crimson' : 'neutral';
-    applyTheme(appearance, accent);
+    applyTheme(appearance, accent, hint.glass !== false);
   } catch { /* kaputter Hinweis ist kein Grund, den Start abzubrechen */ }
 }
 

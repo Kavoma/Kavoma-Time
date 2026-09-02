@@ -11,7 +11,7 @@ const isMac = typeof window !== 'undefined' && window.api?.platform === 'darwin'
 export const TitleBar: React.FC = () => {
   return (
     <header
-      className={`drag-region relative z-[10000] flex h-10 w-full items-center justify-between bg-paper select-none ${
+      className={`kv-glass drag-region relative z-[10000] flex h-10 w-full items-center justify-between select-none ${
         isMac ? 'pl-[84px] pr-6' : 'px-6'
       }`}
     >

@@ -99,7 +99,7 @@ export function FirstMergePreview({ open, onClose, onSettled }: Props) {
       {open && (
         <motion.div className="fixed inset-0 z-50 flex items-center justify-center"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-          <motion.div className="absolute inset-0 bg-scrim backdrop-blur-sm" />
+          <motion.div className="absolute inset-0 kv-scrim" />
           <motion.div
             className="relative z-10 mx-4 w-full max-w-lg kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}
