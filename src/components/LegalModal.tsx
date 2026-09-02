@@ -297,9 +297,9 @@ function PrivacyContent() {
         <ul className="list-disc space-y-1 pl-5">
           <li>Auskunft (Art. 15 DSGVO)</li>
           <li>Berichtigung (Art. 16 DSGVO)</li>
-          <li>Löschung (Art. 17 DSGVO) — direkt in der App über „Alle Daten löschen"</li>
+          <li>Löschung (Art. 17 DSGVO): direkt in der App über „Alle Daten löschen"</li>
           <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
-          <li>Datenübertragbarkeit (Art. 20 DSGVO) — über die Backup-Export-Funktion</li>
+          <li>Datenübertragbarkeit (Art. 20 DSGVO): über die Backup-Export-Funktion</li>
           <li>Widerspruch (Art. 21 DSGVO)</li>
           <li>Beschwerde bei einer Aufsichtsbehörde (Art. 77 DSGVO)</li>
         </ul>

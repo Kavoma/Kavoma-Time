@@ -60,10 +60,9 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
             aria-label="Willkommen bei Kavoma Time"
           >
             <div className="border-b border-divider px-7 py-5">
-              <div className="kv-label">Willkommen</div>
-              <h2 className="mt-1 font-display text-2xl font-black tracking-tight">Kavoma Time</h2>
+              <h2 className="font-display text-2xl font-bold tracking-tight">Kavoma Time</h2>
               <p className="mt-2 text-[13px] leading-relaxed text-muted">
-                Bevor es losgeht — kurz, was du über deine Daten wissen solltest.
+                Kurz, was du über deine Daten wissen solltest.
               </p>
             </div>
 

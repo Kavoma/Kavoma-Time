@@ -117,7 +117,7 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
         <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-divider bg-surface/50 p-6 text-center">
           <Plus size={20} className="text-muted/60" />
           <div className="text-[11px] text-muted">
-            Noch keine Positionen — füge Zeit-Einträge, Pauschalposten oder Rabatte hinzu.
+            Noch keine Positionen. Füge Zeit-Einträge, Pauschalposten oder Rabatte hinzu.
           </div>
         </div>
       ) : (

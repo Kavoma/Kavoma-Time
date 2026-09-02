@@ -36,7 +36,11 @@
 
     /* --- Text ------------------------------------------------------- */
     --color-ink: #ffffff;
-    --color-muted: #525252;
+    /* Nachgemessen: 5,89:1 auf `paper`, 5,48:1 auf `surface`, 4,96:1 auf
+       `raised`. Der vorherige Wert #525252 erreichte nur 2,36:1 und lag
+       damit weit unter der Anforderung — bei der haeufigsten Textrolle
+       der App. Wer Zahlen behauptet, muss sie gerechnet haben. */
+    --color-muted: #8c8c8c;
 
     /* --- Trennung --------------------------------------------------- */
     --color-divider: #262626;
@@ -101,7 +105,9 @@
     --color-scrim: rgba(15, 15, 20, 0.35);
 
     --color-ink: #18181b;
-    --color-muted: #71717a;
+    /* 5,28:1 auf `surface`, 4,68:1 auf `paper`. Der vorherige Wert war auf
+       dem Seitengrund mit 4,28:1 knapp unter der Anforderung. */
+    --color-muted: #6b6b74;
 
     --color-divider: #e4e4e7;
     --color-divider-soft: #f0f0f2;
@@ -358,11 +364,11 @@ progress::-webkit-progress-bar {
 }
 
 progress::-webkit-progress-value {
-    background: var(--color-ink);
+    background: var(--color-accent);
 }
 
 progress::-moz-progress-bar {
-    background: var(--color-ink);
+    background: var(--color-accent);
 }
 
 /* === Select: Vollständig CSS-gesteuert via base-select (Chromium 135+) === */
@@ -689,7 +695,7 @@ option:checked {
     }
 
     .kv-segment[aria-checked='true'] {
-        background: var(--color-primary);
+        background: var(--color-accent);
         color: var(--color-on-primary);
     }
 
@@ -742,9 +748,13 @@ option:checked {
 
     /* Bedienungschrom: Seitenleiste, Titelleiste, schwebende Leisten. */
     .kv-glass {
-        background: color-mix(in srgb, var(--color-surface) 72%, transparent);
-        backdrop-filter: blur(20px) saturate(140%);
-        -webkit-backdrop-filter: blur(20px) saturate(140%);
+        background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        /* Die feine Oberkante ist das, was Glas als Material lesbar macht:
+           eine Lichtkante dort, wo die Schicht beginnt. Ohne sie ist eine
+           durchscheinende Flaeche nur eine blassere Flaeche. */
+        box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--color-ink) 8%, transparent);
     }
 
     /* Schleier hinter Dialog und Drawer. */
@@ -752,6 +762,61 @@ option:checked {
         background: var(--color-scrim);
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* --- Reiter ------------------------------------------------------
+       EIN Muster fuer die ganze App. Vorher standen zwei nebeneinander:
+       eine gefuellte Pille in den Finanzen, ein Unterstrich in den
+       Einstellungen — zwei Loesungen fuer dieselbe Aufgabe.
+
+       Der Unterstrich gewinnt, weil er keine Flaeche beansprucht („Inhalt
+       fuehrt, Bedienung unterstuetzt") und auch fuenf Textreiter im
+       schmalen Fenster traegt. Die Markierung ist der Akzent — damit ist
+       er endlich dort zu sehen, wo etwas ausgewaehlt ist. */
+    .kv-tabs {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        border-bottom: 1px solid var(--color-divider);
+    }
+
+    .kv-tab {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        height: var(--kv-h-control);
+        padding-inline: 0.875rem;
+        color: var(--color-muted);
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: color var(--kv-dur-fast) var(--kv-ease);
+    }
+
+    .kv-tab:hover:not([aria-selected='true']) {
+        color: var(--color-ink);
+    }
+
+    .kv-tab[aria-selected='true'] {
+        color: var(--color-ink);
+    }
+
+    .kv-tab:focus-visible {
+        outline: 2px solid var(--color-focus);
+        outline-offset: -2px;
+        border-radius: var(--kv-r-control);
+    }
+
+    /* Die wandernde Markierung. Liegt auf der Trennlinie, nicht darunter. */
+    .kv-tab-marker {
+        position: absolute;
+        inset-inline: 0;
+        bottom: -1px;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--color-accent);
     }
 
     /* --- Werkzeugleiste --------------------------------------------- */

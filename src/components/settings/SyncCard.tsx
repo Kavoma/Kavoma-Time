@@ -204,7 +204,7 @@ export function SyncCard() {
               <ul className="max-h-48 space-y-1 overflow-y-auto border-t border-divider px-3 py-2">
                 {[...konflikte].reverse().slice(0, 30).map((k, i) => (
                   <li key={`${k.entityId}-${k.at}-${i}`} className="text-[11px] leading-relaxed text-muted">
-                    <span className="text-ink">{k.label}</span> — neuere Fassung übernommen
+                    <span className="text-ink">{k.label}</span> neuere Fassung übernommen
                     <span className="ml-1 opacity-60">({new Date(k.at).toLocaleString('de-DE')})</span>
                   </li>
                 ))}

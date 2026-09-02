@@ -204,7 +204,7 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
               className="w-full rounded-md border border-divider bg-paper px-3 py-2.5 hover:border-ink/60"
               label={
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-ink">Kleinunternehmer (§19 UStG)</div>
+                  <div className="text-[13px] font-bold text-ink">Kleinunternehmer (§19 UStG)</div>
                   <div className="text-[11px] text-muted">Keine Umsatzsteuer ausweisen.</div>
                 </div>
               }
@@ -229,7 +229,7 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
             className="w-full rounded-md border border-divider bg-paper px-3 py-2.5 hover:border-ink/60"
             label={
               <div className="flex-1">
-                <div className="text-sm font-bold text-ink">XML in Rechnungs-PDFs einbetten</div>
+                <div className="text-[13px] font-bold text-ink">XML in Rechnungs-PDFs einbetten</div>
                 <div className="text-[11px] text-muted">
                   Profil EN 16931 (ZUGFeRD 2.x / Factur-X). Das PDF bleibt für Menschen lesbar und
                   enthält zusätzlich die maschinenlesbare Rechnung.
@@ -242,7 +242,7 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
             <div className="rounded-md border border-warning-line bg-warning-soft px-3 py-2.5">
               <div className="mb-1 flex items-center gap-2 text-[11px] font-bold text-warning">
                 <AlertCircle size={12} />
-                Stammdaten unvollständig — es wird nur ein reines PDF erzeugt
+                Stammdaten unvollständig. Es wird nur ein reines PDF erzeugt.
               </div>
               <ul className="ml-5 list-disc text-[11px] text-muted">
                 {eInvoiceIssues.map(issue => <li key={issue}>{issue}</li>)}

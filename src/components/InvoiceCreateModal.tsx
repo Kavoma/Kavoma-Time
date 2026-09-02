@@ -420,7 +420,7 @@ export function InvoiceCreateModal({
                   </div>
                   {customerHasAddrIssue && (
                     <div className="mt-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[11px] text-warning">
-                      Kunde hat keine Adresse hinterlegt — Rechnung kann so nicht finalisiert werden.
+                      Kunde hat keine Adresse hinterlegt. Die Rechnung lässt sich so nicht finalisieren.
                     </div>
                   )}
                 </Section>
@@ -634,14 +634,14 @@ export function InvoiceCreateModal({
                 <button
                   onClick={handleSaveDraft}
                   className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-3 py-1.5 text-xs font-bold text-ink transition-colors hover:border-ink"
-                  title="Strg+S — als Entwurf speichern"
+                  title="Strg+S: als Entwurf speichern"
                 >
                   <Save size={12} /> Entwurf
                 </button>
                 <button
                   onClick={handleFinalize}
                   className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-xs font-bold text-paper transition-colors hover:bg-accent"
-                  title="Strg+Enter — finalisieren und PDF erzeugen"
+                  title="Strg+Enter: finalisieren und PDF erzeugen"
                 >
                   {editingDraft ? 'Finalisieren & PDF' : 'Erstellen & PDF'}
                 </button>

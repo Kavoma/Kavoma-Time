@@ -129,7 +129,7 @@ export function VendorInvoicesTab() {
         <div>
           <h2 className="font-display text-2xl font-black tracking-tight">Eingangsrechnungen</h2>
           <p className="mt-1 text-[12px] text-muted">
-            Belege von Lieferanten als PDF dokumentieren — verschlüsselt im Benutzerprofil gespeichert.
+            Belege von Lieferanten als PDF dokumentieren, verschlüsselt im Benutzerprofil gespeichert.
           </p>
         </div>
         <div className="flex gap-2">

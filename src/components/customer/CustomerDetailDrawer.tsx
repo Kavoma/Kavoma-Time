@@ -328,7 +328,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
       )}
     </div>
   ) : (
-    <div className="p-5 text-center text-sm text-muted">Noch keine Daten — klicke auf Bearbeiten, um Stammdaten einzugeben.</div>
+    <div className="p-5 text-center text-sm text-muted">Noch keine Daten. Klicke auf Bearbeiten, um Stammdaten einzugeben.</div>
   );
 
   const editContent = (

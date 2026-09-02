@@ -169,7 +169,7 @@ export function GeneralTab() {
             <div className="min-w-0">
               <div className="text-sm font-bold text-ink">Abends erinnern</div>
               <div className="mt-0.5 text-xs text-muted">
-                Läuft zu dieser Uhrzeit noch eine Zeiterfassung, meldet sich die App einmal — bevor daraus über Nacht ein Vierzehn-Stunden-Eintrag wird.
+                Läuft zu dieser Uhrzeit noch eine Zeiterfassung, meldet sich die App einmal, bevor daraus über Nacht ein Vierzehn-Stunden-Eintrag wird.
               </div>
               <div className={`mt-3 flex items-center gap-2 ${reminderEnabled ? '' : 'opacity-45'}`}>
                 <NumberInput
@@ -200,7 +200,7 @@ export function GeneralTab() {
             <div>
               <div className="text-sm font-bold text-ink">Beim Herunterfahren stoppen</div>
               <div className="mt-0.5 text-xs text-muted">
-                Wird der Rechner heruntergefahren oder abgemeldet, endet eine laufende Zeiterfassung automatisch — ohne Rückfrage, dafür bleibt dann keine Zeit.
+                Wird der Rechner heruntergefahren oder abgemeldet, endet eine laufende Zeiterfassung automatisch. Ohne Rückfrage, dafür bleibt dann keine Zeit.
               </div>
             </div>
             <Switch checked={stopOnShutdown} onChange={updateStopOnShutdown} ariaLabel="Beim Herunterfahren stoppen" />

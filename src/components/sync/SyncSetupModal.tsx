@@ -144,7 +144,7 @@ export function SyncSetupModal({ open, onClose, onDone }: Props) {
                   <div className="rounded-md border border-warning-line bg-warning-soft p-3">
                     <div className="mb-1 flex items-center gap-2 text-warning">
                       <AlertTriangle size={13} />
-                      <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Einmalig — bitte aufschreiben</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Einmalig. Bitte aufschreiben.</span>
                     </div>
                     <p className="text-xs leading-relaxed text-muted">
                       Weitere Geräte nimmst du gleich mit einer sechsstelligen Zahl dazu; dafür

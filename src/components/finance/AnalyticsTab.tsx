@@ -71,7 +71,7 @@ export function AnalyticsTab() {
         <div>
           <h2 className="font-display text-2xl font-black tracking-tight">Auswertung</h2>
           <p className="mt-1 text-[12px] text-muted">
-            Einnahmen, Ausgaben und Gewinn-/Verlust-Rechnung — wahlweise nach Ist- oder Soll-Versteuerung.
+            Einnahmen, Ausgaben und Gewinn-/Verlust-Rechnung, wahlweise nach Ist- oder Soll-Versteuerung.
           </p>
         </div>
       </div>

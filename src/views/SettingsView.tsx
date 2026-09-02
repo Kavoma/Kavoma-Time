@@ -109,7 +109,7 @@ export function SettingsView() {
       </div>
 
       {/* Tab-Bar */}
-      <div role="tablist" aria-label="Einstellungs-Kategorien" className="mb-6 flex items-center gap-1 border-b border-divider">
+      <div role="tablist" aria-label="Einstellungs-Kategorien" className="kv-tabs mb-6">
         {TABS.map((tab, idx) => {
           const isActive = tab.key === activeTab;
           const Icon = tab.icon;
@@ -124,14 +124,14 @@ export function SettingsView() {
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(tab.key)}
               onKeyDown={(e) => handleTabKeyDown(e, idx)}
-              className={`relative flex cursor-pointer items-center gap-2 px-4 py-2.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${ isActive ? 'text-ink' : 'text-muted hover:text-ink' }`}
+              className="kv-tab"
             >
               <Icon size={14} aria-hidden="true" />
               {tab.label}
               {isActive && (
                 <motion.div
-                  layoutId="settings-tab-underline"
-                  className="absolute inset-x-0 -bottom-px h-0.5 bg-ink"
+                  layoutId="settings-tab-marker"
+                  className="kv-tab-marker"
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}

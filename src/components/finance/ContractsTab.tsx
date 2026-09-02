@@ -89,7 +89,7 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
         <div>
           <h2 className="font-display text-2xl font-black tracking-tight">Verträge</h2>
           <p className="mt-1 text-[12px] text-muted">
-            Unterschriebene Kundenverträge als PDF archivieren — verschlüsselt lokal abgelegt.
+            Unterschriebene Kundenverträge als PDF archivieren, verschlüsselt lokal abgelegt.
           </p>
         </div>
         <button

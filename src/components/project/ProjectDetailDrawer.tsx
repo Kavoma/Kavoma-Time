@@ -565,7 +565,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
         <div className="flex flex-col gap-2">
           {milestones.length === 0 && (
             <div className="rounded-md border border-dashed border-divider bg-paper/40 p-3 text-center text-[11px] text-muted">
-              Noch keine Meilensteine — lege welche an, um den Fortschritt sichtbar zu machen.
+              Noch keine Meilensteine. Lege welche an, um den Fortschritt sichtbar zu machen.
             </div>
           )}
           {milestones.map((m) => (

@@ -41,7 +41,7 @@ export function CancelInvoiceModal({ invoice, onConfirm, onCancel }: Props) {
               </div>
               <h3 className="mb-1.5 text-sm font-bold uppercase tracking-wide">Rechnung stornieren</h3>
               <p className="mb-4 text-[13px] leading-relaxed text-muted">
-                Es wird automatisch eine Storno-Rechnung (negativer Betrag) angelegt. Die Original-Rechnung bleibt zur Dokumentation erhalten — GoBD-konform.
+                Es wird automatisch eine Storno-Rechnung (negativer Betrag) angelegt. Die Original-Rechnung bleibt zur Dokumentation erhalten, wie es die GoBD verlangen.
               </p>
               <div className="rounded-md border border-divider bg-paper p-3 text-xs">
                 <div className="text-muted">Original-Rechnung</div>

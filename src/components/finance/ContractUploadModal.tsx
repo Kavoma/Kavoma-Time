@@ -136,7 +136,6 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
           >
             <div className="flex items-center justify-between border-b border-divider px-6 py-4">
               <div>
-                <div className="kv-label">Dokument</div>
                 <h3 className="mt-0.5 text-sm font-bold uppercase tracking-wide">Vertrag hochladen</h3>
               </div>
               <button

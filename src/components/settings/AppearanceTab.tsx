@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
 import { SettingsCard } from './SettingsCard';
 import { Switch } from './Switch';
+import { InfoTooltip } from './InfoTooltip';
 import { ACCENTS, resolveAppearance, type Accent, type Appearance } from '../../utils/theme';
 
 const APPEARANCE_ICON: Record<Appearance, LucideIcon> = {
@@ -36,10 +37,12 @@ export function AppearanceTab() {
         <div className="flex flex-col gap-5">
           {/* Thema */}
           <div>
-            <div className="text-sm font-bold text-ink">Thema</div>
-            <div className="mt-0.5 text-xs text-muted">
-              Gilt auf allen Geräten — Thema und Akzent sind Geschmack der Person, nicht
-              Eigenschaft des Rechners.
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-bold text-ink">Thema</span>
+              <InfoTooltip>
+                Gilt auf allen Geräten. Thema und Akzent gehören zur Person, nicht
+                zum Rechner, und werden deshalb abgeglichen.
+              </InfoTooltip>
             </div>
             <div
               role="radiogroup"
@@ -64,7 +67,7 @@ export function AppearanceTab() {
                   >
                     <Icon size={16} aria-hidden="true" />
                     <span className="text-sm font-bold">{opt.label}</span>
-                    <span className="text-[11px] leading-tight text-muted">{opt.hint}</span>
+
                   </button>
                 );
               })}
@@ -78,11 +81,13 @@ export function AppearanceTab() {
 
           {/* Akzent */}
           <div className="border-t border-divider pt-5">
-            <div className="text-sm font-bold text-ink">Akzent</div>
-            <div className="mt-0.5 text-xs text-muted">
-              Färbt die Primäraktion, den Fokusrand und die Auswahl. Eine freie Farbwahl
-              gibt es bewusst nicht: Jede angebotene Kombination ist in beiden Themen auf
-              Lesbarkeit geprüft.
+            <div className="flex items-center gap-1.5">
+              <span className="text-[13px] font-bold text-ink">Akzent</span>
+              <InfoTooltip>
+                Färbt Primäraktion, Auswahl und den aktiven Reiter. Eine freie
+                Farbwahl gibt es nicht: Jede angebotene Kombination ist in beiden
+                Themen auf Lesbarkeit geprüft.
+              </InfoTooltip>
             </div>
             <div role="radiogroup" aria-label="Akzentfarbe" className="mt-3 flex flex-wrap gap-2">
               {ACCENTS.map(a => {
@@ -115,14 +120,14 @@ export function AppearanceTab() {
           {/* Glas */}
           <div className="border-t border-divider pt-5">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-sm font-bold text-ink">Dezentes Glas</div>
-                <div className="mt-0.5 text-xs text-muted">
-                  Lässt Seitenleiste, Titelleiste und schwebende Leisten leicht durchscheinen.
-                  Aus ist eine vollwertige Einstellung: Dieselben Flächen stehen dann deckend
-                  da, keine Funktion hängt daran. Gilt nur auf diesem Gerät, weil Unschärfe
-                  Rechenzeit kostet.
-                </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[13px] font-bold text-ink">Dezentes Glas</span>
+                <InfoTooltip>
+                  Lässt Seitenleiste, Titelleiste und schwebende Leisten durchscheinen.
+                  Aus ist eine vollwertige Einstellung: Dieselben Flächen stehen dann
+                  deckend da, keine Funktion hängt daran. Gilt nur auf diesem Gerät,
+                  weil Unschärfe Rechenzeit kostet.
+                </InfoTooltip>
               </div>
               <Switch checked={glass} onChange={updateGlass} ariaLabel="Dezentes Glas" />
             </div>
