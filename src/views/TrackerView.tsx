@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, Trash2, Copy, Plus, ChevronRight, Search, X, ListChecks } from 'lucide-react';
+import { Pencil, Trash2, Copy, Plus, ChevronRight, ChevronDown, Search, X, ListChecks, Square } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
 import { CustomAutocomplete } from '../components/CustomAutocomplete';
 import { Checkbox } from '../components/Checkbox';
@@ -16,7 +16,7 @@ import { collectDescriptionSuggestions } from '../utils/descriptionSuggestions';
 import { UndoToast } from '../components/UndoToast';
 import { SwipeRow } from '../components/SwipeRow';
 import { newNumericId } from '../sync/ids';
-import { NO_PROJECT_ID, NO_PROJECT_LABEL, projectLabel } from '../utils/projects';
+import { NO_PROJECT_ID, NO_PROJECT_LABEL, NO_PROJECT_OPTION, projectLabel } from '../utils/projects';
 
 /** Wie lange sich eine Löschung zurückholen lässt. */
 const UNDO_WINDOW_MS = 8000;
@@ -27,6 +27,8 @@ export function TrackerView() {
   const projects = state?.projects ?? [];
 
   const [, setLiveDurationTick] = useState(0);
+  /** Kunde und Projekt liegen zusammengeklappt hinter einer Zeile. */
+  const [pickerOffen, setPickerOffen] = useState(false);
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, entryId: number } | null>(null);
   const [deleteModalEntryId, setDeleteModalEntryId] = useState<number | null>(null);
@@ -235,82 +237,140 @@ export function TrackerView() {
   };
 
   const availableProjects = projects.filter(p => p.customerId === state.currentCustomerId);
+  const aktiverKunde = customers.find(c => c.id === state.currentCustomerId);
   const allDescriptions = collectDescriptionSuggestions(state.entries);
 
   return (
     <>
-      <header className="mb-3 text-center">
-        <div className="kv-label">
-          {state.isRunning && state.startedAt ? `Läuft seit ${new Date(state.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Bereit'}
-        </div>
-      </header>
-
-      <div className={`mb-12 text-center font-display text-[88px] font-bold leading-[0.85] tabular-nums tracking-tight transition-colors duration-500 ${state.isRunning ? 'text-ink' : 'text-muted'}`}>
+      {/* Die Zeit fuehrt, alles andere ordnet sich ihr unter. */}
+      <div className={`mb-1 text-center font-display text-[76px] font-bold leading-[0.9] tabular-nums tracking-tight transition-colors duration-500 ${state.isRunning ? 'text-ink' : 'text-muted'}`}>
         {formatHMS(liveDuration)}
       </div>
 
-      {(() => {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todaySec = state.entries
-          .filter(e => e.startedAt >= todayStart.getTime())
-          .reduce((s, e) => s + e.durationSeconds, 0) + liveDuration;
-        const h = Math.floor(todaySec / 3600);
-        const m = Math.floor((todaySec % 3600) / 60);
-        return (
-          <div className="mb-8 text-center kv-label">
-            Heute: <span className="text-ink">{h}:{String(m).padStart(2, '0')} Std.</span>
-          </div>
-        );
-      })()}
-
-      <form className="mb-4 grid grid-cols-2 gap-x-3 gap-y-5" onSubmit={e => e.preventDefault()}>
-        <CustomSelect
-          id="customerSelect"
-          label="Kunde"
-          value={state.currentCustomerId}
-          options={customers}
-          onChange={(v) => setState(s => s ? ({ ...s, currentCustomerId: v as number, currentProjectId: projects.find(p => p.customerId === v)?.id || 0 }) : null)}
-        />
-        <CustomSelect
-          id="projectSelect"
-          label="Projekt"
-          value={state.currentProjectId}
-          options={availableProjects}
-          onChange={(v) => setState(s => s ? ({ ...s, currentProjectId: v as number }) : null)}
-        />
-
-        <div className="col-span-2">
-          <CustomAutocomplete
-            id="descriptionInput"
-            label="Beschreibung"
-            options={allDescriptions}
-            placeholder="Woran arbeitest du?"
-            value={state.currentDescription}
-            onChange={v => setState(s => s ? ({ ...s, currentDescription: v }) : null)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') handleStart();
-            }}
+      {/* Eine Zeile Kontext statt zweier Auswahlfelder. Kunde und Projekt
+          aendern sich selten; sie staendig zu zeigen kostet Ruhe, ohne
+          etwas zu erleichtern. Antippen klappt die Auswahl auf. */}
+      <div className="mb-5 flex justify-center">
+        <button
+          type="button"
+          onClick={() => setPickerOffen(o => !o)}
+          aria-expanded={pickerOffen}
+          className="flex cursor-pointer items-center gap-2 rounded-full border border-divider px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:border-ink hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ background: aktiverKunde?.color ?? 'var(--color-muted)' }}
           />
-        </div>
-      </form>
+          {aktiverKunde ? aktiverKunde.name : 'Kunde wählen'}
+          {aktiverKunde && (
+            <span>· {projectLabel(projects, state.currentProjectId)}</span>
+          )}
+          <ChevronDown
+            size={13}
+            aria-hidden="true"
+            className={`transition-transform ${pickerOffen ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
 
-      <div className="mb-12 flex gap-2">
+      <AnimatePresence initial={false}>
+        {pickerOffen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="mb-5 grid grid-cols-2 gap-3 pt-1">
+              <CustomSelect
+                id="customerSelect"
+                label="Kunde"
+                value={state.currentCustomerId}
+                options={customers}
+                onChange={(v) => setState(s => {
+                  if (!s) return null;
+                  // Die Kundenwahl setzt das Projekt NICHT mehr automatisch.
+                  // Wer Zeit nur auf einen Kunden buchen will, soll nicht
+                  // erst ein fremdes Projekt wegklicken muessen.
+                  const passtNoch = projects.some(
+                    (pr) => pr.id === s.currentProjectId && pr.customerId === v,
+                  );
+                  return {
+                    ...s,
+                    currentCustomerId: v as number,
+                    currentProjectId: passtNoch ? s.currentProjectId : NO_PROJECT_ID,
+                  };
+                })}
+              />
+              <CustomSelect
+                id="projectSelect"
+                label="Projekt"
+                value={state.currentProjectId}
+                options={[NO_PROJECT_OPTION, ...availableProjects]}
+                onChange={(v) => setState(s => s ? ({ ...s, currentProjectId: v as number }) : null)}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="mb-4">
+        <CustomAutocomplete
+          id="descriptionInput"
+          label=""
+          options={allDescriptions}
+          placeholder="Woran arbeitest du?"
+          value={state.currentDescription}
+          onChange={v => setState(s => s ? ({ ...s, currentDescription: v }) : null)}
+          onKeyDown={e => { if (e.key === 'Enter') handleStart(); }}
+        />
+      </div>
+
+      <div className="mb-3 flex gap-2">
         <button
           type="button"
           onClick={state.isRunning ? handlePause : handleStart}
-          className={`flex-1 cursor-pointer rounded-md border px-4 py-3 text-sm font-bold transition-colors ${state.isRunning ? 'border-warning-line bg-warning-solid text-paper hover:bg-paper hover:text-warning' : 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink' }`}
+          className={`kv-btn flex-1 ${state.isRunning ? 'kv-btn-outline' : 'kv-btn-primary'}`}
         >
           {state.isRunning ? 'Pause' : 'Start'}
         </button>
         <button
           type="button"
           onClick={handleStop}
-          className="cursor-pointer rounded-md border border-ink bg-paper px-6 py-3 text-sm font-bold text-ink transition-colors hover:bg-ink hover:text-paper"
+          aria-label="Stoppen und sichern"
+          title="Stoppen und sichern"
+          className="kv-icon-btn border-divider text-ink hover:border-ink"
         >
-          Stop
+          <Square size={13} aria-hidden="true" />
         </button>
       </div>
+
+      {/* Tagesstand als ruhige Fusszeile unter den Aktionen — nicht als
+          eigener Block ueber ihnen, wo er die Zeit vom Start trennte. */}
+      {(() => {
+        const tagesBeginn = new Date();
+        tagesBeginn.setHours(0, 0, 0, 0);
+        const heuteSek = state.entries
+          .filter(e => e.startedAt >= tagesBeginn.getTime())
+          .reduce((summe, e) => summe + e.durationSeconds, 0) + liveDuration;
+        const h = Math.floor(heuteSek / 3600);
+        const m = Math.floor((heuteSek % 3600) / 60);
+        return (
+          <div className="mb-12 flex items-center justify-center gap-2 text-[12px] text-muted">
+            <span className="tabular-nums">Heute {h}:{String(m).padStart(2, '0')} Std.</span>
+            {state.isRunning && state.startedAt && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="tabular-nums">
+                  läuft seit {new Date(state.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {(() => {
         const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
