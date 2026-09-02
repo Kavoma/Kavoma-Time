@@ -75,9 +75,7 @@ export function RecurringSetupModal({ open, onConfirm, onCancel }: Props) {
                       key={c}
                       type="button"
                       onClick={() => setCadence(c)}
-                      className={`flex-1 cursor-pointer rounded px-3 py-2 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                        cadence === c ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
-                      }`}
+                      className={`flex-1 cursor-pointer rounded px-3 py-2 text-xs font-bold transition-colors ${ cadence === c ? 'bg-ink text-paper' : 'text-muted hover:text-ink' }`}
                     >
                       {CADENCE_LABELS[c]}
                     </button>
@@ -111,13 +109,13 @@ export function RecurringSetupModal({ open, onConfirm, onCancel }: Props) {
             <div className="flex justify-end gap-2 border-t border-divider px-5 py-3">
               <button
                 onClick={onCancel}
-                className="cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
               >
                 Abbrechen
               </button>
               <button
                 onClick={() => onConfirm(cadence, day)}
-                className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent active:scale-95"
+                className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-xs font-bold text-paper transition-colors hover:bg-accent"
               >
                 Einrichten
               </button>

@@ -299,17 +299,14 @@ export function TrackerView() {
         <button
           type="button"
           onClick={state.isRunning ? handlePause : handleStart}
-          className={`flex-1 cursor-pointer rounded-md border px-4 py-3 text-sm font-bold uppercase tracking-widest transition-all active:scale-95 ${state.isRunning
-            ? 'border-warning-line bg-warning-solid text-paper hover:bg-paper hover:text-warning'
-            : 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink'
-            }`}
+          className={`flex-1 cursor-pointer rounded-md border px-4 py-3 text-sm font-bold transition-colors ${state.isRunning ? 'border-warning-line bg-warning-solid text-paper hover:bg-paper hover:text-warning' : 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink' }`}
         >
           {state.isRunning ? 'Pause' : 'Start'}
         </button>
         <button
           type="button"
           onClick={handleStop}
-          className="cursor-pointer rounded-md border border-ink bg-paper px-6 py-3 text-sm font-bold uppercase tracking-widest text-ink transition-all hover:bg-ink hover:text-paper active:scale-95"
+          className="cursor-pointer rounded-md border border-ink bg-paper px-6 py-3 text-sm font-bold text-ink transition-colors hover:bg-ink hover:text-paper"
         >
           Stop
         </button>
@@ -421,8 +418,7 @@ export function TrackerView() {
                     <button
                       key={v}
                       onClick={() => setEntryView(v)}
-                      className={`cursor-pointer rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${entryView === v ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
-                        }`}
+                      className={`cursor-pointer rounded px-2.5 py-1 text-xs font-bold transition-colors ${entryView === v ? 'bg-ink text-paper' : 'text-muted hover:text-ink' }`}
                     >
                       {v === 'date' ? 'Datum' : 'Projekt'}
                     </button>
@@ -433,10 +429,7 @@ export function TrackerView() {
                 {state.entries.length > 0 && (
                   <button
                     onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-                    className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest transition-colors ${selectMode
-                      ? 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink'
-                      : 'border-divider text-muted hover:border-ink hover:text-ink'
-                      }`}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${selectMode ? 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink' : 'border-divider text-muted hover:border-ink hover:text-ink' }`}
                   >
                     {selectMode ? <X size={12} /> : <ListChecks size={12} />}
                     {selectMode ? 'Fertig' : 'Auswählen'}
@@ -444,7 +437,7 @@ export function TrackerView() {
                 )}
                 <button
                   onClick={() => setNewEntryOpen(true)}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-muted transition-colors hover:border-ink hover:text-ink"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider px-2.5 py-1 text-xs font-bold text-muted transition-colors hover:border-ink hover:text-ink"
                 >
                   <Plus size={12} /> Nachtragen
                 </button>
@@ -459,7 +452,7 @@ export function TrackerView() {
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Einträge durchsuchen…"
-                  className="w-full !pl-11 !pr-9 !py-1.5 text-[11px] font-bold tracking-wider bg-surface/40 border-divider hover:border-muted focus:border-ink focus:bg-surface transition-all rounded-md outline-none placeholder:text-muted/50"
+                  className="w-full !pl-11 !pr-9 !py-1.5 text-xs font-bold bg-surface/40 border-divider hover:border-muted focus:border-ink focus:bg-surface transition-colors rounded-md outline-none placeholder:text-muted/50"
                 />
                 {searchTerm && (
                   <button
@@ -562,7 +555,7 @@ export function TrackerView() {
                     <span className="h-4 w-px bg-divider" />
                     <button
                       onClick={() => setGroupSelected(sorted, sorted.length > 0 && !sorted.every(e => selectedIds.has(e.id)))}
-                      className="cursor-pointer text-[11px] font-bold uppercase tracking-widest text-muted transition-colors hover:text-ink"
+                      className="cursor-pointer text-xs font-bold text-muted transition-colors hover:text-ink"
                     >
                       {sorted.length > 0 && sorted.every(e => selectedIds.has(e.id)) ? 'Keine' : 'Alle'}
                     </button>
@@ -570,7 +563,7 @@ export function TrackerView() {
                     <button
                       onClick={() => setBulkDeleteOpen(true)}
                       disabled={selectedIds.size === 0}
-                      className="flex cursor-pointer items-center gap-1.5 rounded-md bg-danger-soft px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-danger-soft disabled:hover:text-danger"
+                      className="flex cursor-pointer items-center gap-1.5 rounded-md bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-danger-soft disabled:hover:text-danger"
                     >
                       <Trash2 size={12} />
                       Löschen{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
@@ -596,21 +589,21 @@ export function TrackerView() {
           >
             <button
               onClick={() => { setEditModalEntryId(contextMenu.entryId); setContextMenu(null); }}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-ink transition-colors hover:bg-divider"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-bold text-ink transition-colors hover:bg-divider"
             >
               <Pencil size={13} className="text-muted" />
               Bearbeiten
             </button>
             <button
               onClick={() => { handleDuplicateEntry(contextMenu.entryId); setContextMenu(null); }}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-ink transition-colors hover:bg-divider"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-bold text-ink transition-colors hover:bg-divider"
             >
               <Copy size={13} className="text-muted" />
               Duplizieren
             </button>
             <button
               onClick={() => { setDeleteModalEntryId(contextMenu.entryId); setContextMenu(null); }}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-danger transition-colors hover:bg-divider"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-bold text-danger transition-colors hover:bg-divider"
             >
               <Trash2 size={13} />
               Löschen

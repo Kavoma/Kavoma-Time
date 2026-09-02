@@ -157,13 +157,7 @@ export function DatePicker({ value, onChange, label, className = '' }: DatePicke
         key={i}
         type="button"
         onClick={() => handleDateClick(i)}
-        className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[11px] font-bold transition-all
-          ${isSelected(i) 
-            ? 'bg-accent text-paper shadow-lg shadow-accent/20' 
-            : isToday(i) 
-              ? 'bg-accent/10 text-accent ring-1 ring-accent/30' 
-              : 'text-ink hover:bg-divider'
-          }`}
+        className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-xs font-bold transition-colors ${isSelected(i) ? 'bg-accent text-paper shadow-lg shadow-accent/20' : isToday(i) ? 'bg-accent/10 text-accent ring-1 ring-accent/30' : 'text-ink hover:bg-divider' }`}
       >
         {i}
       </button>
@@ -246,7 +240,7 @@ export function DatePicker({ value, onChange, label, className = '' }: DatePicke
                     onChange(iso);
                     setIsOpen(false);
                   }}
-                  className="mt-3 w-full rounded-md bg-paper py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink border border-divider transition-colors"
+                  className="mt-3 w-full rounded-md bg-paper py-1.5 text-xs font-bold text-muted hover:text-ink border border-divider transition-colors"
                 >
                   Heute
                 </button>

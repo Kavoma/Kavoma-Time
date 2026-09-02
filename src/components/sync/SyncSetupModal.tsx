@@ -193,7 +193,7 @@ export function SyncSetupModal({ open, onClose, onDone }: Props) {
                     dass wirklich deine beiden Geräte miteinander reden und niemand dazwischen sitzt.
                   </p>
                   <button type="button" onClick={() => setSchritt('notfallcode-eingeben')}
-                    className="flex items-center gap-1 text-[11px] text-muted underline decoration-divider transition-colors hover:text-ink">
+                    className="flex items-center gap-1 text-xs text-muted underline decoration-divider transition-colors hover:text-ink">
                     Anderes Gerät nicht zur Hand? Wiederherstellungscode verwenden <ArrowRight size={11} />
                   </button>
                 </>
@@ -210,7 +210,7 @@ export function SyncSetupModal({ open, onClose, onDone }: Props) {
                     value={notfallEingabe} onChange={(e) => setNotfallEingabe(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter' && notfallEingabe) mitNotfallcode(); }} />
                   <button type="button" onClick={() => setSchritt('verbinden')}
-                    className="text-[11px] text-muted underline decoration-divider transition-colors hover:text-ink">
+                    className="text-xs text-muted underline decoration-divider transition-colors hover:text-ink">
                     Zurück zur Zahl
                   </button>
                 </>

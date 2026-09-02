@@ -240,7 +240,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 <button
                   onClick={handlePrint}
                   disabled={!blobUrl}
-                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                   title="Drucken"
                   aria-label="Drucken"
                 >
@@ -249,7 +249,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 <button
                   onClick={handleOpenInBrowser}
                   disabled={!blobUrl}
-                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                   title="In neuem Fenster öffnen"
                   aria-label="In neuem Fenster öffnen"
                 >
@@ -258,7 +258,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 <button
                   onClick={handleDownload}
                   disabled={!blobUrl}
-                  className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                   title="Original-PDF herunterladen"
                 >
                   <Download size={12} /> Herunterladen
@@ -270,7 +270,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 {onDelete && (
                   <button
                     onClick={() => setConfirmDelete(true)}
-                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-danger-line bg-danger-soft text-danger transition-all hover:border-danger-line hover:bg-danger-soft"
+                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-danger-line bg-danger-soft text-danger transition-colors hover:border-danger-line hover:bg-danger-soft"
                     title="Beleg löschen"
                     aria-label="Beleg löschen"
                   >
@@ -341,13 +341,13 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                   <div className="flex gap-2">
                     <button
                       onClick={() => setConfirmDelete(false)}
-                      className="cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                      className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
                     >
                       Abbrechen
                     </button>
                     <button
                       onClick={() => { setConfirmDelete(false); onDelete(); }}
-                      className="cursor-pointer rounded-md bg-danger-soft px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink"
+                      className="cursor-pointer rounded-md bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink"
                     >
                       Endgültig löschen
                     </button>

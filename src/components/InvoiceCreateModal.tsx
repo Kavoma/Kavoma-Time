@@ -366,7 +366,7 @@ export function InvoiceCreateModal({
                   <select
                     value=""
                     onChange={(e) => e.target.value && handleApplyTemplate(e.target.value)}
-                    className="h-8 cursor-pointer rounded-md border border-divider bg-paper px-2 text-[10px] font-bold uppercase tracking-widest text-ink outline-none hover:border-ink"
+                    className="h-8 cursor-pointer rounded-md border border-divider bg-paper px-2 text-xs font-bold text-ink outline-none hover:border-ink"
                   >
                     <option value="">Vorlage anwenden…</option>
                     {templates.map((t) => (
@@ -376,7 +376,7 @@ export function InvoiceCreateModal({
                 )}
                 <button
                   onClick={() => setShowPreview(!showPreview)}
-                  className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2 text-[10px] font-bold uppercase tracking-widest text-muted transition-colors hover:border-ink hover:text-ink"
+                  className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2 text-xs font-bold text-muted transition-colors hover:border-ink hover:text-ink"
                   title={showPreview ? 'Vorschau ausblenden' : 'Vorschau einblenden'}
                 >
                   {showPreview ? <EyeOff size={11} /> : <Eye size={11} />}
@@ -456,7 +456,7 @@ export function InvoiceCreateModal({
                         value={invoiceNumber}
                         placeholder="wird beim Finalisieren vergeben"
                         onChange={(e) => { setInvoiceNumber(e.target.value); markDirty(); }}
-                        className="h-10 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none placeholder:text-muted placeholder:text-[11px] placeholder:font-normal focus:border-accent font-bold"
+                        className="h-10 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none placeholder:text-muted placeholder:text-xs placeholder:font-normal focus:border-accent font-bold"
                       />
                     </div>
                     <DatePicker label="Datum" value={createdAt} onChange={(v) => { setCreatedAt(v); markDirty(); }} />
@@ -477,7 +477,7 @@ export function InvoiceCreateModal({
 
                     <div
                       onClick={() => { setIncludeReport(!includeReport); markDirty(); }}
-                      className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-all ${
+                      className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors ${
                         includeReport ? 'border-accent/40 bg-paper' : 'border-divider bg-surface/50'
                       }`}
                     >
@@ -553,7 +553,7 @@ export function InvoiceCreateModal({
                       <button
                         type="button"
                         onClick={() => setShowSaveTemplate(true)}
-                        className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink"
+                        className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink"
                       >
                         <Bookmark size={12} /> Als Vorlage speichern
                       </button>
@@ -571,14 +571,14 @@ export function InvoiceCreateModal({
                           type="button"
                           onClick={handleSaveTemplate}
                           disabled={!templateName.trim() || items.length === 0}
-                          className="cursor-pointer rounded-md bg-ink px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                          className="cursor-pointer rounded-md bg-ink px-3 py-1.5 text-xs font-bold text-paper transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           Speichern
                         </button>
                         <button
                           type="button"
                           onClick={() => { setShowSaveTemplate(false); setTemplateName(''); }}
-                          className="cursor-pointer rounded-md px-2 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                          className="cursor-pointer rounded-md px-2 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
                         >
                           Abbrechen
                         </button>
@@ -589,7 +589,7 @@ export function InvoiceCreateModal({
                       type="button"
                       onClick={() => setRecurringOpen(true)}
                       disabled={!pendingTemplateId}
-                      className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                      className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                       title={pendingTemplateId ? 'Wiederkehrende Rechnung an die aktuelle Vorlage anhängen' : 'Erst Vorlage speichern, dann Wiederkehrend anhängen'}
                     >
                       <Repeat size={12} /> Wiederkehrend einrichten
@@ -627,20 +627,20 @@ export function InvoiceCreateModal({
               <div className="flex gap-2">
                 <button
                   onClick={() => (dirty ? setConfirmClose(true) : onCancel())}
-                  className="cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                  className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
                 >
                   Abbrechen
                 </button>
                 <button
                   onClick={handleSaveDraft}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-3 py-1.5 text-xs font-bold text-ink transition-colors hover:border-ink"
                   title="Strg+S — als Entwurf speichern"
                 >
                   <Save size={12} /> Entwurf
                 </button>
                 <button
                   onClick={handleFinalize}
-                  className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent active:scale-95"
+                  className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-xs font-bold text-paper transition-colors hover:bg-accent"
                   title="Strg+Enter — finalisieren und PDF erzeugen"
                 >
                   {editingDraft ? 'Finalisieren & PDF' : 'Erstellen & PDF'}
@@ -728,13 +728,13 @@ export function InvoiceCreateModal({
                   <div className="mt-4 flex justify-end gap-2">
                     <button
                       onClick={() => setConfirmClose(false)}
-                      className="cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                      className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
                     >
                       Weiter bearbeiten
                     </button>
                     <button
                       onClick={() => { setConfirmClose(false); onCancel(); }}
-                      className="cursor-pointer rounded-md bg-danger-soft px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink"
+                      className="cursor-pointer rounded-md bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink"
                     >
                       Verwerfen
                     </button>

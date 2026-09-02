@@ -53,13 +53,13 @@ export function LongRunModal({ seconds, onStop, onKeepRunning }: LongRunModalPro
             <div className="flex justify-end gap-2 border-t border-divider px-6 py-4">
               <button
                 onClick={onKeepRunning}
-                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink"
+                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink"
               >
                 Weiterlaufen lassen
               </button>
               <button
                 onClick={onStop}
-                className="cursor-pointer rounded-md bg-accent/15 px-4 py-2 text-xs font-bold uppercase tracking-widest text-accent transition-all hover:bg-accent hover:text-ink active:scale-95"
+                className="cursor-pointer rounded-md bg-accent/15 px-4 py-2 text-xs font-bold text-accent transition-colors hover:bg-accent hover:text-ink"
               >
                 Jetzt stoppen
               </button>

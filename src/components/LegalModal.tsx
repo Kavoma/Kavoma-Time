@@ -61,13 +61,13 @@ export function LegalModal({ open, initial, onClose }: LegalModalProps) {
               <div className="flex gap-2">
                 <button
                   onClick={() => setTab('imprint')}
-                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all ${tab === 'imprint' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
+                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${tab === 'imprint' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
                 >
                   <FileText size={13} /> Impressum
                 </button>
                 <button
                   onClick={() => setTab('privacy')}
-                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all ${tab === 'privacy' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
+                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${tab === 'privacy' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
                 >
                   <ShieldCheck size={13} /> Datenschutz
                 </button>

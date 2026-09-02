@@ -124,9 +124,7 @@ export function SettingsView() {
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(tab.key)}
               onKeyDown={(e) => handleTabKeyDown(e, idx)}
-              className={`relative flex cursor-pointer items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
-                isActive ? 'text-ink' : 'text-muted hover:text-ink'
-              }`}
+              className={`relative flex cursor-pointer items-center gap-2 px-4 py-2.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${ isActive ? 'text-ink' : 'text-muted hover:text-ink' }`}
             >
               <Icon size={14} aria-hidden="true" />
               {tab.label}

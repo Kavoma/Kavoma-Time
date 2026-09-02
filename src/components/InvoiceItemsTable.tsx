@@ -92,21 +92,21 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
           <button
             type="button"
             onClick={() => addItem('time')}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-info-line hover:bg-info-soft"
+            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-info-line hover:bg-info-soft"
           >
             <Clock size={12} /> + Zeit
           </button>
           <button
             type="button"
             onClick={() => addItem('flat')}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-violet-400 hover:bg-violet-500/5"
+            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-violet-400 hover:bg-violet-500/5"
           >
             <Package size={12} /> + Pauschal
           </button>
           <button
             type="button"
             onClick={() => addItem('discount')}
-            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-warning-line hover:bg-warning-soft"
+            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-warning-line hover:bg-warning-soft"
           >
             <Percent size={12} /> + Rabatt
           </button>
@@ -184,7 +184,7 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
                   return (
                     <div className="grid grid-cols-12 items-center gap-2">
                       <div className="col-span-3 flex flex-col">
-                        <label className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-muted/70">
+                        <label className="mb-0.5 text-xs font-bold text-muted/70">
                           Menge {isDiscountPercent && <span className="text-muted/50">· auto</span>}
                         </label>
                         <input
@@ -202,7 +202,7 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
                         />
                       </div>
                       <div className="col-span-2 flex flex-col">
-                        <label className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-muted/70">Einheit</label>
+                        <label className="mb-0.5 text-xs font-bold text-muted/70">Einheit</label>
                         {kind === 'discount' ? (
                           <div className="flex h-9 w-full overflow-hidden rounded border border-divider bg-paper">
                             <button
@@ -233,7 +233,7 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
                         )}
                       </div>
                       <div className="col-span-3 flex flex-col">
-                        <label className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-muted/70">{priceLabel}</label>
+                        <label className="mb-0.5 text-xs font-bold text-muted/70">{priceLabel}</label>
                         <input
                           type="number"
                           step="0.01"
@@ -244,7 +244,7 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
                         />
                       </div>
                       <div className="col-span-4 flex flex-col">
-                        <label className="mb-0.5 text-[9px] font-bold uppercase tracking-widest text-muted/70">Gesamt</label>
+                        <label className="mb-0.5 text-xs font-bold text-muted/70">Gesamt</label>
                         <div className={`flex h-9 items-center justify-end rounded border border-divider bg-surface/60 px-3 text-[14px] font-bold tabular-nums ${it.total < 0 ? 'text-warning' : 'text-ink'}`}>
                           {fmtEuro(it.total)}
                         </div>

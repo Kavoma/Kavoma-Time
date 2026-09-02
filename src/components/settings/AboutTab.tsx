@@ -55,7 +55,7 @@ export function AboutTab({ onOpenLegal }: AboutTabProps) {
               type="button"
               disabled={isChecking}
               onClick={() => window.api?.checkForUpdates?.()}
-              className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-45"
+              className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-45"
             >
               <RefreshCw size={13} className={isChecking ? 'animate-spin' : ''} />
               Prüfen
@@ -64,7 +64,7 @@ export function AboutTab({ onOpenLegal }: AboutTabProps) {
               <button
                 type="button"
                 onClick={() => window.api?.installDownloadedUpdate?.()}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink"
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-3 py-2 text-xs font-bold text-paper transition-colors hover:bg-paper hover:text-ink"
               >
                 <Power size={13} />
                 Neustart
@@ -76,7 +76,7 @@ export function AboutTab({ onOpenLegal }: AboutTabProps) {
         {typeof updateStatus?.progress === 'number' && (
           <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-paper">
             <div
-              className="h-full rounded-full bg-ink transition-all"
+              className="h-full rounded-full bg-ink transition-colors"
               style={{ width: `${Math.min(100, Math.max(0, updateStatus.progress))}%` }}
             />
           </div>
@@ -127,13 +127,13 @@ export function AboutTab({ onOpenLegal }: AboutTabProps) {
         <div className="flex gap-3">
           <button
             onClick={() => onOpenLegal('imprint')}
-            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95"
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface"
           >
             <FileText size={14} /> Impressum
           </button>
           <button
             onClick={() => onOpenLegal('privacy')}
-            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95"
+            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface"
           >
             <FileText size={14} /> Datenschutz
           </button>

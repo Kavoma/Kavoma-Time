@@ -75,9 +75,7 @@ export function AnalyticsRangePicker({ value, onChange, accountingMode, onAccoun
               key={m}
               type="button"
               onClick={() => setMode(m)}
-              className={`cursor-pointer rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                value.mode === m ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
-              }`}
+              className={`cursor-pointer rounded px-3 py-1.5 text-xs font-bold transition-colors ${ value.mode === m ? 'bg-ink text-paper' : 'text-muted hover:text-ink' }`}
             >
               {MODE_LABELS[m]}
             </button>
@@ -116,9 +114,7 @@ export function AnalyticsRangePicker({ value, onChange, accountingMode, onAccoun
                 key={q}
                 type="button"
                 onClick={() => setQuarter(q)}
-                className={`cursor-pointer rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                  value.quarter === q ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
-                }`}
+                className={`cursor-pointer rounded px-3 py-1.5 text-xs font-bold transition-colors ${ value.quarter === q ? 'bg-ink text-paper' : 'text-muted hover:text-ink' }`}
               >
                 Q{q}
               </button>
@@ -152,18 +148,14 @@ export function AnalyticsRangePicker({ value, onChange, accountingMode, onAccoun
             <button
               type="button"
               onClick={() => onAccountingModeChange('cash')}
-              className={`cursor-pointer rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                accountingMode === 'cash' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
-              }`}
+              className={`cursor-pointer rounded px-3 py-1.5 text-xs font-bold transition-colors ${ accountingMode === 'cash' ? 'bg-ink text-paper' : 'text-muted hover:text-ink' }`}
             >
               Ist (Cash)
             </button>
             <button
               type="button"
               onClick={() => onAccountingModeChange('accrual')}
-              className={`cursor-pointer rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                accountingMode === 'accrual' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
-              }`}
+              className={`cursor-pointer rounded px-3 py-1.5 text-xs font-bold transition-colors ${ accountingMode === 'accrual' ? 'bg-ink text-paper' : 'text-muted hover:text-ink' }`}
             >
               Soll (Accrual)
             </button>

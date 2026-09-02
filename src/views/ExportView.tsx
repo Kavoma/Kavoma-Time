@@ -453,7 +453,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
       <div className="mb-4 grid grid-cols-3 gap-3">
         <div
           onClick={() => setFilterStatus(filterStatus === 'paid' ? 'all' : 'paid')}
-          className={`cursor-pointer rounded-xl border p-5 transition-all hover:scale-[1.02] ${
+          className={`cursor-pointer rounded-xl border p-5 transition-colors ${
             filterStatus === 'paid' ? 'border-success-line bg-success-soft shadow-lg shadow-success-line' : 'border-divider bg-surface'
           }`}
         >
@@ -467,7 +467,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         </div>
         <div
           onClick={() => setFilterStatus(filterStatus === 'open' ? 'all' : 'open')}
-          className={`cursor-pointer rounded-xl border p-5 transition-all hover:scale-[1.02] ${
+          className={`cursor-pointer rounded-xl border p-5 transition-colors ${
             filterStatus === 'open' ? 'border-warning-line bg-warning-soft shadow-lg shadow-warning-line' : 'border-divider bg-surface'
           }`}
         >
@@ -481,7 +481,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         </div>
         <div
           onClick={() => setFilterStatus('all')}
-          className={`cursor-pointer rounded-xl border p-5 transition-all hover:scale-[1.02] ${
+          className={`cursor-pointer rounded-xl border p-5 transition-colors ${
             filterStatus === 'all' ? 'border-ink bg-ink/5 shadow-lg shadow-ink/5' : 'border-divider bg-surface'
           }`}
         >
@@ -499,7 +499,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
       <div className="mb-4 grid grid-cols-3 gap-3">
         <div
           onClick={() => setFilterStatus(filterStatus === 'dunning' ? 'all' : 'dunning')}
-          className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
+          className={`cursor-pointer rounded-xl border p-4 transition-colors ${
             filterStatus === 'dunning' ? 'border-danger-line bg-danger-soft shadow-lg shadow-danger-line' : 'border-divider bg-surface'
           }`}
         >
@@ -520,7 +520,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
 
         <div
           onClick={() => setFilterStatus(filterStatus === 'cancelled' ? 'all' : 'cancelled')}
-          className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
+          className={`cursor-pointer rounded-xl border p-4 transition-colors ${
             filterStatus === 'cancelled' ? 'border-neutral-line bg-neutral-soft shadow-lg shadow-neutral-line' : 'border-divider bg-surface'
           }`}
         >
@@ -541,7 +541,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
 
         <div
           onClick={() => setFilterStatus(filterStatus === 'draft' ? 'all' : 'draft')}
-          className={`cursor-pointer rounded-xl border p-4 transition-all hover:scale-[1.01] ${
+          className={`cursor-pointer rounded-xl border p-4 transition-colors ${
             filterStatus === 'draft' ? 'border-warning-line bg-warning-soft shadow-lg shadow-warning-line' : 'border-divider bg-surface'
           }`}
           title="Entwürfe sind nicht in den Umsatz-Statistiken enthalten"
@@ -572,7 +572,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
           </div>
           <button
             onClick={() => setFilterStatus('draft')}
-            className="cursor-pointer rounded-md bg-info-soft px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-info transition-colors hover:bg-info-soft"
+            className="cursor-pointer rounded-md bg-info-soft px-3 py-1 text-xs font-bold text-info transition-colors hover:bg-info-soft"
           >
             Anzeigen
           </button>
@@ -592,7 +592,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
               placeholder="Suche nach Nummer oder Kunde..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="h-12 w-full !pl-12 pr-4 placeholder:text-muted/60 text-left border-divider focus:border-ink transition-all rounded-lg bg-surface text-sm font-medium"
+              className="h-12 w-full !pl-12 pr-4 placeholder:text-muted/60 text-left border-divider focus:border-ink transition-colors rounded-lg bg-surface text-sm font-medium"
             />
           </div>
           
@@ -628,7 +628,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
             <button
               onClick={exportCSV}
               disabled={filteredInvoices.length === 0}
-              className="flex h-12 cursor-pointer items-center gap-2 rounded-lg border border-divider bg-surface px-5 text-xs font-bold uppercase tracking-widest transition-all hover:border-ink disabled:opacity-30"
+              className="flex h-12 cursor-pointer items-center gap-2 rounded-lg border border-divider bg-surface px-5 text-xs font-bold transition-colors hover:border-ink disabled:opacity-30"
             >
               <FileSpreadsheet size={16} /> CSV
             </button>
@@ -636,14 +636,14 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
           <button
             onClick={bulkDownload}
             disabled={isExporting || (selectedIds.length === 0 && filteredInvoices.length === 0)}
-            className={`flex h-12 cursor-pointer items-center gap-2 rounded-lg border border-divider bg-surface px-5 text-xs font-bold uppercase tracking-widest transition-all hover:border-ink disabled:opacity-30 ${isExporting ? 'animate-pulse' : ''}`}
+            className={`flex h-12 cursor-pointer items-center gap-2 rounded-lg border border-divider bg-surface px-5 text-xs font-bold transition-colors hover:border-ink disabled:opacity-30 ${isExporting ? 'animate-pulse' : ''}`}
           >
             <Files size={16} /> {isExporting ? 'Lädt...' : selectedIds.length > 0 ? `Export (${selectedIds.length})` : 'Alle Export'}
           </button>
           <button
             onClick={() => setCreateOpen(true)}
             disabled={state.customers.length === 0}
-            className="flex h-12 cursor-pointer items-center gap-2 rounded-lg border border-ink bg-ink px-5 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink active:scale-95 disabled:opacity-30"
+            className="flex h-12 cursor-pointer items-center gap-2 rounded-lg border border-ink bg-ink px-5 text-xs font-bold text-paper transition-colors hover:bg-paper hover:text-ink disabled:opacity-30"
           >
             <Plus size={16} /> Rechnung
           </button>
@@ -655,7 +655,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         <div className="flex items-center gap-2">
           <button
             onClick={toggleSelectAll}
-            className="text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink transition-colors flex items-center gap-1.5 py-1"
+            className="text-xs font-bold text-muted hover:text-ink transition-colors flex items-center gap-1.5 py-1"
           >
             <Check size={12} className={selectedIds.length === filteredInvoices.length ? 'text-success' : ''} />
             {selectedIds.length === filteredInvoices.length ? 'Alle abwählen' : 'Alle auswählen'}
@@ -666,7 +666,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
               <div className="h-3 w-px bg-divider mx-1" />
               <button
                 onClick={() => setSelectedIds([])}
-                className="text-[10px] font-bold uppercase tracking-widest text-danger hover:text-danger transition-colors flex items-center gap-1.5 py-1"
+                className="text-xs font-bold text-danger hover:text-danger transition-colors flex items-center gap-1.5 py-1"
               >
                 <Ban size={12} /> Auswahl aufheben
               </button>
@@ -676,7 +676,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                   <button
                     onClick={finalizeSelectedDrafts}
                     disabled={isFinalizing}
-                    className="flex items-center gap-1.5 rounded-md bg-warning-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-warning transition-colors hover:bg-warning-soft disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex items-center gap-1.5 rounded-md bg-warning-soft px-2.5 py-1 text-xs font-bold text-warning transition-colors hover:bg-warning-soft disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Wand2 size={12} /> {isFinalizing ? 'Finalisiere…' : `Entwürfe finalisieren (${selectedIds.length})`}
                   </button>
@@ -717,7 +717,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                 key={inv.id}
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, invoiceId: inv.id }); }}
                 onClick={() => setDrawerInvoiceId(inv.id)}
-                className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border p-5 transition-all hover:shadow-2xl hover:shadow-black/20 cursor-pointer ${
+                className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border p-5 transition-colors hover:shadow-2xl hover:shadow-black/20 cursor-pointer ${
                   isSelected ? 'border-ink bg-ink/[0.03]'
                   : isDraft ? 'border-warning-line bg-warning-soft hover:border-warning-line'
                   : 'border-divider bg-surface hover:border-accent/40'
@@ -725,7 +725,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                 title="Klick öffnet die Detail-Ansicht · Rechtsklick für Schnellaktionen"
               >
                 {/* Accent line */}
-                <div className="absolute left-0 top-0 h-full w-1 transition-all group-hover:w-1.5" style={{ background: customer?.color || '#525252' }} />
+                <div className="absolute left-0 top-0 h-full w-1 transition-colors group-hover:w-1.5" style={{ background: customer?.color || '#525252' }} />
 
                 {/* Multi-Select-Checkbox */}
                 <button
@@ -733,7 +733,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                     e.stopPropagation();
                     setSelectedIds(prev => prev.includes(String(inv.id)) ? prev.filter(id => id !== String(inv.id)) : [...prev, String(inv.id)]);
                   }}
-                  className={`absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded border transition-all ${
+                  className={`absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center rounded border transition-colors ${
                     isSelected ? 'border-ink bg-ink text-paper' : 'border-divider bg-surface opacity-0 group-hover:opacity-100'
                   }`}
                   title={isSelected ? 'Auswahl entfernen' : 'Auswählen'}
@@ -776,7 +776,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                     {!isDraft ? (
                       <button
                         onClick={(e) => { e.stopPropagation(); togglePaid(inv.id); }}
-                        className={`flex h-6 w-fit items-center gap-1.5 rounded-full px-2.5 transition-all hover:scale-105 active:scale-95 ${
+                        className={`flex h-6 w-fit items-center gap-1.5 rounded-full px-2.5 transition-colors ${
                           inv.paid
                             ? 'bg-success-soft text-success hover:bg-success-solid hover:text-paper'
                             : overdue

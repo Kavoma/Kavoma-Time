@@ -52,7 +52,7 @@ export function VatBreakdown({ year, onYearChange, quarters }: Props) {
             type="button"
             onClick={() => downloadVatCsv(quarters)}
             disabled={empty}
-            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-colors hover:bg-divider disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-3 py-1.5 text-xs font-bold text-ink transition-colors hover:bg-divider disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Download size={12} /> CSV
           </button>

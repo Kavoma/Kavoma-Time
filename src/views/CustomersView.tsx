@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Users, Plus, Search, LayoutGrid, List, FileSignature,
-  Trash2, Tag as TagIcon, CheckSquare, Square, X, Pause, Archive, CheckCircle2,
+  Users, Plus, Search, LayoutGrid, List, FileSignature, Trash2, Tag as TagIcon, CheckSquare, Square, X, Pause, Archive, CheckCircle2,
 } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
 import { Customer, CustomerStatus } from '../types';
@@ -9,6 +8,9 @@ import { CustomerDetailDrawer } from '../components/customer/CustomerDetailDrawe
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { TagInput } from '../components/TagInput';
 import { Tooltip } from '../components/Tooltip';
+import { SearchField } from '../components/SearchField';
+import { SegmentedControl } from '../components/SegmentedControl';
+import { FilterButton, FilterSection, FilterChoice } from '../components/FilterButton';
 import { Checkbox } from '../components/Checkbox';
 import { collectTags, tagColors } from '../utils/tagColor';
 import type { NavIntent, ViewKey } from '../App';
@@ -17,6 +19,22 @@ import { advanceCounter, allocateNumber, debtorFloor } from '../sync/numbers';
 
 type SortBy = 'name' | 'recent' | 'revenue' | 'hours';
 type ViewMode = 'list' | 'cards';
+
+const SORT_LABEL: Record<SortBy, string> = {
+  name:    'Name A–Z',
+  recent:  'Letzte Aktivität',
+  revenue: 'Höchster Umsatz',
+  hours:   'Meiste Stunden',
+};
+
+/** Der Normalzustand, gegen den „aktive Kriterien" gezählt werden. */
+const DEFAULT_STATUSES: ReadonlyArray<CustomerStatus> = ['active'];
+const DEFAULT_SORT: SortBy = 'name';
+
+const VIEW_OPTIONS = [
+  { value: 'list'  as ViewMode, icon: List,       ariaLabel: 'Listen-Ansicht' },
+  { value: 'cards' as ViewMode, icon: LayoutGrid, ariaLabel: 'Karten-Ansicht' },
+];
 
 const STATUS_LABEL: Record<CustomerStatus, string> = {
   active: 'Aktiv',
@@ -59,6 +77,17 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
   const [sortBy, setSortBy] = useState<SortBy>('name');
   const [activeStatuses, setActiveStatuses] = useState<Set<CustomerStatus>>(new Set(['active']));
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+
+  // Abgeleitet statt mitgefuehrt — ein zweiter Zaehler waere eine zweite Wahrheit.
+  const filterCount =
+    (activeStatuses.size === DEFAULT_STATUSES.length
+      && DEFAULT_STATUSES.every((st) => activeStatuses.has(st)) ? 0 : 1)
+    + (sortBy === DEFAULT_SORT ? 0 : 1);
+
+  const resetFilters = () => {
+    setActiveStatuses(new Set(DEFAULT_STATUSES));
+    setSortBy(DEFAULT_SORT);
+  };
 
   // Multi-Select / Bulk
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -292,7 +321,7 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
         <div className="flex items-center gap-3">
           <button
             onClick={openNew}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-4 py-2 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:border-accent hover:bg-accent active:scale-95"
+            className="flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-4 py-2 text-xs font-bold text-paper transition-colors hover:border-accent hover:bg-accent"
           >
             <Plus size={14} /> Neu
           </button>
@@ -302,81 +331,60 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[200px] flex-1">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Name, E-Mail, Stadt, Branche, Tag…"
-            className="h-9 w-full rounded-md border border-divider bg-paper !pl-9 pr-3 text-sm text-ink outline-none placeholder:text-muted focus:border-accent"
-          />
-        </div>
+      {/* Werkzeugleiste — Suche bekommt den Platz, alles Seltene liegt
+          hinter dem Filterknopf, der Ansichtsumschalter bleibt sichtbar. */}
+      <div className="kv-toolbar mb-4">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Kunden durchsuchen"
+        />
 
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortBy)}
-          className="h-9 cursor-pointer rounded-md border border-divider bg-paper px-3 text-[11px] font-bold uppercase tracking-widest text-ink outline-none hover:border-ink"
-        >
-          <option value="name">Name A–Z</option>
-          <option value="recent">Letzte Aktivität</option>
-          <option value="revenue">Höchster Umsatz</option>
-          <option value="hours">Meiste Stunden</option>
-        </select>
+        <FilterButton activeCount={filterCount} onReset={resetFilters}>
+          <FilterSection title="Status">
+            {(['active', 'paused', 'archived'] as CustomerStatus[]).map((st) => (
+              <FilterChoice
+                key={st}
+                label={STATUS_LABEL[st]}
+                checked={activeStatuses.has(st)}
+                // Alle Status abzuwaehlen hiesse: leere Liste ohne Hinweis.
+                disabled={activeStatuses.has(st) && activeStatuses.size === 1}
+                onToggle={() => setActiveStatuses((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(st)) {
+                    if (next.size > 1) next.delete(st);
+                  } else next.add(st);
+                  return next;
+                })}
+              />
+            ))}
+          </FilterSection>
 
-        <div className="flex items-center gap-1 rounded-md border border-divider bg-paper p-0.5">
-          {(['active', 'paused', 'archived'] as CustomerStatus[]).map((s) => {
-            const isOn = activeStatuses.has(s);
-            return (
-              <button
-                key={s}
-                onClick={() => {
-                  setActiveStatuses((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(s)) {
-                      if (next.size > 1) next.delete(s);
-                    } else next.add(s);
-                    return next;
-                  });
-                }}
-                className={`cursor-pointer rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                  isOn ? STATUS_COLOR[s] : 'text-muted hover:text-ink'
-                }`}
-              >
-                {STATUS_LABEL[s]}
-              </button>
-            );
-          })}
-        </div>
+          <FilterSection title="Sortierung">
+            {(Object.keys(SORT_LABEL) as SortBy[]).map((key) => (
+              <FilterChoice
+                key={key}
+                role="radio"
+                label={SORT_LABEL[key]}
+                checked={sortBy === key}
+                onToggle={() => setSortBy(key)}
+              />
+            ))}
+          </FilterSection>
+        </FilterButton>
 
-        <div className="flex items-center gap-0.5 rounded-md border border-divider bg-paper p-0.5">
-          <Tooltip content="Listen-Ansicht">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
-              aria-label="Listen-Ansicht"
-            >
-              <List size={13} />
-            </button>
-          </Tooltip>
-          <Tooltip content="Karten-Ansicht">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded transition-colors ${viewMode === 'cards' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
-              aria-label="Karten-Ansicht"
-            >
-              <LayoutGrid size={13} />
-            </button>
-          </Tooltip>
-        </div>
+        <SegmentedControl
+          ariaLabel="Ansicht"
+          options={VIEW_OPTIONS}
+          value={viewMode}
+          onChange={setViewMode}
+        />
       </div>
 
       {totalCount === 0 ? (
         <EmptyState onCreate={openNew} />
       ) : visibleCount === 0 ? (
-        <FilterEmptyState onReset={() => { setSearch(''); setActiveStatuses(new Set(['active'])); }} />
+        <FilterEmptyState onReset={() => { setSearch(''); resetFilters(); }} />
       ) : (
         <>
           <div className="mb-2 flex items-center justify-between border-b border-divider pb-2">
@@ -437,19 +445,19 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
 
             <button
               onClick={() => { setShowBulkTagInput(!showBulkTagInput); setShowBulkStatus(false); }}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink"
+              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-ink"
             >
               <TagIcon size={11} /> Tag
             </button>
             <button
               onClick={() => { setShowBulkStatus(!showBulkStatus); setShowBulkTagInput(false); }}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink"
+              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-ink"
             >
               <CheckCircle2 size={11} /> Status
             </button>
             <button
               onClick={() => setBulkConfirmDelete(true)}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-danger-line bg-danger-soft px-2.5 text-[10px] font-bold uppercase tracking-widest text-danger transition-all hover:border-danger-line hover:bg-danger-soft"
+              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-danger-line bg-danger-soft px-2.5 text-xs font-bold text-danger transition-colors hover:border-danger-line hover:bg-danger-soft"
             >
               <Trash2 size={11} /> Löschen
             </button>
@@ -479,7 +487,7 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
               <button
                 onClick={applyBulkTags}
                 disabled={bulkTagDraft.length === 0}
-                className="flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-ink bg-ink px-3 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent hover:border-accent disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-ink bg-ink px-3 text-xs font-bold text-paper transition-colors hover:bg-accent hover:border-accent disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Anwenden
               </button>
@@ -490,19 +498,19 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
             <div className="mt-2 flex items-center gap-1 border-t border-divider pt-2">
               <button
                 onClick={() => applyBulkStatus('active')}
-                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-success-line bg-success-soft px-2.5 text-[10px] font-bold uppercase tracking-widest text-success transition-all hover:bg-success-soft"
+                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-success-line bg-success-soft px-2.5 text-xs font-bold text-success transition-colors hover:bg-success-soft"
               >
                 <CheckCircle2 size={11} /> Aktiv
               </button>
               <button
                 onClick={() => applyBulkStatus('paused')}
-                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-warning-line bg-warning-soft px-2.5 text-[10px] font-bold uppercase tracking-widest text-warning transition-all hover:bg-warning-soft"
+                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-warning-line bg-warning-soft px-2.5 text-xs font-bold text-warning transition-colors hover:bg-warning-soft"
               >
                 <Pause size={11} /> Pausiert
               </button>
               <button
                 onClick={() => applyBulkStatus('archived')}
-                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-neutral-line bg-neutral-soft px-2.5 text-[10px] font-bold uppercase tracking-widest text-muted transition-all hover:bg-neutral-soft"
+                className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-neutral-line bg-neutral-soft px-2.5 text-xs font-bold text-muted transition-colors hover:bg-neutral-soft"
               >
                 <Archive size={11} /> Archiviert
               </button>
@@ -607,7 +615,7 @@ function CustomerRow({
             type="button"
             aria-label={`${contractCount} ${contractCount === 1 ? 'Vertrag' : 'Verträge'} — zu den Verträgen springen`}
             onClick={(e) => { e.stopPropagation(); onJumpContracts(); }}
-            className="shrink-0 flex cursor-pointer items-center gap-1 rounded-full border border-divider bg-paper px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-muted transition-colors hover:border-ink hover:text-ink"
+            className="shrink-0 flex cursor-pointer items-center gap-1 rounded-full border border-divider bg-paper px-2 py-0.5 text-xs font-bold text-muted transition-colors hover:border-ink hover:text-ink"
           >
             <FileSignature size={11} />
             <span className="tabular-nums">{contractCount}</span>
@@ -646,7 +654,7 @@ function CustomerCard({
       onKeyDown={(e) => { if (e.key === 'Enter') onOpen(); }}
       tabIndex={0}
       role="button"
-      className={`group relative cursor-pointer rounded-lg border bg-surface p-4 transition-all hover:border-ink/40 ${
+      className={`group relative cursor-pointer rounded-lg border bg-surface p-4 transition-colors hover:border-ink/40 ${
         selected ? 'border-accent/60 ring-2 ring-accent/30' : 'border-divider'
       }`}
       style={{ borderLeftWidth: 3, borderLeftColor: customer.color }}
@@ -719,7 +727,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <p className="text-sm text-muted">Noch keine Kunden angelegt.</p>
       <button
         onClick={onCreate}
-        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-4 py-2 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent hover:border-accent active:scale-95"
+        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-4 py-2 text-xs font-bold text-paper transition-colors hover:bg-accent hover:border-accent"
       >
         <Plus size={14} /> Ersten Kunden anlegen
       </button>
@@ -734,7 +742,7 @@ function FilterEmptyState({ onReset }: { onReset: () => void }) {
       <p className="text-sm text-muted">Keine Kunden passen zu den Filtern.</p>
       <button
         onClick={onReset}
-        className="mt-3 cursor-pointer text-[11px] font-bold uppercase tracking-widest text-accent hover:underline"
+        className="mt-3 cursor-pointer text-xs font-bold text-accent hover:underline"
       >
         Filter zurücksetzen
       </button>

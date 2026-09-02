@@ -190,7 +190,7 @@ export function TimeEntryPicker({
               <button
                 type="button"
                 onClick={toggleAll}
-                className="flex cursor-pointer items-center gap-1.5 font-bold uppercase tracking-widest text-muted hover:text-ink"
+                className="flex cursor-pointer items-center gap-1.5 font-bold text-muted hover:text-ink"
               >
                 <Check
                   size={12}
@@ -221,7 +221,7 @@ export function TimeEntryPicker({
                         <button
                           type="button"
                           onClick={() => toggleOne(e.id)}
-                          className={`flex w-full cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-left text-[12px] transition-all ${
+                          className={`flex w-full cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-left text-[12px] transition-colors ${
                             isSel ? 'border-info-line bg-info-soft' : 'border-divider bg-paper/40 hover:border-ink/30'
                           }`}
                         >
@@ -261,14 +261,14 @@ export function TimeEntryPicker({
               <div className="flex gap-2">
                 <button
                   onClick={onCancel}
-                  className="cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                  className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
                 >
                   Abbrechen
                 </button>
                 <button
                   onClick={confirm}
                   disabled={selected.size === 0}
-                  className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-xs font-bold text-paper transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Übernehmen ({selected.size})
                 </button>

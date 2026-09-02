@@ -284,7 +284,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
                   type="button"
                   onClick={() => onNavigateInvoice?.(inv.id)}
                   disabled={!onNavigateInvoice}
-                  className="group flex w-full items-center justify-between rounded-md border border-divider bg-paper/50 px-3 py-2 text-left text-[12px] transition-all enabled:cursor-pointer enabled:hover:border-accent/50 enabled:hover:bg-paper"
+                  className="group flex w-full items-center justify-between rounded-md border border-divider bg-paper/50 px-3 py-2 text-left text-[12px] transition-colors enabled:cursor-pointer enabled:hover:border-accent/50 enabled:hover:bg-paper"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-bold tabular-nums">{inv.number}</span>
@@ -433,7 +433,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
               type="button"
               onClick={() => { setColor(c); setShowPicker(false); markDirty(); }}
               style={{ background: c }}
-              className={`size-7 cursor-pointer rounded-full transition-all active:scale-90 ${color.toLowerCase() === c.toLowerCase() ? 'scale-110 ring-2 ring-ink ring-offset-2 ring-offset-surface' : 'opacity-80 hover:opacity-100 hover:scale-105'}`}
+              className={`size-7 cursor-pointer rounded-full transition-colors ${color.toLowerCase() === c.toLowerCase() ? 'scale-110 ring-2 ring-ink ring-offset-2 ring-offset-surface' : 'opacity-80 hover:opacity-100'}`}
             />
           ))}
           <Tooltip content="Eigene Farbe wählen">
@@ -441,7 +441,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
               type="button"
               onClick={() => setShowPicker(!showPicker)}
               style={{ background: !PALETTE.some((c) => c.toLowerCase() === color.toLowerCase()) ? color : undefined }}
-              className={`flex size-7 cursor-pointer items-center justify-center rounded-full border border-divider transition-all active:scale-90 ${
+              className={`flex size-7 cursor-pointer items-center justify-center rounded-full border border-divider transition-colors ${
                 !PALETTE.some((c) => c.toLowerCase() === color.toLowerCase())
                   ? 'scale-110 ring-2 ring-ink ring-offset-2 ring-offset-surface border-transparent'
                   : showPicker ? 'bg-ink text-paper border-ink' : 'bg-paper text-muted hover:border-ink hover:text-ink'

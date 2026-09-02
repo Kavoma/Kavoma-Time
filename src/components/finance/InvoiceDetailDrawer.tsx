@@ -179,9 +179,7 @@ export function InvoiceDetailDrawer({
                   key={id}
                   type="button"
                   onClick={() => { setTab(id); if (id === 'pdf') setPdfRequested(true); }}
-                  className={`relative px-3 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                    tab === id ? 'text-ink' : 'text-muted hover:text-ink'
-                  }`}
+                  className={`relative px-3 py-2.5 text-xs font-bold transition-colors ${ tab === id ? 'text-ink' : 'text-muted hover:text-ink' }`}
                 >
                   {label}
                   {tab === id && (
@@ -200,7 +198,7 @@ export function InvoiceDetailDrawer({
                     <button
                       type="button"
                       onClick={() => onTogglePaid(invoice.id)}
-                      className={`flex items-center justify-between rounded-lg border p-3 transition-all ${
+                      className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
                         invoice.paid
                           ? 'border-success-line bg-success-soft'
                           : 'border-divider bg-paper hover:border-ink/40'
@@ -311,7 +309,7 @@ export function InvoiceDetailDrawer({
                         <button
                           type="button"
                           onClick={() => onDownloadDunning(invoice.id)}
-                          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink"
+                          className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-xs font-bold text-ink transition-colors hover:border-ink"
                         >
                           <Download size={11} /> Mahnung-PDF
                         </button>
@@ -462,7 +460,7 @@ function LinkRow({
     <button
       type="button"
       onClick={onClick}
-      className="group flex items-center justify-between gap-2 rounded-md border border-divider bg-paper/50 px-3 py-2 text-left text-[12px] transition-all hover:border-accent/50 hover:bg-paper"
+      className="group flex items-center justify-between gap-2 rounded-md border border-divider bg-paper/50 px-3 py-2 text-left text-[12px] transition-colors hover:border-accent/50 hover:bg-paper"
     >
       <div className="flex min-w-0 items-center gap-2">
         <Icon size={12} className="shrink-0 text-muted" />

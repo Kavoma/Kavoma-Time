@@ -103,7 +103,7 @@ export function TemplateManagementModal({
                             <div className="flex gap-1">
                               <button
                                 onClick={() => setConfirmDeleteId(null)}
-                                className="cursor-pointer rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                                className="cursor-pointer rounded-md px-2 py-1 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
                               >
                                 Nein
                               </button>
@@ -113,7 +113,7 @@ export function TemplateManagementModal({
                                   onDelete(t.id);
                                   setConfirmDeleteId(null);
                                 }}
-                                className="cursor-pointer rounded-md bg-danger-soft px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-danger hover:bg-danger-solid hover:text-ink"
+                                className="cursor-pointer rounded-md bg-danger-soft px-2 py-1 text-xs font-bold text-danger hover:bg-danger-solid hover:text-ink"
                               >
                                 Endgültig
                               </button>
@@ -145,9 +145,7 @@ export function TemplateManagementModal({
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={() => onToggleRecurring(r.id)}
-                                    className={`cursor-pointer rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest transition-colors ${
-                                      r.active ? 'bg-info-soft text-info hover:bg-info-soft' : 'bg-neutral-soft text-muted hover:bg-neutral-soft'
-                                    }`}
+                                    className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-bold transition-colors ${ r.active ? 'bg-info-soft text-info hover:bg-info-soft' : 'bg-neutral-soft text-muted hover:bg-neutral-soft' }`}
                                   >
                                     {r.active ? 'Aktiv' : 'Pausiert'}
                                   </button>
@@ -172,7 +170,7 @@ export function TemplateManagementModal({
             <div className="border-t border-divider px-5 py-3 text-right">
               <button
                 onClick={onClose}
-                className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-paper hover:bg-accent active:scale-95"
+                className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-xs font-bold text-paper hover:bg-accent"
               >
                 Schließen
               </button>

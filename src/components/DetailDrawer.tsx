@@ -138,7 +138,7 @@ export function DetailDrawer({
                     <button
                       type="button"
                       onClick={() => setMode('edit')}
-                      className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-3 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink"
+                      className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-3 text-xs font-bold text-ink transition-colors hover:border-ink"
                     >
                       <Pencil size={12} /> Bearbeiten
                     </button>
@@ -151,7 +151,7 @@ export function DetailDrawer({
                         type="button"
                         onClick={() => { setMode('read'); }}
                         disabled={dirty}
-                        className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[11px] font-bold uppercase tracking-widest text-muted transition-all hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                        className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Abbrechen
                       </button>
@@ -160,7 +160,7 @@ export function DetailDrawer({
                       <button
                         type="button"
                         onClick={handleSave}
-                        className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-ink bg-ink px-3 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent hover:border-accent active:scale-95"
+                        className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-ink bg-ink px-3 text-xs font-bold text-paper transition-colors hover:bg-accent hover:border-accent"
                       >
                         <Save size={12} /> Speichern
                       </button>
@@ -192,7 +192,7 @@ export function DetailDrawer({
                   <button
                     type="button"
                     onClick={() => setConfirmDelete(true)}
-                    className="flex cursor-pointer items-center gap-2 rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-danger transition-all hover:border-danger-line hover:bg-danger-soft"
+                    className="flex cursor-pointer items-center gap-2 rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-xs font-bold text-danger transition-colors hover:border-danger-line hover:bg-danger-soft"
                   >
                     <Trash2 size={12} /> Löschen
                   </button>
@@ -203,14 +203,14 @@ export function DetailDrawer({
                       <button
                         type="button"
                         onClick={() => setConfirmDelete(false)}
-                        className="cursor-pointer rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                        className="cursor-pointer rounded-md px-2 py-1 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
                       >
                         Nein
                       </button>
                       <button
                         type="button"
                         onClick={() => { setConfirmDelete(false); onDelete(); }}
-                        className="cursor-pointer rounded-md bg-danger-soft px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink"
+                        className="cursor-pointer rounded-md bg-danger-soft px-2 py-1 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink"
                       >
                         Ja, löschen
                       </button>
@@ -244,13 +244,13 @@ export function DetailDrawer({
                   <div className="mt-4 flex justify-end gap-2">
                     <button
                       onClick={() => setConfirmClose(false)}
-                      className="cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                      className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-bold text-muted hover:bg-divider hover:text-ink"
                     >
                       Weiter bearbeiten
                     </button>
                     <button
                       onClick={() => { setConfirmClose(false); onClose(); }}
-                      className="cursor-pointer rounded-md bg-danger-soft px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink"
+                      className="cursor-pointer rounded-md bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink"
                     >
                       Verwerfen
                     </button>

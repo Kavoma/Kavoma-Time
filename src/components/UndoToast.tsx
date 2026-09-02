@@ -28,7 +28,7 @@ export function UndoToast({ message, onUndo }: UndoToastProps) {
           <span className="text-[13px] text-ink">{message}</span>
           <button
             onClick={onUndo}
-            className="flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-accent transition-colors hover:bg-divider"
+            className="flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-bold text-accent transition-colors hover:bg-divider"
           >
             <Undo2 size={13} />
             Rückgängig

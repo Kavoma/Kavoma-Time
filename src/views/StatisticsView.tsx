@@ -325,9 +325,7 @@ export function StatisticsView() {
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`cursor-pointer rounded px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                period === p ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
-              }`}
+              className={`cursor-pointer rounded px-3 py-1.5 text-xs font-bold transition-colors ${ period === p ? 'bg-ink text-paper' : 'text-muted hover:text-ink' }`}
             >
               {PERIOD_LABELS[p]}
             </button>

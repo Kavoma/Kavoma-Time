@@ -45,9 +45,7 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps) {
               <button
                 key={i}
                 onClick={(e) => { e.stopPropagation(); (item as any).onClick(); onClose(); }}
-                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest transition-colors hover:bg-divider ${
-                  (item as any).danger ? 'text-danger' : 'text-ink'
-                }`}
+                className={`flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-bold transition-colors hover:bg-divider ${ (item as any).danger ? 'text-danger' : 'text-ink' }`}
               >
                 {(item as any).icon}
                 {(item as any).label}

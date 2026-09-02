@@ -77,20 +77,20 @@ export function AfkPauseModal({ pause, onSubtract, onKeep }: AfkPauseModalProps)
             <div className="flex flex-col gap-2 border-t border-divider px-6 py-4">
               <button
                 onClick={() => onSubtract(true)}
-                className="w-full cursor-pointer rounded-md bg-accent/15 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-accent transition-all hover:bg-accent hover:text-ink active:scale-95"
+                className="w-full cursor-pointer rounded-md bg-accent/15 px-4 py-2.5 text-xs font-bold text-accent transition-colors hover:bg-accent hover:text-ink"
               >
                 Abziehen und weiterarbeiten
               </button>
               <div className="flex gap-2">
                 <button
                   onClick={() => onSubtract(false)}
-                  className="flex-1 cursor-pointer rounded-md border border-divider px-4 py-2 text-xs font-bold uppercase tracking-widest text-ink transition-colors hover:bg-divider"
+                  className="flex-1 cursor-pointer rounded-md border border-divider px-4 py-2 text-xs font-bold text-ink transition-colors hover:bg-divider"
                 >
                   Abziehen und stoppen
                 </button>
                 <button
                   onClick={onKeep}
-                  className="flex-1 cursor-pointer rounded-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink"
+                  className="flex-1 cursor-pointer rounded-md px-4 py-2 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink"
                 >
                   Zeit behalten
                 </button>

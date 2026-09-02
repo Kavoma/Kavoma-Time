@@ -149,7 +149,7 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
               <button
                 onClick={submit}
                 disabled={!agreed}
-                className="cursor-pointer rounded-md bg-ink px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ink disabled:hover:text-paper disabled:hover:ring-0"
+                className="cursor-pointer rounded-md bg-ink px-6 py-2.5 text-xs font-bold text-paper transition-colors hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ink disabled:hover:text-paper disabled:hover:ring-0"
               >
                 Verstanden & loslegen
               </button>

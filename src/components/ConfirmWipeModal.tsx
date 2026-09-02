@@ -65,7 +65,7 @@ export function ConfirmWipeModal({ open, onConfirm, onCancel }: ConfirmWipeModal
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                className="mt-2 w-full rounded-md border border-divider bg-paper px-3 py-2 text-sm uppercase tracking-widest text-ink placeholder:text-muted focus:border-danger-line focus:outline-none"
+                className="mt-2 w-full rounded-md border border-divider bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-danger-line focus:outline-none"
                 placeholder={CONFIRM_PHRASE}
                 aria-label={`Bitte ${CONFIRM_PHRASE} eingeben`}
                 autoComplete="off"
@@ -76,14 +76,14 @@ export function ConfirmWipeModal({ open, onConfirm, onCancel }: ConfirmWipeModal
             <div className="flex justify-end gap-2 border-t border-divider px-6 py-4">
               <button
                 onClick={onCancel}
-                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink"
+                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink"
               >
                 Abbrechen
               </button>
               <button
                 onClick={onConfirm}
                 disabled={!matches}
-                className="cursor-pointer rounded-md bg-danger-soft px-4 py-2 text-xs font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-danger-soft disabled:hover:text-danger"
+                className="cursor-pointer rounded-md bg-danger-soft px-4 py-2 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-danger-soft disabled:hover:text-danger"
               >
                 Endgültig löschen
               </button>

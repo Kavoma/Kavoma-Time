@@ -640,6 +640,87 @@ option:checked {
         white-space: nowrap;
     }
 
+    /* --- Segment-Schalter ------------------------------------------- */
+    /* Eine einzige Auswahl aus wenigen Moeglichkeiten — der
+       Ansichtsumschalter ist der Hauptfall.
+
+       Das MASZ gilt fuer den Schalter als Ganzes: Er ist
+       `--kv-h-control` hoch und steht damit auf der Linie der
+       Werkzeugleiste. Ein einzelnes Segment ist bewusst kleiner; es ist
+       keine freistehende Symbolschaltflaeche, sondern ein Teil von einer. */
+    .kv-segmented {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        height: var(--kv-h-control);
+        padding: 3px;
+        background: var(--color-paper);
+        border: 1px solid var(--color-divider);
+        border-radius: var(--kv-r-control);
+    }
+
+    .kv-segment {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        height: 100%;
+        min-width: 28px;
+        padding-inline: 0.5rem;
+        border-radius: calc(var(--kv-r-control) - 3px);
+        color: var(--color-muted);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: background-color var(--kv-dur-fast) var(--kv-ease),
+                    color var(--kv-dur-fast) var(--kv-ease);
+    }
+
+    .kv-segment:hover:not([aria-checked='true']) {
+        color: var(--color-ink);
+    }
+
+    .kv-segment[aria-checked='true'] {
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+    }
+
+    .kv-segment:focus-visible {
+        outline: 2px solid var(--color-focus);
+        outline-offset: -1px;
+    }
+
+    /* --- Popover ----------------------------------------------------- */
+    /* Schwebende Auswahl ueber dem Inhalt — dieselbe Ebene wie Dialog und
+       Kontextmenue, deshalb dieselbe Rundung und derselbe Schatten. */
+    .kv-popover {
+        position: absolute;
+        z-index: 50;
+        min-width: 240px;
+        padding: 0.75rem;
+        background: var(--color-overlay);
+        border: 1px solid var(--color-divider);
+        border-radius: var(--kv-r-overlay);
+        box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Anzahl aktiver Kriterien am Filterknopf. */
+    .kv-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding-inline: 5px;
+        border-radius: 9999px;
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+        font-size: 10px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+
     /* --- Werkzeugleiste --------------------------------------------- */
     /* Hält Suche, Filter, Umschalter und Primäraktion auf einer Linie.
        Alles darin ist `--kv-h-control` hoch. */

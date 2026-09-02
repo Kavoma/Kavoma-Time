@@ -177,7 +177,7 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
                     <button
                       type="button"
                       onClick={(e) => { e.preventDefault(); setFile(null); }}
-                      className="mt-2 cursor-pointer text-[10px] font-bold uppercase tracking-widest text-muted underline hover:text-ink"
+                      className="mt-2 cursor-pointer text-xs font-bold text-muted underline hover:text-ink"
                     >
                       Andere Datei wählen
                     </button>
@@ -218,7 +218,7 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
                       <button
                         type="button"
                         onClick={() => setValidUntil('')}
-                        className="flex cursor-pointer items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink"
+                        className="flex cursor-pointer items-center gap-1 text-xs font-bold text-muted hover:text-ink"
                         title="Datum löschen"
                       >
                         <XCircle size={11} /> Leeren
@@ -245,14 +245,14 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
               <button
                 onClick={handleClose}
                 disabled={busy}
-                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Abbrechen
               </button>
               <button
                 onClick={submit}
                 disabled={!canSave}
-                className="cursor-pointer rounded-md bg-ink px-4 py-2 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ink disabled:hover:text-paper disabled:hover:ring-0"
+                className="cursor-pointer rounded-md bg-ink px-4 py-2 text-xs font-bold text-paper transition-colors hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ink disabled:hover:text-paper disabled:hover:ring-0"
               >
                 {busy ? 'Verschlüssele…' : 'Vertrag speichern'}
               </button>

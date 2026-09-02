@@ -217,11 +217,7 @@ export function GeneralTab() {
           <button
             ref={buttonRef}
             onClick={() => setListening(l => !l)}
-            className={`min-w-44 cursor-pointer rounded-md border px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors ${
-              listening
-                ? 'border-accent bg-paper text-accent animate-pulse'
-                : 'border-divider bg-paper text-ink hover:border-ink'
-            }`}
+            className={`min-w-44 cursor-pointer rounded-md border px-4 py-2.5 text-xs font-bold transition-colors ${ listening ? 'border-accent bg-paper text-accent animate-pulse' : 'border-divider bg-paper text-ink hover:border-ink' }`}
           >
             {listening ? 'Taste drücken…' : prettyAccelerator(state.shortcuts.startPause)}
           </button>

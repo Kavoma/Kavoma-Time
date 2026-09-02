@@ -284,7 +284,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-paper">
             <div
-              className={`h-full rounded-full transition-all ${kpis.budgetUsage >= 100 ? 'bg-danger-solid' : kpis.budgetUsage >= 80 ? 'bg-warning-solid' : 'bg-accent'}`}
+              className={`h-full rounded-full transition-colors ${kpis.budgetUsage >= 100 ? 'bg-danger-solid' : kpis.budgetUsage >= 80 ? 'bg-warning-solid' : 'bg-accent'}`}
               style={{ width: `${Math.min(100, kpis.budgetUsage)}%` }}
             />
           </div>
@@ -323,7 +323,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
               >
                 <button
                   onClick={() => toggleMilestoneDone(m.id)}
-                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-all ${
+                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
                     m.status === 'done' ? 'border-success-line bg-success-soft text-success' : 'border-divider hover:border-ink'
                   }`}
                   aria-label={m.status === 'done' ? 'Als offen markieren' : 'Als erledigt markieren'}
@@ -379,7 +379,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
                   type="button"
                   onClick={() => onNavigateInvoice?.(inv.id)}
                   disabled={!onNavigateInvoice}
-                  className="group flex w-full items-center justify-between rounded-md border border-divider bg-paper/50 px-3 py-2 text-left text-[12px] transition-all enabled:cursor-pointer enabled:hover:border-accent/50 enabled:hover:bg-paper"
+                  className="group flex w-full items-center justify-between rounded-md border border-divider bg-paper/50 px-3 py-2 text-left text-[12px] transition-colors enabled:cursor-pointer enabled:hover:border-accent/50 enabled:hover:bg-paper"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-bold tabular-nums">{inv.number}</span>
@@ -507,7 +507,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
             <button
               type="button"
               onClick={() => { setColorOverride(undefined); setShowColorPicker(false); markDirty(); }}
-              className="cursor-pointer text-[9px] font-bold uppercase tracking-widest text-muted hover:text-ink"
+              className="cursor-pointer text-xs font-bold text-muted hover:text-ink"
             >
               Auf Kunden-Farbe zurücksetzen
             </button>
@@ -522,9 +522,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
             <button
               type="button"
               onClick={() => setShowColorPicker(!showColorPicker)}
-              className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-3 text-[11px] font-bold uppercase tracking-widest transition-all ${
-                showColorPicker ? 'border-ink bg-ink text-paper' : 'border-divider bg-paper text-ink hover:border-ink'
-              }`}
+              className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-3 text-xs font-bold transition-colors ${ showColorPicker ? 'border-ink bg-ink text-paper' : 'border-divider bg-paper text-ink hover:border-ink' }`}
             >
               <Pipette size={12} />
               {colorOverride ? 'Override aktiv' : 'Override setzen'}
@@ -578,7 +576,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => toggleMilestoneDone(m.id)}
-                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-all ${
+                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
                     m.status === 'done' ? 'border-success-line bg-success-soft text-success' : 'border-divider hover:border-ink'
                   }`}
                 >
@@ -625,7 +623,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
           <button
             type="button"
             onClick={addMilestone}
-            className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-divider bg-paper/40 text-[11px] font-bold uppercase tracking-widest text-muted transition-all hover:border-ink hover:text-ink"
+            className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-divider bg-paper/40 text-xs font-bold text-muted transition-colors hover:border-ink hover:text-ink"
           >
             <Plus size={12} /> Meilenstein hinzufügen
           </button>

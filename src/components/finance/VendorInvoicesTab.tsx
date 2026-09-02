@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Plus, FileText, Search, Filter, FileSpreadsheet } from 'lucide-react';
+import {
+  Plus, FileText, FileSpreadsheet,
+} from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
+import { SearchField } from '../SearchField';
+import { FilterButton, FilterSection, FilterChoice } from '../FilterButton';
 import { Attachment, VendorInvoice, VendorInvoiceCategory } from '../../types';
 import { VendorInvoiceUploadModal } from './VendorInvoiceUploadModal';
 import { PdfViewerModal } from './PdfViewerModal';
@@ -132,13 +136,13 @@ export function VendorInvoicesTab() {
           <button
             onClick={exportCsv}
             disabled={!filtered.length}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             <FileSpreadsheet size={13} /> CSV
           </button>
           <button
             onClick={() => setUploadOpen(true)}
-            className="flex cursor-pointer items-center gap-2 rounded-md bg-ink px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink active:scale-95"
+            className="flex cursor-pointer items-center gap-2 rounded-md bg-ink px-3 py-2 text-xs font-bold text-paper transition-colors hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink"
           >
             <Plus size={13} /> Beleg hochladen
           </button>
@@ -160,29 +164,35 @@ export function VendorInvoicesTab() {
         </div>
       </div>
 
-      <div className="mb-4 flex items-center gap-3 kv-card px-3 py-2">
-        <div className="flex flex-1 items-center gap-2">
-          <Search size={14} className="text-muted" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Lieferant, Beleg-Nr. oder Notiz suchen…"
-            className="flex-1 border-0 bg-transparent text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-0"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Filter size={14} className="text-muted" />
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as 'all' | VendorInvoiceCategory)}
-            className="border-0 bg-transparent text-[12px] font-bold uppercase tracking-widest text-ink focus:outline-none focus:ring-0"
-          >
-            <option value="all">Alle Kategorien</option>
+      <div className="kv-toolbar mb-4">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Eingangsrechnungen durchsuchen"
+        />
+
+        <FilterButton
+          activeCount={categoryFilter === 'all' ? 0 : 1}
+          onReset={() => setCategoryFilter('all')}
+        >
+          <FilterSection title="Kategorie">
+            <FilterChoice
+              role="radio"
+              label="Alle Kategorien"
+              checked={categoryFilter === 'all'}
+              onToggle={() => setCategoryFilter('all')}
+            />
             {(Object.keys(CATEGORY_LABELS) as VendorInvoiceCategory[]).map((k) => (
-              <option key={k} value={k}>{CATEGORY_LABELS[k]}</option>
+              <FilterChoice
+                key={k}
+                role="radio"
+                label={CATEGORY_LABELS[k]}
+                checked={categoryFilter === k}
+                onToggle={() => setCategoryFilter(k)}
+              />
             ))}
-          </select>
-        </div>
+          </FilterSection>
+        </FilterButton>
       </div>
 
       {filtered.length === 0 ? (

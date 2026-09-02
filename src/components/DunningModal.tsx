@@ -147,13 +147,13 @@ export function DunningModal({ invoice, onConfirm, onCancel }: Props) {
             <div className="flex justify-end gap-2 border-t border-divider px-6 py-4">
               <button
                 onClick={onCancel}
-                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink"
+                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink"
               >
                 Abbrechen
               </button>
               <button
                 onClick={submit}
-                className="cursor-pointer rounded-md bg-danger-soft px-4 py-2 text-xs font-bold uppercase tracking-widest text-danger transition-all hover:bg-danger-solid hover:text-ink active:scale-95"
+                className="cursor-pointer rounded-md bg-danger-soft px-4 py-2 text-xs font-bold text-danger transition-colors hover:bg-danger-solid hover:text-ink"
               >
                 Mahnung verbuchen
               </button>

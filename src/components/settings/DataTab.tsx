@@ -182,13 +182,13 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={exportData}
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95"
+            className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface"
           >
             <Download size={14} /> Backup exportieren
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95"
+            className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface"
           >
             <Upload size={14} /> Backup einspielen
           </button>
@@ -286,7 +286,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
               </div>
               <button
                 onClick={() => chooseDirectory(false)}
-                className="shrink-0 cursor-pointer rounded-md border border-divider bg-paper px-3 py-2.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95"
+                className="shrink-0 cursor-pointer rounded-md border border-divider bg-paper px-3 py-2.5 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface"
               >
                 <FolderOpen size={14} />
               </button>
@@ -296,14 +296,14 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
               <button
                 onClick={runBackupNow}
                 disabled={!autoBackup?.directory || isBackingUp}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink hover:bg-surface active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Download size={13} /> {isBackingUp ? 'Sichere …' : 'Jetzt sichern'}
               </button>
               <button
                 onClick={() => window.api?.autoBackupOpenDirectory()}
                 disabled={!autoBackup?.directory}
-                className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-muted transition-all hover:border-ink hover:text-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-xs font-bold text-muted transition-colors hover:border-ink hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <FolderOpen size={13} /> Ordner öffnen
               </button>
@@ -336,7 +336,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
           </div>
           <button
             onClick={exportPortableJson}
-            className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-warning transition-all hover:border-warning-line hover:bg-warning-soft active:scale-95"
+            className="flex shrink-0 cursor-pointer items-center gap-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-xs font-bold text-warning transition-colors hover:border-warning-line hover:bg-warning-soft"
           >
             <Download size={13} /> JSON-Export
           </button>
@@ -352,7 +352,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
         </p>
         <button
           onClick={onRequestWipe}
-          className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-danger-line bg-danger-soft px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-danger transition-all hover:border-danger-line hover:bg-danger-solid hover:text-ink active:scale-95"
+          className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-md border border-danger-line bg-danger-soft px-4 py-2.5 text-xs font-bold text-danger transition-colors hover:border-danger-line hover:bg-danger-solid hover:text-ink"
         >
           <Trash2 size={14} /> Alle Daten löschen
         </button>

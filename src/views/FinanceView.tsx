@@ -57,9 +57,7 @@ export function FinanceView({ intent, navigateTo, onIntentConsumed }: Props = {}
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                isActive ? 'text-ink' : 'text-muted hover:text-ink'
-              }`}
+              className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-xs font-bold transition-colors ${ isActive ? 'text-ink' : 'text-muted hover:text-ink' }`}
             >
               {isActive && (
                 <motion.div
