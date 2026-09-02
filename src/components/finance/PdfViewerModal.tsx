@@ -167,7 +167,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -175,7 +175,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
           />
 
           <motion.div
-            className="relative z-10 flex h-[95vh] w-[95vw] max-w-[1600px] flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.7)]"
+            className="relative z-10 flex h-[95vh] w-[95vw] max-w-[1600px] flex-col overflow-hidden kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -194,7 +194,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 </span>
                 <InfoTooltip ariaLabel="Datei-Details" position="bottom">
                   <div className="mb-1 flex items-center gap-1.5 font-bold">
-                    <ShieldCheck size={13} className="text-green-400" />
+                    <ShieldCheck size={13} className="text-success" />
                     Verschlüsselt gespeichert
                   </div>
                   <div className="text-muted">Dateiname: <span className="text-ink">{attachment.filename}</span></div>
@@ -240,7 +240,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 <button
                   onClick={handlePrint}
                   disabled={!blobUrl}
-                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                   title="Drucken"
                   aria-label="Drucken"
                 >
@@ -249,7 +249,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 <button
                   onClick={handleOpenInBrowser}
                   disabled={!blobUrl}
-                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-divider bg-paper text-ink transition-colors hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
                   title="In neuem Fenster öffnen"
                   aria-label="In neuem Fenster öffnen"
                 >
@@ -258,7 +258,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 <button
                   onClick={handleDownload}
                   disabled={!blobUrl}
-                  className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+                  className="kv-btn kv-btn-outline"
                   title="Original-PDF herunterladen"
                 >
                   <Download size={12} /> Herunterladen
@@ -270,7 +270,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                 {onDelete && (
                   <button
                     onClick={() => setConfirmDelete(true)}
-                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-red-500/40 bg-red-500/10 text-red-300 transition-all hover:border-red-400 hover:bg-red-500/20"
+                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-danger-line bg-danger-soft text-danger transition-colors hover:border-danger-line hover:bg-danger-soft"
                     title="Beleg löschen"
                     aria-label="Beleg löschen"
                   >
@@ -289,10 +289,10 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
             </div>
 
             {/* Viewer */}
-            <div className="relative flex-1 overflow-hidden bg-black/60">
+            <div className="relative flex-1 overflow-hidden bg-scrim">
               {error && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
-                  <AlertTriangle size={28} className="text-red-300" />
+                  <AlertTriangle size={28} className="text-danger" />
                   <div className="text-sm font-bold">PDF konnte nicht geladen werden</div>
                   <div className="max-w-md text-[12px] text-muted">{error}</div>
                   {lokalVorhanden === false && (
@@ -333,7 +333,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
 
             {/* Delete-Confirm */}
             {confirmDelete && onDelete && (
-              <div className="border-t border-red-500/30 bg-red-500/5 px-5 py-3">
+              <div className="border-t border-danger-line bg-danger-soft px-5 py-3">
                 <div className="flex items-center justify-between gap-4">
                   <div className="text-[12px] text-muted">
                     Diesen Beleg unwiderruflich löschen? Die verschlüsselte Datei wird entfernt.
@@ -341,13 +341,13 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
                   <div className="flex gap-2">
                     <button
                       onClick={() => setConfirmDelete(false)}
-                      className="cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                      className="kv-btn kv-btn-quiet"
                     >
                       Abbrechen
                     </button>
                     <button
                       onClick={() => { setConfirmDelete(false); onDelete(); }}
-                      className="cursor-pointer rounded-md bg-red-500/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-red-300 transition-all hover:bg-red-500 hover:text-white"
+                      className="kv-btn kv-btn-danger"
                     >
                       Endgültig löschen
                     </button>

@@ -11,12 +11,12 @@ export function KpiBox({
   tone?: 'default' | 'warn' | 'good';
 }) {
   const valueClass =
-    tone === 'warn' ? 'text-amber-300' :
-    tone === 'good' ? 'text-green-300' :
+    tone === 'warn' ? 'text-warning' :
+    tone === 'good' ? 'text-success' :
     'text-ink';
   const iconClass =
-    tone === 'warn' ? 'text-amber-400' :
-    tone === 'good' ? 'text-green-400' :
+    tone === 'warn' ? 'text-warning' :
+    tone === 'good' ? 'text-success' :
     'text-muted';
   return (
     <div className="rounded-md border border-divider bg-paper/40 px-3 py-2.5">
@@ -41,7 +41,7 @@ export function DrawerSection({
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-1.5">
         {Icon && <Icon size={11} className="text-muted" />}
-        <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{title}</h4>
+        <h4 className="kv-label">{title}</h4>
       </div>
       {children}
     </div>
@@ -79,7 +79,7 @@ export function DrawerInput({
 }) {
   return (
     <div className="flex flex-col">
-      <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</label>
+      <label className="mb-2 kv-label">{label}</label>
       <input
         type={type}
         value={value}

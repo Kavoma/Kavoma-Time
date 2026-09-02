@@ -180,7 +180,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
               transition={{ duration: 0.15, ease: 'easeOut' }}
               style={{ position: 'absolute' }}
               role="tooltip"
-              className={`z-[10001] px-2.5 py-1.5 bg-paper/95 backdrop-blur-xl border border-divider text-[9px] font-black uppercase tracking-[0.15em] text-ink rounded-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] pointer-events-none whitespace-nowrap ${positionClasses[position]}`}
+              className={`kv-glass z-[10001] px-2.5 py-1.5 border border-divider text-[9px] font-black uppercase tracking-[0.15em] text-ink rounded-md shadow-[0_8px_30px_rgb(0,0,0,0.5)] pointer-events-none whitespace-nowrap ${positionClasses[position]}`}
             >
               {content}
             </motion.div>
@@ -226,7 +226,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
                 zIndex: 10001,
               }}
               role="tooltip"
-              className="rounded-lg border border-divider bg-paper/95 px-3 py-2.5 text-[11px] leading-relaxed text-ink shadow-[0_12px_40px_rgb(0,0,0,0.5)] backdrop-blur-xl"
+              className="kv-glass rounded-lg border border-divider px-3 py-2.5 text-[11px] leading-relaxed text-ink shadow-[0_12px_40px_rgb(0,0,0,0.5)]"
             >
               {content}
             </motion.div>

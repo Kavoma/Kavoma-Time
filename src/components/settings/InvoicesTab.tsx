@@ -26,11 +26,11 @@ function FieldInput({ label, value, onChange, placeholder, type = 'text', isVali
   return (
     <div className="flex flex-col">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <label htmlFor={inputId} className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</label>
+        <label htmlFor={inputId} className="kv-label">{label}</label>
         {showValidity && (
           isValid
-            ? <CheckCircle2 size={12} className="text-green-500" aria-label="gültig" />
-            : <AlertCircle size={12} className="text-red-500" aria-label="ungültig" />
+            ? <CheckCircle2 size={12} className="text-success" aria-label="gültig" />
+            : <AlertCircle size={12} className="text-danger" aria-label="ungültig" />
         )}
       </div>
       <input
@@ -41,7 +41,7 @@ function FieldInput({ label, value, onChange, placeholder, type = 'text', isVali
         placeholder={placeholder}
         aria-invalid={isValid === false}
         className={`w-full rounded-md border bg-paper px-3 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-accent ${
-          isValid === false ? 'border-red-500/60 focus:border-red-500' : 'border-divider'
+          isValid === false ? 'border-danger-line/60 focus:border-danger-line' : 'border-divider'
         } ${isTabular ? 'tabular-nums' : ''}`}
       />
     </div>
@@ -117,12 +117,12 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
       <SettingsCard icon={Hash} title="Nummernkreis">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Nächste Nummer</div>
+            <div className="mb-2 kv-label">Nächste Nummer</div>
             <NumberInput min={1} value={nextCounter} onChange={updateInvoiceCounter} className="w-full" />
           </div>
           <div>
             <div className="mb-2 flex items-center gap-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Präfix</span>
+              <span className="kv-label">Präfix</span>
               <InfoTooltip ariaLabel="Hinweis zum Präfix">
                 <div className="font-bold mb-1">Platzhalter im Präfix</div>
                 Der Platzhalter <span className="font-mono tabular-nums">YYYY</span> wird automatisch durch das aktuelle Jahr ersetzt.
@@ -204,7 +204,7 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
               className="w-full rounded-md border border-divider bg-paper px-3 py-2.5 hover:border-ink/60"
               label={
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-ink">Kleinunternehmer (§19 UStG)</div>
+                  <div className="text-[13px] font-bold text-ink">Kleinunternehmer (§19 UStG)</div>
                   <div className="text-[11px] text-muted">Keine Umsatzsteuer ausweisen.</div>
                 </div>
               }
@@ -212,7 +212,7 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
           </div>
           {!localIssuer.smallBusiness && (
             <div className="col-span-2 flex items-center gap-3">
-              <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">USt-Satz</label>
+              <label className="kv-label">USt-Satz</label>
               <NumberInput min={0} max={30} value={localIssuer.vatRate} onChange={v => updateIssuer('vatRate', v)} className="w-24" />
               <span className="text-sm text-muted">%</span>
             </div>
@@ -229,7 +229,7 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
             className="w-full rounded-md border border-divider bg-paper px-3 py-2.5 hover:border-ink/60"
             label={
               <div className="flex-1">
-                <div className="text-sm font-bold text-ink">XML in Rechnungs-PDFs einbetten</div>
+                <div className="text-[13px] font-bold text-ink">XML in Rechnungs-PDFs einbetten</div>
                 <div className="text-[11px] text-muted">
                   Profil EN 16931 (ZUGFeRD 2.x / Factur-X). Das PDF bleibt für Menschen lesbar und
                   enthält zusätzlich die maschinenlesbare Rechnung.
@@ -239,10 +239,10 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
           />
 
           {state.eInvoiceEnabled !== false && eInvoiceIssues.length > 0 && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2.5">
-              <div className="mb-1 flex items-center gap-2 text-[11px] font-bold text-amber-300">
+            <div className="rounded-md border border-warning-line bg-warning-soft px-3 py-2.5">
+              <div className="mb-1 flex items-center gap-2 text-[11px] font-bold text-warning">
                 <AlertCircle size={12} />
-                Stammdaten unvollständig — es wird nur ein reines PDF erzeugt
+                Stammdaten unvollständig. Es wird nur ein reines PDF erzeugt.
               </div>
               <ul className="ml-5 list-disc text-[11px] text-muted">
                 {eInvoiceIssues.map(issue => <li key={issue}>{issue}</li>)}

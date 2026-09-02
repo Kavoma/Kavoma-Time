@@ -100,7 +100,7 @@ export function DetailDrawer({
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            className="absolute inset-0 kv-scrim"
             onClick={attemptClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -138,7 +138,7 @@ export function DetailDrawer({
                     <button
                       type="button"
                       onClick={() => setMode('edit')}
-                      className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-3 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink"
+                      className="kv-btn kv-btn-outline"
                     >
                       <Pencil size={12} /> Bearbeiten
                     </button>
@@ -151,7 +151,7 @@ export function DetailDrawer({
                         type="button"
                         onClick={() => { setMode('read'); }}
                         disabled={dirty}
-                        className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-2 text-[11px] font-bold uppercase tracking-widest text-muted transition-all hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                        className="kv-btn kv-btn-quiet"
                       >
                         Abbrechen
                       </button>
@@ -160,7 +160,7 @@ export function DetailDrawer({
                       <button
                         type="button"
                         onClick={handleSave}
-                        className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-ink bg-ink px-3 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent hover:border-accent active:scale-95"
+                        className="kv-btn kv-btn-primary"
                       >
                         <Save size={12} /> Speichern
                       </button>
@@ -192,25 +192,25 @@ export function DetailDrawer({
                   <button
                     type="button"
                     onClick={() => setConfirmDelete(true)}
-                    className="flex cursor-pointer items-center gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-red-300 transition-all hover:border-red-400 hover:bg-red-500/20"
+                    className="kv-btn kv-btn-danger"
                   >
                     <Trash2 size={12} /> Löschen
                   </button>
                 ) : (
-                  <div className="flex items-center justify-between gap-3 rounded-md border border-red-500/40 bg-red-500/5 px-3 py-2">
-                    <span className="text-[12px] text-red-200">Unwiderruflich löschen?</span>
+                  <div className="flex items-center justify-between gap-3 rounded-md border border-danger-line bg-danger-soft px-3 py-2">
+                    <span className="text-[12px] text-danger">Unwiderruflich löschen?</span>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => setConfirmDelete(false)}
-                        className="cursor-pointer rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                        className="kv-btn kv-btn-quiet"
                       >
                         Nein
                       </button>
                       <button
                         type="button"
                         onClick={() => { setConfirmDelete(false); onDelete(); }}
-                        className="cursor-pointer rounded-md bg-red-500/20 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-red-300 transition-all hover:bg-red-500 hover:text-white"
+                        className="kv-btn kv-btn-danger"
                       >
                         Ja, löschen
                       </button>
@@ -230,9 +230,9 @@ export function DetailDrawer({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <div className="absolute inset-0 bg-black/70" onClick={() => setConfirmClose(false)} />
+                <div className="absolute inset-0 bg-scrim" onClick={() => setConfirmClose(false)} />
                 <motion.div
-                  className="relative z-10 w-full max-w-sm rounded-lg border border-divider bg-surface p-5 text-ink shadow-2xl"
+                  className="relative z-10 w-full max-w-sm kv-overlay p-5 text-ink"
                   initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.95, opacity: 0 }}
@@ -244,13 +244,13 @@ export function DetailDrawer({
                   <div className="mt-4 flex justify-end gap-2">
                     <button
                       onClick={() => setConfirmClose(false)}
-                      className="cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                      className="kv-btn kv-btn-quiet"
                     >
                       Weiter bearbeiten
                     </button>
                     <button
                       onClick={() => { setConfirmClose(false); onClose(); }}
-                      className="cursor-pointer rounded-md bg-red-500/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-red-300 transition-all hover:bg-red-500 hover:text-white"
+                      className="kv-btn kv-btn-danger"
                     >
                       Verwerfen
                     </button>

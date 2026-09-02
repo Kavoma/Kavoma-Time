@@ -64,9 +64,9 @@ export function ApproveLinkModal({ anfrage, onClose }: Props) {
     <AnimatePresence>
       <motion.div className="fixed inset-0 z-[60] flex items-center justify-center"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-        <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+        <motion.div className="absolute inset-0 kv-scrim" />
         <motion.div
-          className="relative z-10 mx-4 w-full max-w-md rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+          className="relative z-10 mx-4 w-full max-w-md kv-overlay text-ink"
           initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 8 }} transition={{ duration: 0.15, ease: 'easeOut' }}>
 
@@ -77,8 +77,8 @@ export function ApproveLinkModal({ anfrage, onClose }: Props) {
 
           {fertig ? (
             <div className="flex flex-col items-center gap-3 px-5 py-10 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15">
-                <Check size={22} className="text-emerald-300" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-soft">
+                <Check size={22} className="text-success" />
               </div>
               <p className="text-sm font-bold">Verbunden</p>
               <p className="max-w-xs text-xs leading-relaxed text-muted">
@@ -119,7 +119,7 @@ export function ApproveLinkModal({ anfrage, onClose }: Props) {
                 </p>
 
                 {fehler && (
-                  <p className="flex items-start gap-2 rounded-md border border-red-500/30 bg-red-500/[0.06] px-3 py-2 text-xs text-red-300">
+                  <p className="flex items-start gap-2 rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-xs text-danger">
                     <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {fehler}
                   </p>
                 )}
@@ -127,11 +127,11 @@ export function ApproveLinkModal({ anfrage, onClose }: Props) {
 
               <footer className="flex justify-end gap-2 border-t border-divider px-5 py-4">
                 <button type="button" onClick={ablehnen} disabled={laeuft}
-                  className="flex h-10 items-center gap-2 rounded-md px-4 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:text-red-400 disabled:opacity-40">
+                  className="kv-btn kv-btn-danger">
                   <X size={13} /> Ablehnen
                 </button>
                 <button type="button" onClick={bestaetigen} disabled={laeuft || ziffern.length !== 6}
-                  className="flex h-10 items-center gap-2 rounded-md bg-ink px-4 text-xs font-bold uppercase tracking-widest text-paper disabled:opacity-40">
+                  className="kv-btn kv-btn-primary">
                   {laeuft ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Verbinden
                 </button>
               </footer>

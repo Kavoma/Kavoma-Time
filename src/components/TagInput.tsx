@@ -200,7 +200,7 @@ export function TagInput({
                 maxWidth: 320,
                 zIndex: 1000,
               }}
-              className="rounded-lg border border-divider bg-surface p-1 shadow-2xl"
+              className="kv-overlay p-1"
             >
               {filtered.map((s, idx) => {
                 const c = tagColors(s);
@@ -211,9 +211,7 @@ export function TagInput({
                     type="button"
                     onMouseEnter={() => setHighlight(idx)}
                     onClick={() => addTag(s)}
-                    className={`flex w-full cursor-pointer items-center justify-between rounded px-2 py-1.5 text-left text-[11px] transition-colors ${
-                      active ? 'bg-divider' : 'hover:bg-divider/60'
-                    }`}
+                    className={`flex w-full cursor-pointer items-center justify-between rounded px-2 py-1.5 text-left text-xs transition-colors ${ active ? 'bg-divider' : 'hover:bg-divider/60' }`}
                   >
                     <span
                       className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
@@ -229,9 +227,7 @@ export function TagInput({
                   type="button"
                   onMouseEnter={() => setHighlight(filtered.length)}
                   onClick={() => addTag(trimmed)}
-                  className={`flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] transition-colors ${
-                    highlight === filtered.length ? 'bg-divider' : 'hover:bg-divider/60'
-                  }`}
+                  className={`flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors ${ highlight === filtered.length ? 'bg-divider' : 'hover:bg-divider/60' }`}
                 >
                   <Plus size={11} className="text-muted" />
                   <span className="text-muted">Neu:</span>

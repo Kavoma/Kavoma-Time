@@ -47,7 +47,7 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+          <div className="absolute inset-0 kv-scrim" />
 
           <motion.div
             className="relative z-10 flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-xl border border-divider bg-surface text-ink shadow-[0_30px_80px_-12px_rgba(0,0,0,0.75)]"
@@ -60,17 +60,16 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
             aria-label="Willkommen bei Kavoma Time"
           >
             <div className="border-b border-divider px-7 py-5">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Willkommen</div>
-              <h2 className="mt-1 font-display text-2xl font-black tracking-tight">Kavoma Time</h2>
+              <h2 className="font-display text-2xl font-bold tracking-tight">Kavoma Time</h2>
               <p className="mt-2 text-[13px] leading-relaxed text-muted">
-                Bevor es losgeht — kurz, was du über deine Daten wissen solltest.
+                Kurz, was du über deine Daten wissen solltest.
               </p>
             </div>
 
             <div className="overflow-y-auto px-7 py-6">
               <ul className="space-y-4 text-[13px] leading-relaxed text-muted">
                 <li className="flex gap-3">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-soft text-success">
                     <HardDrive size={15} />
                   </span>
                   <div>
@@ -81,7 +80,7 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-300">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warning-soft text-warning">
                     <RefreshCw size={15} />
                   </span>
                   <div>
@@ -92,7 +91,7 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
                   </div>
                 </li>
                 <li className="flex gap-3">
-                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-sky-300">
+                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-info-soft text-info">
                     <ShieldCheck size={15} />
                   </span>
                   <div>
@@ -149,7 +148,7 @@ export function OnboardingModal({ open, onComplete, onOpenPrivacy }: OnboardingM
               <button
                 onClick={submit}
                 disabled={!agreed}
-                className="cursor-pointer rounded-md bg-ink px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ink disabled:hover:text-paper disabled:hover:ring-0"
+                className="kv-btn kv-btn-primary"
               >
                 Verstanden & loslegen
               </button>

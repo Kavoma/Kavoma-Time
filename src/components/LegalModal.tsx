@@ -39,7 +39,7 @@ export function LegalModal({ open, initial, onClose }: LegalModalProps) {
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -47,7 +47,7 @@ export function LegalModal({ open, initial, onClose }: LegalModalProps) {
           />
 
           <motion.div
-            className="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -61,13 +61,13 @@ export function LegalModal({ open, initial, onClose }: LegalModalProps) {
               <div className="flex gap-2">
                 <button
                   onClick={() => setTab('imprint')}
-                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all ${tab === 'imprint' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
+                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${tab === 'imprint' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
                 >
                   <FileText size={13} /> Impressum
                 </button>
                 <button
                   onClick={() => setTab('privacy')}
-                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest transition-all ${tab === 'privacy' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
+                  className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${tab === 'privacy' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
                 >
                   <ShieldCheck size={13} /> Datenschutz
                 </button>
@@ -297,9 +297,9 @@ function PrivacyContent() {
         <ul className="list-disc space-y-1 pl-5">
           <li>Auskunft (Art. 15 DSGVO)</li>
           <li>Berichtigung (Art. 16 DSGVO)</li>
-          <li>Löschung (Art. 17 DSGVO) — direkt in der App über „Alle Daten löschen"</li>
+          <li>Löschung (Art. 17 DSGVO): direkt in der App über „Alle Daten löschen"</li>
           <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
-          <li>Datenübertragbarkeit (Art. 20 DSGVO) — über die Backup-Export-Funktion</li>
+          <li>Datenübertragbarkeit (Art. 20 DSGVO): über die Backup-Export-Funktion</li>
           <li>Widerspruch (Art. 21 DSGVO)</li>
           <li>Beschwerde bei einer Aufsichtsbehörde (Art. 77 DSGVO)</li>
         </ul>

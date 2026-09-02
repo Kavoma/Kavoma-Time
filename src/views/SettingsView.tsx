@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Sliders, Receipt, Database, Info } from 'lucide-react';
+import { Settings, Sliders, Palette, Receipt, Database, Info } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ConfirmRestoreModal } from '../components/ConfirmRestoreModal';
 import { ConfirmWipeModal } from '../components/ConfirmWipeModal';
 import { LegalModal, type LegalDocument } from '../components/LegalModal';
 import { TemplateManagementModal } from '../components/TemplateManagementModal';
 import { GeneralTab } from '../components/settings/GeneralTab';
+import { AppearanceTab } from '../components/settings/AppearanceTab';
 import { InvoicesTab } from '../components/settings/InvoicesTab';
 import { DataTab } from '../components/settings/DataTab';
 import { AboutTab } from '../components/settings/AboutTab';
 import { useAppState } from '../state/AppStateContext';
 
-type TabKey = 'general' | 'invoices' | 'data' | 'about';
+type TabKey = 'general' | 'appearance' | 'invoices' | 'data' | 'about';
 
 interface TabDef {
   key: TabKey;
@@ -22,8 +23,9 @@ interface TabDef {
 }
 
 const TABS: ReadonlyArray<TabDef> = [
-  { key: 'general',  label: 'Allgemein',  icon: Sliders,  subtitle: 'Workflow, Timer und Tastenkürzel' },
-  { key: 'invoices', label: 'Rechnungen', icon: Receipt,  subtitle: 'Nummernkreis, Vorlagen und Absender' },
+  { key: 'general',    label: 'Allgemein',   icon: Sliders,  subtitle: 'Workflow, Timer und Tastenkürzel' },
+  { key: 'appearance', label: 'Darstellung', icon: Palette,  subtitle: 'Thema und Akzentfarbe' },
+  { key: 'invoices',   label: 'Rechnungen',  icon: Receipt,  subtitle: 'Nummernkreis, Vorlagen und Absender' },
   { key: 'data',     label: 'Daten',      icon: Database, subtitle: 'Backup, Export und DSGVO' },
   { key: 'about',    label: 'Über',       icon: Info,     subtitle: 'Updates, System und Rechtliches' },
 ];
@@ -31,7 +33,7 @@ const TABS: ReadonlyArray<TabDef> = [
 const TAB_STORAGE_KEY = 'kavoma_settings_tab';
 
 function isTabKey(v: unknown): v is TabKey {
-  return v === 'general' || v === 'invoices' || v === 'data' || v === 'about';
+  return v === 'general' || v === 'appearance' || v === 'invoices' || v === 'data' || v === 'about';
 }
 
 function loadInitialTab(): TabKey {
@@ -98,7 +100,7 @@ export function SettingsView() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold uppercase tracking-tight leading-none">Einstellungen</h2>
+          <h2 className="font-display text-2xl font-bold tracking-tight leading-none">Einstellungen</h2>
           <p className="mt-1.5 text-xs text-muted">{currentTab.subtitle}</p>
         </div>
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">
@@ -107,7 +109,7 @@ export function SettingsView() {
       </div>
 
       {/* Tab-Bar */}
-      <div role="tablist" aria-label="Einstellungs-Kategorien" className="mb-6 flex items-center gap-1 border-b border-divider">
+      <div role="tablist" aria-label="Einstellungs-Kategorien" className="kv-tabs mb-6">
         {TABS.map((tab, idx) => {
           const isActive = tab.key === activeTab;
           const Icon = tab.icon;
@@ -122,16 +124,14 @@ export function SettingsView() {
               tabIndex={isActive ? 0 : -1}
               onClick={() => setActiveTab(tab.key)}
               onKeyDown={(e) => handleTabKeyDown(e, idx)}
-              className={`relative flex cursor-pointer items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
-                isActive ? 'text-ink' : 'text-muted hover:text-ink'
-              }`}
+              className="kv-tab"
             >
               <Icon size={14} aria-hidden="true" />
               {tab.label}
               {isActive && (
                 <motion.div
-                  layoutId="settings-tab-underline"
-                  className="absolute inset-x-0 -bottom-px h-0.5 bg-ink"
+                  layoutId="settings-tab-marker"
+                  className="kv-tab-marker"
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}
@@ -153,6 +153,7 @@ export function SettingsView() {
           transition={{ duration: 0.15 }}
         >
           {activeTab === 'general' && <GeneralTab />}
+          {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'invoices' && (
             <InvoicesTab onOpenTemplateModal={() => setTemplateModalOpen(true)} />
           )}

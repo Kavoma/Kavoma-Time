@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useChartColors } from '../../../utils/chartColors';
 import { LineChart as LineChartIcon, AlertCircle } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
@@ -12,7 +13,7 @@ interface Props {
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ payload: { revenue: number; expenses: number; profit: number } }>; label?: string }) {
   if (!active || !payload || !payload.length) return null;
   const d = payload[0].payload;
-  const profitColor = d.profit < 0 ? 'text-red-400' : 'text-emerald-400';
+  const profitColor = d.profit < 0 ? 'text-danger' : 'text-success';
   return (
     <div className="rounded-md border border-divider bg-surface px-3 py-2 text-xs shadow-lg">
       <div className="mb-1 font-bold text-ink">{label}</div>
@@ -30,6 +31,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 export function TrendChart({ entries }: Props) {
+  const chart = useChartColors();
   const data = useMemo(
     () => entries.map((e) => ({
       label: e.bucket.label,
@@ -52,11 +54,11 @@ export function TrendChart({ entries }: Props) {
   }, [entries]);
 
   return (
-    <div className="mb-8 rounded-lg border border-divider bg-surface p-5">
+    <div className="mb-6 kv-card p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <LineChartIcon size={14} className="text-muted" />
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Trend</h3>
+          <h3 className="kv-label">Trend</h3>
         </div>
         {granularityLabel && (
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted">{granularityLabel}</div>
@@ -76,15 +78,15 @@ export function TrendChart({ entries }: Props) {
         <div style={{ height: 280 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fill: '#525252', fontSize: 10 }}
-                axisLine={{ stroke: '#262626' }}
+                tick={{ fill: chart.axis, fontSize: 11 }}
+                axisLine={{ stroke: chart.grid }}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: '#525252', fontSize: 10 }}
+                tick={{ fill: chart.axis, fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={(v: number) => v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)}
@@ -92,25 +94,25 @@ export function TrendChart({ entries }: Props) {
               <Tooltip content={<ChartTooltip />} />
               <Legend
                 iconType="line"
-                wrapperStyle={{ fontSize: 10, color: '#a3a3a3', textTransform: 'uppercase', letterSpacing: '0.15em' }}
+                wrapperStyle={{ fontSize: 11, color: chart.axis, letterSpacing: '0.04em' }}
               />
               <Line
                 type="monotone"
                 dataKey="revenue"
                 name="Einnahmen"
-                stroke="#ffffff"
+                stroke={chart.primary}
                 strokeWidth={2}
-                dot={{ r: 2.5, fill: '#ffffff', stroke: 'none' }}
+                dot={{ r: 2.5, fill: chart.primary, stroke: "none" }}
                 activeDot={{ r: 4 }}
               />
               <Line
                 type="monotone"
                 dataKey="expenses"
                 name="Ausgaben"
-                stroke="#a3a3a3"
+                stroke={chart.secondary}
                 strokeWidth={2}
                 strokeDasharray="4 3"
-                dot={{ r: 2.5, fill: '#a3a3a3', stroke: 'none' }}
+                dot={{ r: 2.5, fill: chart.secondary, stroke: "none" }}
                 activeDot={{ r: 4 }}
               />
             </LineChart>

@@ -155,14 +155,14 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             onClick={handleClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           />
           <motion.div
-            className="relative z-10 flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -174,7 +174,6 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
           >
             <div className="flex items-center justify-between border-b border-divider px-6 py-4">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Beleg</div>
                 <h3 className="mt-0.5 text-sm font-bold uppercase tracking-wide">Eingangsrechnung hochladen</h3>
               </div>
               <button
@@ -196,7 +195,7 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
                   dragging
                     ? 'border-ink bg-paper/60'
                     : file
-                    ? 'border-emerald-500/40 bg-emerald-500/5'
+                    ? 'border-success-line/40 bg-success-soft'
                     : 'border-divider bg-paper/40 hover:border-muted'
                 }`}
               >
@@ -209,13 +208,13 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
                 />
                 {file ? (
                   <>
-                    <FileText size={28} className="text-emerald-300" />
+                    <FileText size={28} className="text-success" />
                     <div className="text-sm font-bold">{file.name}</div>
                     <div className="text-[11px] text-muted">{formatFileSize(file.size)} · PDF</div>
                     <button
                       type="button"
                       onClick={(e) => { e.preventDefault(); setFile(null); }}
-                      className="mt-2 cursor-pointer text-[10px] font-bold uppercase tracking-widest text-muted underline hover:text-ink"
+                      className="mt-2 cursor-pointer text-xs font-bold text-muted underline hover:text-ink"
                     >
                       Andere Datei wählen
                     </button>
@@ -231,16 +230,16 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="col-span-2 flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Lieferant *</label>
+                  <label className="mb-1.5 kv-label">Lieferant *</label>
                   <input type="text" value={vendorName} onChange={(e) => setVendorName(e.target.value)} placeholder="z. B. MediaMarkt" />
                 </div>
                 <div className="flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Beleg-Nr.</label>
+                  <label className="mb-1.5 kv-label">Beleg-Nr.</label>
                   <input type="text" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="optional" />
                 </div>
                 <DatePicker label="Beleg-Datum *" value={invoiceDate} onChange={setInvoiceDate} />
                 <div className="flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Brutto (€) *</label>
+                  <label className="mb-1.5 kv-label">Brutto (€) *</label>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -251,7 +250,7 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">davon USt (€)</label>
+                  <label className="mb-1.5 kv-label">davon USt (€)</label>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -262,7 +261,7 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
                   />
                 </div>
                 <div className="col-span-2 flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Kategorie</label>
+                  <label className="mb-1.5 kv-label">Kategorie</label>
                   <select value={category} onChange={(e) => setCategory(e.target.value as VendorInvoiceCategory)}>
                     {CATEGORIES.map((c) => (
                       <option key={c.value} value={c.value}>{c.label}</option>
@@ -270,13 +269,13 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
                   </select>
                 </div>
                 <div className="col-span-2 flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Notiz</label>
+                  <label className="mb-1.5 kv-label">Notiz</label>
                   <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="optional" />
                 </div>
               </div>
 
               {error && (
-                <div className="mt-4 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-200">
+                <div className="mt-4 flex items-start gap-2 rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-[12px] text-danger">
                   <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -287,14 +286,14 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
               <button
                 onClick={handleClose}
                 disabled={busy}
-                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                className="kv-btn kv-btn-quiet"
               >
                 Abbrechen
               </button>
               <button
                 onClick={submit}
                 disabled={!canSave}
-                className="cursor-pointer rounded-md bg-ink px-4 py-2 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ink disabled:hover:text-paper disabled:hover:ring-0"
+                className="kv-btn kv-btn-primary"
               >
                 {busy ? 'Verschlüssele…' : 'Beleg speichern'}
               </button>

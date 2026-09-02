@@ -5,25 +5,36 @@ import {
   CategoryExpense, formatEuro, VENDOR_CATEGORY_LABELS,
 } from '../../../utils/financeAnalytics';
 import { VendorInvoiceCategory } from '../../../types';
+import { useChartColors } from '../../../utils/chartColors';
 
 interface Props {
   data: CategoryExpense[];
 }
 
-const CATEGORY_COLORS: Record<VendorInvoiceCategory, string> = {
-  hardware: '#60a5fa',
-  software: '#a78bfa',
-  office:   '#fbbf24',
-  travel:   '#34d399',
-  service:  '#f472b6',
-  other:    '#a3a3a3',
-};
+/**
+ * Reihenfolge der Kategorien im Farbkreis. Die Werte selbst kommen aus der
+ * Tokenschicht und wechseln mit dem Thema.
+ *
+ * Bewusst als AUFGELOESTE Farbe und nicht als `var(--kv-chart-1)`: Recharts
+ * setzt `fill` als SVG-Attribut, und dort loest Chromium `var()` nicht auf —
+ * der Kuchen bliebe farblos.
+ */
+const CATEGORY_ORDER: ReadonlyArray<VendorInvoiceCategory> = [
+  'hardware', 'software', 'office', 'travel', 'service', 'other',
+];
+
+function useCategoryColors(): Record<VendorInvoiceCategory, string> {
+  const { categorical } = useChartColors();
+  return Object.fromEntries(
+    CATEGORY_ORDER.map((k, i) => [k, categorical[i]]),
+  ) as Record<VendorInvoiceCategory, string>;
+}
 
 function CategoryTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: CategoryExpense }> }) {
   if (!active || !payload || !payload.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-md border border-divider bg-surface px-3 py-2 text-xs shadow-lg">
+    <div className="kv-overlay px-3 py-2 text-xs">
       <div className="mb-1 font-bold text-ink">{VENDOR_CATEGORY_LABELS[d.category]}</div>
       <div className="tabular-nums text-muted">
         Summe: <span className="text-ink">{formatEuro(d.total)}</span>
@@ -39,13 +50,14 @@ function CategoryTooltip({ active, payload }: { active?: boolean; payload?: Arra
 }
 
 export function ExpensesByCategory({ data }: Props) {
+  const CATEGORY_COLORS = useCategoryColors();
   const total = useMemo(() => data.reduce((s, d) => s + d.total, 0), [data]);
 
   return (
-    <div className="rounded-lg border border-divider bg-surface p-5">
+    <div className="kv-card p-5">
       <div className="mb-4 flex items-center gap-2">
         <PieChartIcon size={14} className="text-muted" />
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Ausgaben nach Kategorie</h3>
+        <h3 className="kv-label">Ausgaben nach Kategorie</h3>
       </div>
 
       {data.length === 0 ? (
@@ -82,7 +94,7 @@ export function ExpensesByCategory({ data }: Props) {
           </div>
 
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between border-b border-divider pb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+            <div className="flex items-center justify-between border-b border-divider pb-1.5 kv-label">
               <span>Kategorie</span>
               <span>Summe</span>
             </div>

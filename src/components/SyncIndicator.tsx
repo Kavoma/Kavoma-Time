@@ -6,11 +6,11 @@ const ANZEIGE: Record<SyncStatus['state'], { Icon: typeof Check; ton: string; ti
   // Nicht eingerichtet heißt: kein Symbol. Ein durchgestrichenes Wölkchen für
   // jeden, der die Funktion nie nutzt, wäre eine Dauerermahnung.
   off:     null,
-  locked:  { Icon: Lock,          ton: 'text-amber-400',   titel: 'Gesperrt — Passphrase fehlt' },
+  locked:  { Icon: Lock,          ton: 'text-warning',   titel: 'Gesperrt — Passphrase fehlt' },
   offline: { Icon: CloudOff,      ton: 'text-muted',       titel: 'Keine Verbindung — Änderungen warten' },
   syncing: { Icon: Loader2,       ton: 'text-accent',      titel: 'Gleicht ab…' },
-  synced:  { Icon: Check,         ton: 'text-emerald-400', titel: 'Abgeglichen' },
-  error:   { Icon: AlertTriangle, ton: 'text-red-400',     titel: 'Abgleich fehlgeschlagen' },
+  synced:  { Icon: Check,         ton: 'text-success', titel: 'Abgeglichen' },
+  error:   { Icon: AlertTriangle, ton: 'text-danger',     titel: 'Abgleich fehlgeschlagen' },
 };
 
 /** Kleines Zeichen in der Titelleiste — sichtbar, ohne sich vorzudrängen. */

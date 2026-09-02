@@ -19,7 +19,7 @@ export function UndoToast({ message, onUndo }: UndoToastProps) {
     <AnimatePresence>
       {message && (
         <motion.div
-          className="fixed bottom-6 left-1/2 z-[55] flex items-center gap-4 rounded-lg border border-divider bg-surface px-4 py-3 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]"
+          className="fixed bottom-6 left-1/2 z-[55] flex items-center gap-4 kv-overlay px-4 py-3"
           initial={{ opacity: 0, y: 12, x: '-50%' }}
           animate={{ opacity: 1, y: 0, x: '-50%' }}
           exit={{ opacity: 0, y: 12, x: '-50%' }}
@@ -28,7 +28,7 @@ export function UndoToast({ message, onUndo }: UndoToastProps) {
           <span className="text-[13px] text-ink">{message}</span>
           <button
             onClick={onUndo}
-            className="flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-widest text-accent transition-colors hover:bg-divider"
+            className="kv-btn kv-btn-quiet"
           >
             <Undo2 size={13} />
             Rückgängig

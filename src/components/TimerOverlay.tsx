@@ -106,7 +106,7 @@ export function TimerOverlay() {
       <div className="timer-overlay-card">
         <div className={`flex ${isTopAnchor ? 'flex-col' : 'flex-col-reverse'} items-center`}>
           <div
-            className={`timer-overlay-card-core group/timer relative flex h-[54px] w-[184px] items-center gap-3 rounded-[20px] border border-white/12 bg-[#101010]/80 px-4 shadow-[0_20px_70px_rgba(0,0,0,0.45),0_10px_20px_rgba(0,0,0,0.2)] backdrop-blur-3xl transition-transform duration-200 ${isDragging ? 'scale-105 rotate-[-1.5deg] cursor-grabbing shadow-[0_25px_80px_rgba(0,0,0,0.55)]' : 'cursor-grab hover:scale-[1.02]'}`}
+            className={`timer-overlay-card-core timer-overlay-chip group/timer relative flex items-center gap-2.5 px-3.5 ${isDragging ? 'is-lifted cursor-grabbing' : 'cursor-grab'}`}
             onPointerDown={startDrag}
             onPointerUp={stopDrag}
             onPointerCancel={stopDrag}
@@ -118,17 +118,19 @@ export function TimerOverlay() {
             onTouchStart={() => window.api?.setIgnoreMouseEvents?.(false)}
             onTouchEnd={() => window.api?.setIgnoreMouseEvents?.(true, { forward: true })}
           >
-            <div className="relative flex h-2.5 w-2.5 shrink-0 items-center justify-center">
+            <div className="relative flex h-2 w-2 shrink-0 items-center justify-center">
               {state?.isRunning && (
-                <span className="timer-status-pulse absolute inset-0 rounded-full bg-emerald-300" aria-hidden="true" />
+                <span className="timer-status-pulse absolute inset-0 rounded-full bg-success" aria-hidden="true" />
               )}
-              <span className={`relative h-2.5 w-2.5 rounded-full ${state?.isRunning ? 'bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.95)]' : 'bg-amber-300 shadow-[0_0_16px_rgba(252,211,77,0.8)]'}`} />
+              {/* Ohne Leuchtschein: Ein glimmender Punkt ist Dekoration,
+                  die Farbe allein sagt schon, was los ist. */}
+              <span className={`relative h-2 w-2 rounded-full ${state?.isRunning ? 'bg-success' : 'bg-warning'}`} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className={`font-display text-[24px] font-black leading-none tabular-nums tracking-normal transition-colors duration-300 ${state?.isRunning ? 'text-white' : 'text-white/55'}`}>
+              <div className={`font-display text-[19px] font-bold leading-none tabular-nums transition-colors duration-300 ${state?.isRunning ? 'text-ink' : 'text-muted'}`}>
                 {formatHMS(liveDuration)}
               </div>
-              <div className={`mt-1 max-w-[132px] truncate text-[10px] font-medium leading-tight tracking-[0.01em] ${state?.isRunning ? 'text-white/65' : 'text-amber-200/85'}`}>
+              <div className={`mt-0.5 max-w-[112px] truncate text-[11px] leading-tight ${state?.isRunning ? 'text-muted' : 'text-warning'}`}>
                 {state?.isRunning ? description : 'Pausiert'}
               </div>
             </div>
@@ -136,7 +138,7 @@ export function TimerOverlay() {
             {/* BUTTONS - nested inside the core card but positioned outside to inherit hover/focus state correctly without expanding the hitbox of the card itself */}
             <div
               data-no-drag
-              className={`absolute left-0 right-0 flex justify-end gap-2 px-2 opacity-0 pointer-events-none cursor-default transition-all duration-200 ease-out group-hover/timer:opacity-100 group-hover/timer:pointer-events-auto group-focus-within/timer:opacity-100 group-focus-within/timer:pointer-events-auto ${isTopAnchor ? 'top-full translate-y-[-8px] pt-3 group-hover/timer:translate-y-0 group-focus-within/timer:translate-y-0' : 'bottom-full translate-y-[8px] pb-3 group-hover/timer:translate-y-0 group-focus-within/timer:translate-y-0'}`}
+              className={`absolute left-0 right-0 flex justify-end gap-2 px-2 opacity-0 pointer-events-none cursor-default transition-opacity duration-200 ease-out group-hover/timer:opacity-100 group-hover/timer:pointer-events-auto group-focus-within/timer:opacity-100 group-focus-within/timer:pointer-events-auto ${isTopAnchor ? 'top-full translate-y-[-8px] pt-3 group-hover/timer:translate-y-0 group-focus-within/timer:translate-y-0' : 'bottom-full translate-y-[8px] pb-3 group-hover/timer:translate-y-0 group-focus-within/timer:translate-y-0'}`}
             >
               <button
                 type="button"
@@ -144,9 +146,9 @@ export function TimerOverlay() {
                 aria-label={state?.isRunning ? 'Pausieren' : 'Starten'}
                 data-no-drag
                 onClick={() => window.api?.sendTimerOverlayCommand?.('toggle')}
-                className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-[14px] border border-white/10 bg-white text-black shadow-[0_12px_28px_rgba(0,0,0,0.28)] outline-none transition-transform duration-150 ease-out hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black/60"
+                className="timer-overlay-btn bg-ink text-paper hover:bg-accent"
               >
-                {state?.isRunning ? <Pause size={16} fill="currentColor" aria-hidden="true" /> : <Play size={16} fill="currentColor" aria-hidden="true" />}
+                {state?.isRunning ? <Pause size={14} fill="currentColor" aria-hidden="true" /> : <Play size={14} fill="currentColor" aria-hidden="true" />}
               </button>
               <button
                 type="button"
@@ -154,9 +156,9 @@ export function TimerOverlay() {
                 aria-label="Stoppen"
                 data-no-drag
                 onClick={() => window.api?.sendTimerOverlayCommand?.('stop')}
-                className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-[14px] border border-red-300/25 bg-red-500/95 text-white shadow-[0_12px_28px_rgba(127,29,29,0.32)] outline-none transition-transform duration-150 ease-out hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-red-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black/60"
+                className="timer-overlay-btn bg-danger-soft text-danger hover:bg-danger-solid hover:text-on-solid"
               >
-                <Square size={14} fill="currentColor" aria-hidden="true" />
+                <Square size={12} fill="currentColor" aria-hidden="true" />
               </button>
             </div>
           </div>

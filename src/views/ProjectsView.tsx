@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Plus, FolderKanban, Search, LayoutGrid, List, Layers, Flag,
-  Trash2, Tag as TagIcon, CheckSquare, Square, X, Pause, Archive, CheckCircle2, Target,
+  Plus, FolderKanban, Search, LayoutGrid, List, Layers, Flag, Trash2, Tag as TagIcon, CheckSquare, Square, X, Pause, Archive, CheckCircle2,
 } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
 import { Project, ProjectStatus } from '../types';
@@ -10,12 +9,33 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { TagInput } from '../components/TagInput';
 import { collectTags, tagColors } from '../utils/tagColor';
 import { Tooltip } from '../components/Tooltip';
+import { SearchField } from '../components/SearchField';
+import { SegmentedControl } from '../components/SegmentedControl';
+import { FilterButton, FilterSection, FilterChoice } from '../components/FilterButton';
 import { Checkbox } from '../components/Checkbox';
 import type { NavIntent, ViewKey } from '../App';
 import { newNumericId } from '../sync/ids';
 
 type SortBy = 'name' | 'recent' | 'status' | 'budget' | 'priority';
 type ViewMode = 'list' | 'cards' | 'grouped';
+
+const SORT_LABEL: Record<SortBy, string> = {
+  name:     'Name A–Z',
+  recent:   'Letzte Aktivität',
+  status:   'Status',
+  budget:   'Budget-Auslastung',
+  priority: 'Priorität',
+};
+
+/** Der Normalzustand, gegen den „aktive Kriterien" gezählt werden. */
+const DEFAULT_STATUSES: ReadonlyArray<ProjectStatus> = ['active', 'on-hold'];
+const DEFAULT_SORT: SortBy = 'name';
+
+const VIEW_OPTIONS = [
+  { value: 'list'    as ViewMode, icon: List,       ariaLabel: 'Liste' },
+  { value: 'cards'   as ViewMode, icon: LayoutGrid, ariaLabel: 'Karten' },
+  { value: 'grouped' as ViewMode, icon: Layers,     ariaLabel: 'Gruppiert nach Kunde' },
+];
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
   active: 'Aktiv',
@@ -25,10 +45,10 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
 };
 
 const STATUS_COLOR: Record<ProjectStatus, string> = {
-  active: 'bg-green-500/15 text-green-300 border-green-500/30',
-  'on-hold': 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  completed: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  archived: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
+  active: 'bg-success-soft text-success border-success-line',
+  'on-hold': 'bg-warning-soft text-warning border-warning-line',
+  completed: 'bg-info-soft text-info border-info-line',
+  archived: 'bg-neutral-soft text-muted border-neutral-line',
 };
 
 const PRIORITY_RANK: Record<NonNullable<Project['priority']>, number> = {
@@ -67,6 +87,20 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
   );
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [overBudgetOnly, setOverBudgetOnly] = useState(false);
+
+  // Wie viele Kriterien vom Normalzustand abweichen. Abgeleitet statt
+  // mitgeführt — ein zweiter Zähler wäre eine zweite Wahrheit.
+  const filterCount =
+    (activeStatuses.size === DEFAULT_STATUSES.length
+      && DEFAULT_STATUSES.every((st) => activeStatuses.has(st)) ? 0 : 1)
+    + (sortBy === DEFAULT_SORT ? 0 : 1)
+    + (overBudgetOnly ? 1 : 0);
+
+  const resetFilters = () => {
+    setActiveStatuses(new Set(DEFAULT_STATUSES));
+    setSortBy(DEFAULT_SORT);
+    setOverBudgetOnly(false);
+  };
 
   // Bulk
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -255,7 +289,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold uppercase tracking-tight leading-none">Projekte</h2>
+          <h2 className="font-display text-2xl font-bold tracking-tight leading-none">Projekte</h2>
           <p className="mt-1.5 text-xs text-muted">
             {visibleCount === totalCount
               ? `${totalCount} ${totalCount === 1 ? 'Projekt' : 'Projekte'}`
@@ -267,7 +301,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
             <button
               onClick={openNew}
               disabled={state.customers.length === 0}
-              className="flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-4 py-2 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:border-accent hover:bg-accent active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              className="kv-btn kv-btn-primary"
             >
               <Plus size={14} /> Neu
             </button>
@@ -284,110 +318,75 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
         <EmptyState onCreate={openNew} />
       ) : (
         <>
-          {/* Toolbar */}
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <div className="relative min-w-[200px] flex-1">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Name, Beschreibung, Kunde, Tag…"
-                className="h-9 w-full rounded-md border border-divider bg-paper !pl-9 pr-3 text-sm text-ink outline-none placeholder:text-muted focus:border-accent"
-              />
-            </div>
+          {/* Werkzeugleiste — Suche bekommt den Platz, alles Seltene liegt
+              hinter dem Filterknopf, der Ansichtsumschalter bleibt sichtbar. */}
+          <div className="kv-toolbar mb-4">
+            <SearchField
+              value={search}
+              onChange={setSearch}
+              placeholder="Projekte durchsuchen"
+            />
 
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortBy)}
-              className="h-9 cursor-pointer rounded-md border border-divider bg-paper px-3 text-[11px] font-bold uppercase tracking-widest text-ink outline-none hover:border-ink"
+            <FilterButton
+              activeCount={filterCount}
+              onReset={resetFilters}
             >
-              <option value="name">Name A–Z</option>
-              <option value="recent">Letzte Aktivität</option>
-              <option value="status">Status</option>
-              <option value="budget">Budget-Auslastung</option>
-              <option value="priority">Priorität</option>
-            </select>
+              <FilterSection title="Status">
+                {(['active', 'on-hold', 'completed', 'archived'] as ProjectStatus[]).map((st) => (
+                  <FilterChoice
+                    key={st}
+                    label={STATUS_LABEL[st]}
+                    checked={activeStatuses.has(st)}
+                    // Alle Status abzuwählen hiesse: leere Liste ohne Hinweis.
+                    disabled={activeStatuses.has(st) && activeStatuses.size === 1}
+                    onToggle={() => setActiveStatuses((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(st)) {
+                        if (next.size > 1) next.delete(st);
+                      } else next.add(st);
+                      return next;
+                    })}
+                  />
+                ))}
+              </FilterSection>
 
-            <div className="flex items-center gap-1 rounded-md border border-divider bg-paper p-0.5">
-              {(['active', 'on-hold', 'completed', 'archived'] as ProjectStatus[]).map((s) => {
-                const isOn = activeStatuses.has(s);
-                return (
-                  <button
-                    key={s}
-                    onClick={() => {
-                      setActiveStatuses((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(s)) {
-                          if (next.size > 1) next.delete(s);
-                        } else next.add(s);
-                        return next;
-                      });
-                    }}
-                    className={`cursor-pointer rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                      isOn ? STATUS_COLOR[s] : 'text-muted hover:text-ink'
-                    }`}
-                  >
-                    {STATUS_LABEL[s]}
-                  </button>
-                );
-              })}
-            </div>
+              <FilterSection title="Sortierung">
+                {(Object.keys(SORT_LABEL) as SortBy[]).map((key) => (
+                  <FilterChoice
+                    key={key}
+                    role="radio"
+                    label={SORT_LABEL[key]}
+                    checked={sortBy === key}
+                    onToggle={() => setSortBy(key)}
+                  />
+                ))}
+              </FilterSection>
 
-            <Tooltip content="Nur Projekte über 100% Stunden-Budget zeigen">
-              <button
-                onClick={() => setOverBudgetOnly((v) => !v)}
-                className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-3 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                  overBudgetOnly
-                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                    : 'border-divider bg-paper text-muted hover:border-ink hover:text-ink'
-                }`}
-              >
-                <Target size={11} /> Über Budget
-              </button>
-            </Tooltip>
+              <FilterSection title="Sonderfilter">
+                <FilterChoice
+                  label="Nur über Stunden-Budget"
+                  checked={overBudgetOnly}
+                  onToggle={() => setOverBudgetOnly((v) => !v)}
+                />
+              </FilterSection>
+            </FilterButton>
 
-            <div className="flex items-center gap-0.5 rounded-md border border-divider bg-paper p-0.5">
-              <Tooltip content="Liste">
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded transition-colors ${viewMode === 'list' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
-                  aria-label="Listen-Ansicht"
-                >
-                  <List size={13} />
-                </button>
-              </Tooltip>
-              <Tooltip content="Karten">
-                <button
-                  onClick={() => setViewMode('cards')}
-                  className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded transition-colors ${viewMode === 'cards' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
-                  aria-label="Karten-Ansicht"
-                >
-                  <LayoutGrid size={13} />
-                </button>
-              </Tooltip>
-              <Tooltip content="Gruppiert nach Kunde">
-                <button
-                  onClick={() => setViewMode('grouped')}
-                  className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded transition-colors ${viewMode === 'grouped' ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
-                  aria-label="Gruppiert nach Kunde"
-                >
-                  <Layers size={13} />
-                </button>
-              </Tooltip>
-            </div>
+            <SegmentedControl
+              ariaLabel="Ansicht"
+              options={VIEW_OPTIONS}
+              value={viewMode}
+              onChange={setViewMode}
+            />
           </div>
 
           {visibleCount === 0 ? (
-            <FilterEmptyState onReset={() => {
-              setSearch(''); setActiveStatuses(new Set(['active', 'on-hold'])); setOverBudgetOnly(false);
-            }} />
+            <FilterEmptyState onReset={() => { setSearch(''); resetFilters(); }} />
           ) : (
             <>
               <div className="mb-2 flex items-center justify-between border-b border-divider pb-2">
                 <button
                   onClick={selectAllVisible}
-                  className="flex cursor-pointer items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted hover:text-ink"
+                  className="flex cursor-pointer items-center gap-2 kv-label hover:text-ink"
                 >
                   {allVisibleSelected ? <CheckSquare size={12} /> : <Square size={12} />}
                   {allVisibleSelected ? 'Auswahl aufheben' : 'Alle auswählen'}
@@ -464,7 +463,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
 
       {/* Bulk-Bar */}
       {someSelected && (
-        <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg border border-divider bg-surface px-3 py-2 shadow-2xl">
+        <div className="kv-glass fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-[var(--kv-r-overlay)] border border-divider px-3 py-2 shadow-[0_24px_64px_-12px_rgba(0,0,0,0.45)]">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-widest text-ink">
               {selected.size} ausgewählt
@@ -472,19 +471,19 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
             <div className="mx-1 h-5 w-px bg-divider" />
             <button
               onClick={() => { setShowBulkTag(!showBulkTag); setShowBulkStatus(false); }}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink"
+              className="kv-btn kv-btn-outline"
             >
               <TagIcon size={11} /> Tag
             </button>
             <button
               onClick={() => { setShowBulkStatus(!showBulkStatus); setShowBulkTag(false); }}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-divider bg-paper px-2.5 text-[10px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink"
+              className="kv-btn kv-btn-outline"
             >
               <CheckCircle2 size={11} /> Status
             </button>
             <button
               onClick={() => setBulkConfirmDelete(true)}
-              className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-2.5 text-[10px] font-bold uppercase tracking-widest text-red-300 transition-all hover:border-red-400 hover:bg-red-500/20"
+              className="kv-btn kv-btn-danger"
             >
               <Trash2 size={11} /> Löschen
             </button>
@@ -513,7 +512,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
               <button
                 onClick={applyBulkTags}
                 disabled={bulkTagDraft.length === 0}
-                className="flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-ink bg-ink px-3 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent hover:border-accent disabled:cursor-not-allowed disabled:opacity-40"
+                className="kv-btn kv-btn-primary"
               >
                 Anwenden
               </button>
@@ -526,7 +525,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
                 <button
                   key={s}
                   onClick={() => applyBulkStatus(s)}
-                  className={`flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-[10px] font-bold uppercase tracking-widest transition-all ${STATUS_COLOR[s]}`}
+                  className={`flex h-7 cursor-pointer items-center gap-1.5 rounded-md border px-2.5 text-xs font-bold transition-colors ${STATUS_COLOR[s]}`}
                 >
                   {s === 'active' && <CheckCircle2 size={11} />}
                   {s === 'on-hold' && <Pause size={11} />}
@@ -609,7 +608,7 @@ function ProjectRow({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="truncate text-sm font-bold text-ink">{project.name}</span>
         {priority === 'high' && (
-          <Flag size={11} className="shrink-0 text-red-400" />
+          <Flag size={11} className="shrink-0 text-danger" />
         )}
         {status !== 'active' && (
           <span className={`shrink-0 rounded-full border px-1.5 py-0 text-[9px] font-bold uppercase tracking-wider ${STATUS_COLOR[status]}`}>
@@ -641,7 +640,7 @@ function ProjectRow({
       </span>
       {project.budgetHours && project.budgetHours > 0 && (
         <Tooltip content={overBudget ? `Budget überschritten: ${(stats?.budgetUsage ?? 0).toFixed(0)}%` : `Budgetauslastung: ${(stats?.budgetUsage ?? 0).toFixed(0)}%`}>
-          <span className={`w-16 shrink-0 text-right text-[11px] tabular-nums ${overBudget ? 'text-amber-300 font-bold' : 'text-muted'}`}>
+          <span className={`w-16 shrink-0 text-right text-[11px] tabular-nums ${overBudget ? 'text-warning font-bold' : 'text-muted'}`}>
             {(stats?.budgetUsage ?? 0).toFixed(0)}%
           </span>
         </Tooltip>
@@ -673,7 +672,7 @@ function ProjectCard({
       onKeyDown={(e) => { if (e.key === 'Enter') onOpen(); }}
       tabIndex={0}
       role="button"
-      className={`group relative cursor-pointer rounded-lg border bg-surface p-4 transition-all hover:border-ink/40 ${
+      className={`group relative cursor-pointer rounded-lg border bg-surface p-4 transition-colors hover:border-ink/40 ${
         selected ? 'border-accent/60 ring-2 ring-accent/30' : 'border-divider'
       }`}
       style={{ borderLeftWidth: 3, borderLeftColor: accentColor }}
@@ -691,7 +690,7 @@ function ProjectCard({
         <div className="flex items-center gap-2">
           <span className="size-2.5 shrink-0 rounded-full" style={{ background: accentColor }} />
           <div className="truncate text-sm font-bold text-ink">{project.name}</div>
-          {priority === 'high' && <Flag size={11} className="shrink-0 text-red-400" />}
+          {priority === 'high' && <Flag size={11} className="shrink-0 text-danger" />}
         </div>
         <div className="mt-0.5 truncate text-[10px] text-muted">{customer?.name ?? 'Ohne Kunde'}</div>
       </div>
@@ -707,13 +706,13 @@ function ProjectCard({
           <div className="mb-2">
             <div className="mb-0.5 flex justify-between text-[9px] font-bold uppercase tracking-widest text-muted">
               <span>Budget</span>
-              <span className={overBudget ? 'text-amber-300 font-bold' : ''}>
+              <span className={overBudget ? 'text-warning font-bold' : ''}>
                 {(stats?.hours ?? 0).toFixed(1)} / {project.budgetHours} h
               </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-paper">
               <div
-                className={`h-full rounded-full ${overBudget ? 'bg-red-500 animate-pulse' : (stats?.budgetUsage ?? 0) >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
+                className={`h-full rounded-full ${overBudget ? 'bg-danger-solid animate-pulse' : (stats?.budgetUsage ?? 0) >= 80 ? 'bg-warning-solid' : 'bg-accent'}`}
                 style={{ width: `${Math.min(100, stats?.budgetUsage ?? 0)}%` }}
               />
             </div>
@@ -779,7 +778,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
       <p className="text-sm text-muted">Noch keine Projekte angelegt.</p>
       <button
         onClick={onCreate}
-        className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-md border border-ink bg-ink px-4 py-2 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent hover:border-accent active:scale-95"
+        className="kv-btn kv-btn-primary mt-4"
       >
         <Plus size={14} /> Erstes Projekt anlegen
       </button>
@@ -794,7 +793,7 @@ function FilterEmptyState({ onReset }: { onReset: () => void }) {
       <p className="text-sm text-muted">Keine Projekte passen zu den Filtern.</p>
       <button
         onClick={onReset}
-        className="mt-3 cursor-pointer text-[11px] font-bold uppercase tracking-widest text-accent hover:underline"
+        className="mt-3 cursor-pointer text-xs font-bold text-accent hover:underline"
       >
         Filter zurücksetzen
       </button>

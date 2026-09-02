@@ -16,7 +16,7 @@ interface CustomSelectProps {
 export function CustomSelect({ id, label, value, options, onChange }: CustomSelectProps) {
   return (
     <div className="flex flex-col">
-      <label htmlFor={id} className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+      <label htmlFor={id} className="mb-2 kv-label">
         {label}
       </label>
       <select 
@@ -29,7 +29,7 @@ export function CustomSelect({ id, label, value, options, onChange }: CustomSele
           const picked = options.find(o => String(o.id) === e.target.value);
           onChange(picked ? picked.id : e.target.value);
         }}
-        className="h-11 w-full rounded-md border border-divider bg-paper px-3 text-sm font-bold text-ink outline-none transition-colors focus:border-accent"
+        className="kv-input font-semibold"
       >
         {options.map(opt => (
           <option key={opt.id} value={opt.id}>{opt.name}</option>

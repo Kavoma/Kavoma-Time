@@ -71,7 +71,7 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({
   return (
     <div className={`flex flex-col ${className}`}>
       {label && (
-        <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+        <label className="mb-2 kv-label">
           {label}
         </label>
       )}

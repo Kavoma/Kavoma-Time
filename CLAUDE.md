@@ -76,9 +76,14 @@ bewusste Grenze, keine Lücke, die nebenbei geschlossen werden sollte.
 
 `pnpm typecheck` läuft `tsc --noEmit`. Achtung: Ohne `"ignoreDeprecations": "6.0"`
 in der `tsconfig.json` bricht TypeScript 6 mit TS5107 ab, **bevor** es eine
-einzige Datei prüft — der Typecheck meldet dann fälschlich Erfolg. Baseline sind
-drei vorbestehende Fehler in `src/utils/attachments.ts` und
-`src/utils/invoicePdf.ts`.
+einzige Datei prüft — der Typecheck meldet dann fälschlich Erfolg. **Baseline ist
+null Fehler.** Wer das prüft, sollte den Erfolg gegenprobieren: eine Datei mit
+einem absichtlichen Typfehler anlegen und sehen, dass er gemeldet wird. Genau so
+fiel auf, dass die früher hier genannten „drei vorbestehenden Fehler" in
+`attachments.ts` und `invoicePdf.ts` längst behoben waren.
+
+`pnpm lint` meldet 100 vorbestehende Warnungen (`any`, `exhaustive-deps`) und
+null Fehler. Neue Warnungen sind ein Signal, keine Normalität.
 
 ## Architektur — die Teile, die mehrere Dateien zusammen ergeben
 
@@ -244,13 +249,55 @@ ein, die dieser Aufbau vermeidet.
 ## Konventionen
 
 - **Sprache**: Identifier englisch (`startTimer`, `entries`), User-Facing-Strings + Kommentare deutsch. Niemals `ä/ö/ü/ß` durch ASCII-Ersatz ausschreiben.
-- **Styling**: Tailwind v4 (via `@tailwindcss/vite`-Plugin, kein `tailwind.config.js` — Konfiguration in `src/style.css` als `@theme`). Eigene Design-Tokens: `bg-paper`, `bg-surface`, `border-divider`, `text-ink`, `text-muted`, `text-accent`, `font-display`.
-  Die Tokens beschreiben heute ein **fest dunkles** Aussehen; daneben stehen rund
-  520 direkte Farb-Utilities (`text-green-300`, `bg-red-500/10`, …) und rund 90
-  fest eingetragene Farbwerte im Quelltext. Neuer Code sollte keine weiteren
-  hinzufügen — das geplante Oberflächen-Update stellt genau diese Stellen auf
-  eine semantische Token-Schicht mit Hell- und Dunkelmodus um. Konzept:
-  `documentation/erscheinungsbild.md`.
+- **Styling**: Tailwind v4 (via `@tailwindcss/vite`-Plugin, kein `tailwind.config.js`
+  — die gesamte Konfiguration liegt in `src/style.css`).
+
+  **Farbe wird nicht mehr in Komponenten gewählt, sondern eine Rolle.** Flächen:
+  `paper` (Seitenhintergrund), `surface` (ruhiger Inhalt), `raised` (Block darin),
+  `overlay` (Drawer/Dialog/Menü), `scrim` (Schleier). Text: `ink`, `muted`.
+  Trennung: `divider`, `divider-soft`. Interaktion: `primary`/`on-primary`
+  (die eine Primäraktion), `accent` (Hover, Fokusrand, Auswahl), `focus`
+  (bewusst akzentunabhängig). Zustände: `danger`, `warning`, `success`, `info`,
+  je als Text, `-soft` (Fläche) und `-line` (Rand), dazu `-solid` wo es gefüllte
+  Knöpfe gibt, und `on-solid` für den Text darauf.
+
+  `@theme` trägt die dunklen Werte als Rückfallebene; ein ungelayerter Block
+  `:root[data-theme='light']` überschreibt sie. Tailwind legt `@theme` in
+  `@layer theme` ab, ungelayerte Regeln gewinnen dagegen unabhängig von der
+  Spezifität — deshalb braucht der Hellmodus kein `!important`. `data-theme`,
+  `data-accent` und `data-glass` setzt `src/utils/theme.ts`.
+
+  **Maße sind verbindlich und stehen als Variablen**: `--kv-h-control` (36 px)
+  für Knopf, Feld, Auswahl, Suche und Filter; `--kv-h-row` (44 px);
+  `--kv-r-control`/`-card`/`-overlay` (8/12/16 px); `--kv-dur-fast`/`--kv-dur`/
+  `--kv-dur-slow` und `--kv-ease` für alle Übergänge.
+
+  **Neue Ansichten bauen keine eigenen Varianten aus Utilities.** Dafür gibt es
+  die `.kv-*`-Bausteine in `@layer components`: `kv-btn` (+ `-primary`,
+  `-outline`, `-quiet`, `-danger`), `kv-icon-btn`, `kv-input`, `kv-label`,
+  `kv-card`, `kv-raised`, `kv-overlay`, `kv-badge`, `kv-toolbar`,
+  `kv-segmented`/`kv-segment`, `kv-popover`, `kv-count`, `kv-glass`, `kv-scrim`.
+  Fehlt etwas, entsteht es dort — nicht an der Aufrufstelle.
+
+  Versalien gehören zu `kv-label`, `kv-badge`, Tabellenköpfen und Überschriften,
+  **nicht** zu Schaltflächen. Interaktive Schrift nie unter 12 px.
+
+  **Glas ist Material, kein Effekt**: eine Stufe, nur auf Titelleiste,
+  Seitenleiste, schwebenden Leisten und Tooltips — nie unter Tabellen,
+  Formularen, Zahlenreihen oder der PDF-Vorschau. Den Schleier (`kv-scrim`)
+  trägt die Unschärfe, nicht die Dialogfläche darüber. Abschaltbar
+  (gerätelokal), und `prefers-reduced-transparency` sticht die Einstellung.
+
+  Bewegung: `prefers-reduced-motion` wird an **zwei** Stellen bedient — per
+  Media Query in `style.css` für CSS-Übergänge und per `<MotionConfig
+  reducedMotion="user">` in `src/main.tsx` für Framer Motion, dessen
+  Inline-Styles keine Media Query erreicht. Beide Hebel werden gebraucht.
+
+  Ausgenommen von alldem ist `src/components/TimerOverlay.tsx`: eigenes
+  transparentes Fenster, eigene Farben, fest dunkel.
+
+  Konzept: `documentation/erscheinungsbild-2.md`. Was davon umgesetzt ist
+  und was nicht, steht gemessen in `documentation/umsetzungsstand.md`.
 - **Icons**: ausschließlich `lucide-react`.
 - **State-Updates in Effects**: explizit erlaubt (`react-hooks/set-state-in-effect: off` in `eslint.config.js`) — wird für Form-Init in Modals genutzt.
 - **`window.api`** ist optional (`?.`) — Code muss auch ohne Electron lauffähig sein (Browser-Preview via `pnpm dev` ohne `electron`).

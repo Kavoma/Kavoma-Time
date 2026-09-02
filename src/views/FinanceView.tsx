@@ -49,29 +49,32 @@ export function FinanceView({ intent, navigateTo, onIntentConsumed }: Props = {}
 
   return (
     <>
-      <div className="mb-8 flex items-center gap-1 rounded-lg border border-divider bg-surface p-1">
+      {/* Reiter — dasselbe Muster wie in den Einstellungen. Vorher war es
+          hier eine gefuellte Pille, dort ein Unterstrich: zwei Loesungen
+          fuer dieselbe Aufgabe. */}
+      <div role="tablist" aria-label="Finanz-Bereiche" className="kv-tabs mb-8">
         {TABS.map((t) => {
           const Icon = t.icon;
           const isActive = tab === t.id;
           return (
             <button
               key={t.id}
+              role="tab"
+              type="button"
+              aria-selected={isActive}
+              tabIndex={isActive ? 0 : -1}
               onClick={() => setTab(t.id)}
-              className={`relative flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2.5 text-[11px] font-bold uppercase tracking-widest transition-colors ${
-                isActive ? 'text-ink' : 'text-muted hover:text-ink'
-              }`}
+              className="kv-tab"
             >
+              <Icon size={14} aria-hidden="true" />
+              {t.label}
               {isActive && (
                 <motion.div
-                  layoutId="finance-tab-pill"
-                  className="absolute inset-0 rounded-md bg-paper shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
-                  transition={{ type: 'spring', stiffness: 350, damping: 32 }}
+                  layoutId="finance-tab-marker"
+                  className="kv-tab-marker"
+                  transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}
-              <span className="relative flex items-center gap-2">
-                <Icon size={13} />
-                {t.label}
-              </span>
             </button>
           );
         })}

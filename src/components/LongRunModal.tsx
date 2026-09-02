@@ -23,14 +23,14 @@ export function LongRunModal({ seconds, onStop, onKeepRunning }: LongRunModalPro
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           />
 
           <motion.div
-            className="relative z-10 mx-4 w-full max-w-sm rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 mx-4 w-full max-w-sm kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
@@ -53,13 +53,13 @@ export function LongRunModal({ seconds, onStop, onKeepRunning }: LongRunModalPro
             <div className="flex justify-end gap-2 border-t border-divider px-6 py-4">
               <button
                 onClick={onKeepRunning}
-                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink"
+                className="kv-btn kv-btn-quiet"
               >
                 Weiterlaufen lassen
               </button>
               <button
                 onClick={onStop}
-                className="cursor-pointer rounded-md bg-accent/15 px-4 py-2 text-xs font-bold uppercase tracking-widest text-accent transition-all hover:bg-accent hover:text-white active:scale-95"
+                className="kv-btn kv-btn-outline"
               >
                 Jetzt stoppen
               </button>

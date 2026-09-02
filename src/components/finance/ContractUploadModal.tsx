@@ -117,14 +117,14 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             onClick={handleClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           />
           <motion.div
-            className="relative z-10 flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -136,7 +136,6 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
           >
             <div className="flex items-center justify-between border-b border-divider px-6 py-4">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Dokument</div>
                 <h3 className="mt-0.5 text-sm font-bold uppercase tracking-wide">Vertrag hochladen</h3>
               </div>
               <button
@@ -158,7 +157,7 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
                   dragging
                     ? 'border-ink bg-paper/60'
                     : file
-                    ? 'border-emerald-500/40 bg-emerald-500/5'
+                    ? 'border-success-line/40 bg-success-soft'
                     : 'border-divider bg-paper/40 hover:border-muted'
                 }`}
               >
@@ -171,13 +170,13 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
                 />
                 {file ? (
                   <>
-                    <FileSignature size={28} className="text-emerald-300" />
+                    <FileSignature size={28} className="text-success" />
                     <div className="text-sm font-bold">{file.name}</div>
                     <div className="text-[11px] text-muted">{formatFileSize(file.size)} · PDF</div>
                     <button
                       type="button"
                       onClick={(e) => { e.preventDefault(); setFile(null); }}
-                      className="mt-2 cursor-pointer text-[10px] font-bold uppercase tracking-widest text-muted underline hover:text-ink"
+                      className="mt-2 cursor-pointer text-xs font-bold text-muted underline hover:text-ink"
                     >
                       Andere Datei wählen
                     </button>
@@ -193,9 +192,9 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="col-span-2 flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Kunde *</label>
+                  <label className="mb-1.5 kv-label">Kunde *</label>
                   {customers.length === 0 ? (
-                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200">
+                    <div className="rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[12px] text-warning">
                       Lege zuerst einen Kunden an.
                     </div>
                   ) : (
@@ -207,18 +206,18 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
                   )}
                 </div>
                 <div className="col-span-2 flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Titel *</label>
+                  <label className="mb-1.5 kv-label">Titel *</label>
                   <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="z. B. Rahmenvertrag 2026" />
                 </div>
                 <DatePicker label="Unterzeichnet am *" value={signedAt} onChange={setSignedAt} />
                 <div className="flex flex-col">
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Gültig bis</label>
+                    <label className="kv-label">Gültig bis</label>
                     {validUntil && (
                       <button
                         type="button"
                         onClick={() => setValidUntil('')}
-                        className="flex cursor-pointer items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink"
+                        className="flex cursor-pointer items-center gap-1 text-xs font-bold text-muted hover:text-ink"
                         title="Datum löschen"
                       >
                         <XCircle size={11} /> Leeren
@@ -228,13 +227,13 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
                   <DatePicker value={validUntil} onChange={setValidUntil} />
                 </div>
                 <div className="col-span-2 flex flex-col">
-                  <label className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Notiz</label>
+                  <label className="mb-1.5 kv-label">Notiz</label>
                   <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="optional" />
                 </div>
               </div>
 
               {error && (
-                <div className="mt-4 flex items-start gap-2 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] text-red-200">
+                <div className="mt-4 flex items-start gap-2 rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-[12px] text-danger">
                   <AlertTriangle size={14} className="mt-0.5 shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -245,14 +244,14 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
               <button
                 onClick={handleClose}
                 disabled={busy}
-                className="cursor-pointer rounded-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+                className="kv-btn kv-btn-quiet"
               >
                 Abbrechen
               </button>
               <button
                 onClick={submit}
                 disabled={!canSave}
-                className="cursor-pointer rounded-md bg-ink px-4 py-2 text-xs font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-ink disabled:hover:text-paper disabled:hover:ring-0"
+                className="kv-btn kv-btn-primary"
               >
                 {busy ? 'Verschlüssele…' : 'Vertrag speichern'}
               </button>

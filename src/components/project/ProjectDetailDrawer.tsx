@@ -25,10 +25,10 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
 };
 
 const STATUS_COLOR: Record<ProjectStatus, string> = {
-  active: 'bg-green-500/15 text-green-300 border-green-500/30',
-  'on-hold': 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  completed: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-  archived: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
+  active: 'bg-success-soft text-success border-success-line',
+  'on-hold': 'bg-warning-soft text-warning border-warning-line',
+  completed: 'bg-info-soft text-info border-info-line',
+  archived: 'bg-neutral-soft text-muted border-neutral-line',
 };
 
 const PRIORITY_LABEL: Record<ProjectPriority, string> = {
@@ -38,9 +38,9 @@ const PRIORITY_LABEL: Record<ProjectPriority, string> = {
 };
 
 const PRIORITY_COLOR: Record<ProjectPriority, string> = {
-  low: 'text-zinc-400',
+  low: 'text-muted',
   normal: 'text-muted',
-  high: 'text-red-400',
+  high: 'text-danger',
 };
 
 interface Props {
@@ -278,13 +278,13 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
         <div>
           <div className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-muted">
             <span>Stunden-Budget</span>
-            <span className={kpis.budgetUsage >= 100 ? 'text-amber-300' : 'text-ink'}>
+            <span className={kpis.budgetUsage >= 100 ? 'text-warning' : 'text-ink'}>
               {(kpis.hoursSec / 3600).toFixed(1)} / {budgetHours} h
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-paper">
             <div
-              className={`h-full rounded-full transition-all ${kpis.budgetUsage >= 100 ? 'bg-red-500' : kpis.budgetUsage >= 80 ? 'bg-amber-500' : 'bg-accent'}`}
+              className={`h-full rounded-full transition-colors ${kpis.budgetUsage >= 100 ? 'bg-danger-solid' : kpis.budgetUsage >= 80 ? 'bg-warning-solid' : 'bg-accent'}`}
               style={{ width: `${Math.min(100, kpis.budgetUsage)}%` }}
             />
           </div>
@@ -323,8 +323,8 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
               >
                 <button
                   onClick={() => toggleMilestoneDone(m.id)}
-                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-all ${
-                    m.status === 'done' ? 'border-green-500 bg-green-500/20 text-green-400' : 'border-divider hover:border-ink'
+                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                    m.status === 'done' ? 'border-success-line bg-success-soft text-success' : 'border-divider hover:border-ink'
                   }`}
                   aria-label={m.status === 'done' ? 'Als offen markieren' : 'Als erledigt markieren'}
                 >
@@ -379,7 +379,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
                   type="button"
                   onClick={() => onNavigateInvoice?.(inv.id)}
                   disabled={!onNavigateInvoice}
-                  className="group flex w-full items-center justify-between rounded-md border border-divider bg-paper/50 px-3 py-2 text-left text-[12px] transition-all enabled:cursor-pointer enabled:hover:border-accent/50 enabled:hover:bg-paper"
+                  className="group flex w-full items-center justify-between rounded-md border border-divider bg-paper/50 px-3 py-2 text-left text-[12px] transition-colors enabled:cursor-pointer enabled:hover:border-accent/50 enabled:hover:bg-paper"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-bold tabular-nums">{inv.number}</span>
@@ -411,7 +411,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
       />
 
       <div className="flex flex-col">
-        <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Beschreibung / Briefing</label>
+        <label className="mb-2 kv-label">Beschreibung / Briefing</label>
         <textarea
           value={description}
           onChange={(e) => { setDescription(e.target.value); markDirty(); }}
@@ -423,7 +423,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col">
-          <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Status</label>
+          <label className="mb-2 kv-label">Status</label>
           <select
             value={status}
             onChange={(e) => { setStatus(e.target.value as ProjectStatus); markDirty(); }}
@@ -436,7 +436,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
           </select>
         </div>
         <div className="flex flex-col">
-          <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Priorität</label>
+          <label className="mb-2 kv-label">Priorität</label>
           <select
             value={priority}
             onChange={(e) => { setPriority(e.target.value as ProjectPriority); markDirty(); }}
@@ -450,7 +450,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
       </div>
 
       <div className="flex flex-col">
-        <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Tags</label>
+        <label className="mb-2 kv-label">Tags</label>
         <TagInput
           value={tags}
           onChange={(t) => { setTags(t); markDirty(); }}
@@ -469,7 +469,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
           suffix="€/h"
         />
         <div className="flex flex-col">
-          <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Budget Std.</label>
+          <label className="mb-2 kv-label">Budget Std.</label>
           <NumberInput
             min={0}
             value={budgetHours}
@@ -501,13 +501,13 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
 
       {/* Farbe-Override */}
       <div className="flex flex-col">
-        <label className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+        <label className="mb-2 flex items-center justify-between kv-label">
           <span>Farbe</span>
           {colorOverride && (
             <button
               type="button"
               onClick={() => { setColorOverride(undefined); setShowColorPicker(false); markDirty(); }}
-              className="cursor-pointer text-[9px] font-bold uppercase tracking-widest text-muted hover:text-ink"
+              className="cursor-pointer text-xs font-bold text-muted hover:text-ink"
             >
               Auf Kunden-Farbe zurücksetzen
             </button>
@@ -522,9 +522,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
             <button
               type="button"
               onClick={() => setShowColorPicker(!showColorPicker)}
-              className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-3 text-[11px] font-bold uppercase tracking-widest transition-all ${
-                showColorPicker ? 'border-ink bg-ink text-paper' : 'border-divider bg-paper text-ink hover:border-ink'
-              }`}
+              className={`flex h-9 cursor-pointer items-center gap-1.5 rounded-md border px-3 text-xs font-bold transition-colors ${ showColorPicker ? 'border-ink bg-ink text-paper' : 'border-divider bg-paper text-ink hover:border-ink' }`}
             >
               <Pipette size={12} />
               {colorOverride ? 'Override aktiv' : 'Override setzen'}
@@ -567,7 +565,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
         <div className="flex flex-col gap-2">
           {milestones.length === 0 && (
             <div className="rounded-md border border-dashed border-divider bg-paper/40 p-3 text-center text-[11px] text-muted">
-              Noch keine Meilensteine — lege welche an, um den Fortschritt sichtbar zu machen.
+              Noch keine Meilensteine. Lege welche an, um den Fortschritt sichtbar zu machen.
             </div>
           )}
           {milestones.map((m) => (
@@ -578,8 +576,8 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => toggleMilestoneDone(m.id)}
-                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-all ${
-                    m.status === 'done' ? 'border-green-500 bg-green-500/20 text-green-400' : 'border-divider hover:border-ink'
+                  className={`flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
+                    m.status === 'done' ? 'border-success-line bg-success-soft text-success' : 'border-divider hover:border-ink'
                   }`}
                 >
                   {m.status === 'done' && <Check size={12} />}
@@ -597,7 +595,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
                   <button
                     type="button"
                     onClick={() => removeMilestone(m.id)}
-                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-red-300/70 hover:bg-red-500/10 hover:text-red-300"
+                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-danger/70 hover:bg-danger-soft hover:text-danger"
                     aria-label="Meilenstein entfernen"
                   >
                     <Trash2 size={12} />
@@ -611,7 +609,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
                   onChange={(v) => updateMilestone(m.id, { targetDate: tsFromIso(v) })}
                 />
                 <div className="flex flex-col">
-                  <label className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Soll-Stunden</label>
+                  <label className="mb-2 kv-label">Soll-Stunden</label>
                   <NumberInput
                     min={0}
                     value={m.estimatedHours ?? 0}
@@ -625,7 +623,7 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
           <button
             type="button"
             onClick={addMilestone}
-            className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-divider bg-paper/40 text-[11px] font-bold uppercase tracking-widest text-muted transition-all hover:border-ink hover:text-ink"
+            className="flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-divider bg-paper/40 text-xs font-bold text-muted transition-colors hover:border-ink hover:text-ink"
           >
             <Plus size={12} /> Meilenstein hinzufügen
           </button>

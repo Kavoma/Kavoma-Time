@@ -31,9 +31,9 @@ export function TemplateManagementModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+          <div className="absolute inset-0 kv-scrim" onClick={onClose} />
           <motion.div
-            className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-2xl"
+            className="relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -103,7 +103,7 @@ export function TemplateManagementModal({
                             <div className="flex gap-1">
                               <button
                                 onClick={() => setConfirmDeleteId(null)}
-                                className="cursor-pointer rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                                className="kv-btn kv-btn-quiet"
                               >
                                 Nein
                               </button>
@@ -113,7 +113,7 @@ export function TemplateManagementModal({
                                   onDelete(t.id);
                                   setConfirmDeleteId(null);
                                 }}
-                                className="cursor-pointer rounded-md bg-red-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-red-300 hover:bg-red-500 hover:text-white"
+                                className="kv-btn kv-btn-danger"
                               >
                                 Endgültig
                               </button>
@@ -121,7 +121,7 @@ export function TemplateManagementModal({
                           ) : (
                             <button
                               onClick={() => setConfirmDeleteId(t.id)}
-                              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-red-500/10 hover:text-red-300"
+                              className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-danger-soft hover:text-danger"
                               title="Vorlage löschen"
                             >
                               <Trash2 size={13} />
@@ -134,7 +134,7 @@ export function TemplateManagementModal({
                             {templateRecurrings.map((r) => (
                               <div key={r.id} className="flex items-center justify-between text-[11px]">
                                 <div className="flex items-center gap-2">
-                                  <Repeat size={11} className={r.active ? 'text-blue-300' : 'text-muted'} />
+                                  <Repeat size={11} className={r.active ? 'text-info' : 'text-muted'} />
                                   <span className="font-bold uppercase tracking-widest text-muted">
                                     {r.cadence === 'monthly' ? 'Monatlich' : r.cadence === 'quarterly' ? 'Quartal' : 'Jährlich'}
                                   </span>
@@ -145,15 +145,13 @@ export function TemplateManagementModal({
                                 <div className="flex items-center gap-1">
                                   <button
                                     onClick={() => onToggleRecurring(r.id)}
-                                    className={`cursor-pointer rounded-md px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest transition-colors ${
-                                      r.active ? 'bg-blue-500/15 text-blue-300 hover:bg-blue-500/30' : 'bg-muted/15 text-muted hover:bg-muted/30'
-                                    }`}
+                                    className={`cursor-pointer rounded-md px-2 py-0.5 text-xs font-bold transition-colors ${ r.active ? 'bg-info-soft text-info hover:bg-info-soft' : 'bg-neutral-soft text-muted hover:bg-neutral-soft' }`}
                                   >
                                     {r.active ? 'Aktiv' : 'Pausiert'}
                                   </button>
                                   <button
                                     onClick={() => onDeleteRecurring(r.id)}
-                                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-red-500/10 hover:text-red-300"
+                                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-muted hover:bg-danger-soft hover:text-danger"
                                   >
                                     <Trash2 size={10} />
                                   </button>
@@ -172,7 +170,7 @@ export function TemplateManagementModal({
             <div className="border-t border-divider px-5 py-3 text-right">
               <button
                 onClick={onClose}
-                className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-paper hover:bg-accent active:scale-95"
+                className="kv-btn kv-btn-primary"
               >
                 Schließen
               </button>

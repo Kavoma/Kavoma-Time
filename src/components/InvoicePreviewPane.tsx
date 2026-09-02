@@ -56,14 +56,14 @@ export function InvoicePreviewPane({ invoice, issuer, customer, entries, debounc
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-divider bg-paper">
       <div className="flex items-center justify-between border-b border-divider bg-surface px-3 py-2">
-        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+        <div className="kv-label">
           Live-Vorschau
         </div>
         <button
           type="button"
           onClick={render}
           disabled={!invoice || !customer || isRendering}
-          className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+          className="kv-btn kv-btn-quiet"
           title="Vorschau jetzt aktualisieren"
         >
           <RefreshCw size={11} className={isRendering ? 'animate-spin' : ''} />
@@ -71,11 +71,11 @@ export function InvoicePreviewPane({ invoice, issuer, customer, entries, debounc
         </button>
       </div>
 
-      <div className="relative flex-1 bg-black/30">
+      <div className="relative flex-1 bg-scrim">
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center">
-            <FileWarning size={28} className="text-amber-300" />
-            <div className="text-sm font-bold text-amber-200">Vorschau nicht möglich</div>
+            <FileWarning size={28} className="text-warning" />
+            <div className="text-sm font-bold text-warning">Vorschau nicht möglich</div>
             <div className="max-w-xs text-[11px] text-muted">{error}</div>
           </div>
         )}

@@ -18,7 +18,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
 }) => {
   return (
     <label className={`flex cursor-pointer select-none items-center gap-3 text-[12px] leading-relaxed text-muted ${disabled ? 'cursor-not-allowed opacity-40' : ''} ${className}`}>
-      <div className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+      <div className="relative flex h-4 w-4 shrink-0 items-center justify-center">
         {/* Hidden native input for standard form/keyboard/screen-reader behavior */}
         <input
           type="checkbox"
@@ -35,16 +35,16 @@ export const Checkbox: React.FC<CheckboxProps> = ({
             borderColor: checked ? 'var(--color-ink)' : 'var(--color-divider)',
           }}
           transition={{ duration: 0.15 }}
-          className="flex h-5 w-5 items-center justify-center rounded-[4px] border-2 border-divider transition-shadow duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-ink peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface peer-hover:border-ink/60"
+          className="flex h-4 w-4 items-center justify-center rounded-[6px] border-[1.5px] border-divider transition-shadow duration-150 peer-focus-visible:ring-2 peer-focus-visible:ring-ink peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface peer-hover:border-ink/60"
         >
           {/* Animated SVG Checkmark */}
           {checked && (
             <svg
-              className="h-3 w-3 text-paper"
+              className="h-2.5 w-2.5 text-paper"
               viewBox="0 0 12 12"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2.5"
+              strokeWidth="2.75"
               strokeLinecap="round"
               strokeLinejoin="round"
             >

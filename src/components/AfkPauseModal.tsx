@@ -43,14 +43,14 @@ export function AfkPauseModal({ pause, onSubtract, onKeep }: AfkPauseModalProps)
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           />
 
           <motion.div
-            className="relative z-10 mx-4 w-full max-w-md rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 mx-4 w-full max-w-md kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.95, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 8 }}
@@ -77,20 +77,20 @@ export function AfkPauseModal({ pause, onSubtract, onKeep }: AfkPauseModalProps)
             <div className="flex flex-col gap-2 border-t border-divider px-6 py-4">
               <button
                 onClick={() => onSubtract(true)}
-                className="w-full cursor-pointer rounded-md bg-accent/15 px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-accent transition-all hover:bg-accent hover:text-white active:scale-95"
+                className="w-full cursor-pointer rounded-md bg-accent/15 px-4 py-2.5 text-xs font-bold text-accent transition-colors hover:bg-accent hover:text-ink"
               >
                 Abziehen und weiterarbeiten
               </button>
               <div className="flex gap-2">
                 <button
                   onClick={() => onSubtract(false)}
-                  className="flex-1 cursor-pointer rounded-md border border-divider px-4 py-2 text-xs font-bold uppercase tracking-widest text-ink transition-colors hover:bg-divider"
+                  className="flex-1 cursor-pointer rounded-md border border-divider px-4 py-2 text-xs font-bold text-ink transition-colors hover:bg-divider"
                 >
                   Abziehen und stoppen
                 </button>
                 <button
                   onClick={onKeep}
-                  className="flex-1 cursor-pointer rounded-md px-4 py-2 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:bg-divider hover:text-ink"
+                  className="flex-1 cursor-pointer rounded-md px-4 py-2 text-xs font-bold text-muted transition-colors hover:bg-divider hover:text-ink"
                 >
                   Zeit behalten
                 </button>

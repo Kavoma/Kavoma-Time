@@ -169,7 +169,7 @@ export function GeneralTab() {
             <div className="min-w-0">
               <div className="text-sm font-bold text-ink">Abends erinnern</div>
               <div className="mt-0.5 text-xs text-muted">
-                Läuft zu dieser Uhrzeit noch eine Zeiterfassung, meldet sich die App einmal — bevor daraus über Nacht ein Vierzehn-Stunden-Eintrag wird.
+                Läuft zu dieser Uhrzeit noch eine Zeiterfassung, meldet sich die App einmal, bevor daraus über Nacht ein Vierzehn-Stunden-Eintrag wird.
               </div>
               <div className={`mt-3 flex items-center gap-2 ${reminderEnabled ? '' : 'opacity-45'}`}>
                 <NumberInput
@@ -200,7 +200,7 @@ export function GeneralTab() {
             <div>
               <div className="text-sm font-bold text-ink">Beim Herunterfahren stoppen</div>
               <div className="mt-0.5 text-xs text-muted">
-                Wird der Rechner heruntergefahren oder abgemeldet, endet eine laufende Zeiterfassung automatisch — ohne Rückfrage, dafür bleibt dann keine Zeit.
+                Wird der Rechner heruntergefahren oder abgemeldet, endet eine laufende Zeiterfassung automatisch. Ohne Rückfrage, dafür bleibt dann keine Zeit.
               </div>
             </div>
             <Switch checked={stopOnShutdown} onChange={updateStopOnShutdown} ariaLabel="Beim Herunterfahren stoppen" />
@@ -217,11 +217,7 @@ export function GeneralTab() {
           <button
             ref={buttonRef}
             onClick={() => setListening(l => !l)}
-            className={`min-w-44 cursor-pointer rounded-md border px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors ${
-              listening
-                ? 'border-accent bg-paper text-accent animate-pulse'
-                : 'border-divider bg-paper text-ink hover:border-ink'
-            }`}
+            className={`min-w-44 cursor-pointer rounded-md border px-4 py-2.5 text-xs font-bold transition-colors ${ listening ? 'border-accent bg-paper text-accent animate-pulse' : 'border-divider bg-paper text-ink hover:border-ink' }`}
           >
             {listening ? 'Taste drücken…' : prettyAccelerator(state.shortcuts.startPause)}
           </button>
@@ -229,7 +225,7 @@ export function GeneralTab() {
         <p className="mt-3 text-[11px] text-muted">Esc bricht die Aufnahme ab.</p>
 
         <div className="mt-6 border-t border-divider pt-4">
-          <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Navigation (Schnellzugriff)</div>
+          <div className="mb-3 kv-label">Navigation (Schnellzugriff)</div>
           <div className="grid grid-cols-2 gap-x-8 gap-y-2">
             {NAV_SHORTCUTS.map(sc => (
               <div key={sc.key} className="flex items-center justify-between">

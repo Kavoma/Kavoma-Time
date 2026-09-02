@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Plus, FileText, Search, Filter, FileSpreadsheet } from 'lucide-react';
+import {
+  Plus, FileText, FileSpreadsheet,
+} from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
+import { SearchField } from '../SearchField';
+import { FilterButton, FilterSection, FilterChoice } from '../FilterButton';
 import { Attachment, VendorInvoice, VendorInvoiceCategory } from '../../types';
 import { VendorInvoiceUploadModal } from './VendorInvoiceUploadModal';
 import { PdfViewerModal } from './PdfViewerModal';
@@ -16,10 +20,10 @@ const CATEGORY_LABELS: Record<VendorInvoiceCategory, string> = {
 };
 
 const CATEGORY_COLORS: Record<VendorInvoiceCategory, string> = {
-  hardware: 'bg-sky-500/15 text-sky-200',
+  hardware: 'bg-info-soft text-info',
   software: 'bg-violet-500/15 text-violet-200',
-  office: 'bg-amber-500/15 text-amber-200',
-  travel: 'bg-emerald-500/15 text-emerald-200',
+  office: 'bg-warning-soft text-warning',
+  travel: 'bg-success-soft text-success',
   service: 'bg-pink-500/15 text-pink-200',
   other: 'bg-divider text-muted',
 };
@@ -125,20 +129,20 @@ export function VendorInvoicesTab() {
         <div>
           <h2 className="font-display text-2xl font-black tracking-tight">Eingangsrechnungen</h2>
           <p className="mt-1 text-[12px] text-muted">
-            Belege von Lieferanten als PDF dokumentieren — verschlüsselt im Benutzerprofil gespeichert.
+            Belege von Lieferanten als PDF dokumentieren, verschlüsselt im Benutzerprofil gespeichert.
           </p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={exportCsv}
             disabled={!filtered.length}
-            className="flex cursor-pointer items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-ink transition-all hover:border-ink disabled:cursor-not-allowed disabled:opacity-40"
+            className="kv-btn kv-btn-outline"
           >
             <FileSpreadsheet size={13} /> CSV
           </button>
           <button
             onClick={() => setUploadOpen(true)}
-            className="flex cursor-pointer items-center gap-2 rounded-md bg-ink px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink active:scale-95"
+            className="kv-btn kv-btn-primary"
           >
             <Plus size={13} /> Beleg hochladen
           </button>
@@ -146,43 +150,49 @@ export function VendorInvoicesTab() {
       </div>
 
       <div className="mb-4 grid grid-cols-3 gap-3">
-        <div className="rounded-lg border border-divider bg-surface px-4 py-3">
+        <div className="kv-card px-4 py-3">
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted">Brutto gesamt</div>
           <div className="mt-1 font-display text-lg font-bold tabular-nums">{EUR.format(totals.gross)}</div>
         </div>
-        <div className="rounded-lg border border-divider bg-surface px-4 py-3">
+        <div className="kv-card px-4 py-3">
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted">davon USt</div>
           <div className="mt-1 font-display text-lg font-bold tabular-nums text-muted">{EUR.format(totals.vat)}</div>
         </div>
-        <div className="rounded-lg border border-divider bg-surface px-4 py-3">
+        <div className="kv-card px-4 py-3">
           <div className="text-[10px] font-bold uppercase tracking-widest text-muted">Netto gesamt</div>
           <div className="mt-1 font-display text-lg font-bold tabular-nums">{EUR.format(totals.net)}</div>
         </div>
       </div>
 
-      <div className="mb-4 flex items-center gap-3 rounded-lg border border-divider bg-surface px-3 py-2">
-        <div className="flex flex-1 items-center gap-2">
-          <Search size={14} className="text-muted" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Lieferant, Beleg-Nr. oder Notiz suchen…"
-            className="flex-1 border-0 bg-transparent text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-0"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Filter size={14} className="text-muted" />
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value as 'all' | VendorInvoiceCategory)}
-            className="border-0 bg-transparent text-[12px] font-bold uppercase tracking-widest text-ink focus:outline-none focus:ring-0"
-          >
-            <option value="all">Alle Kategorien</option>
+      <div className="kv-toolbar mb-4">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Eingangsrechnungen durchsuchen"
+        />
+
+        <FilterButton
+          activeCount={categoryFilter === 'all' ? 0 : 1}
+          onReset={() => setCategoryFilter('all')}
+        >
+          <FilterSection title="Kategorie">
+            <FilterChoice
+              role="radio"
+              label="Alle Kategorien"
+              checked={categoryFilter === 'all'}
+              onToggle={() => setCategoryFilter('all')}
+            />
             {(Object.keys(CATEGORY_LABELS) as VendorInvoiceCategory[]).map((k) => (
-              <option key={k} value={k}>{CATEGORY_LABELS[k]}</option>
+              <FilterChoice
+                key={k}
+                role="radio"
+                label={CATEGORY_LABELS[k]}
+                checked={categoryFilter === k}
+                onToggle={() => setCategoryFilter(k)}
+              />
             ))}
-          </select>
-        </div>
+          </FilterSection>
+        </FilterButton>
       </div>
 
       {filtered.length === 0 ? (

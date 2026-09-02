@@ -60,7 +60,11 @@ export function App() {
   const [activeView, setActiveView] = useState<ViewKey>('tracker');
   const [navIntent, setNavIntent] = useState<NavIntent | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    return localStorage.getItem('sidebar-collapsed') === 'true';
+    // Eingeklappt ist die Vorgabe: Die sechs Ziele sind ueber ihre Symbole
+    // und Strg/Cmd+1…6 erreichbar, und der gewonnene Platz kommt dem Inhalt
+    // zugute. Wer sie ausklappt, behaelt das — die Wahl wird gemerkt.
+    const gemerkt = localStorage.getItem('sidebar-collapsed');
+    return gemerkt === null ? true : gemerkt === 'true';
   });
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -242,17 +246,17 @@ export function App() {
         onKeepRunning={dismissLongRun}
       />
       <div className="app-content">
-        <aside className={`flex flex-col gap-8 border-r border-divider bg-paper p-8 transition-all duration-300 ${isSidebarCollapsed ? 'px-4' : 'p-8'}`}>
+        <aside className={`kv-glass flex flex-col gap-8 border-r border-divider p-8 transition-colors duration-300 ${isSidebarCollapsed ? 'px-4' : 'p-8'}`}>
           <nav className="flex flex-col gap-px">
             <div className={`mb-3 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
               {!isSidebarCollapsed && (
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                <div className="kv-label">
                   Navigation
                 </div>
               )}
               <button
                 onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                className="flex cursor-pointer items-center justify-center text-muted/60 hover:text-ink transition-all hover:scale-110 active:scale-95"
+                className="flex cursor-pointer items-center justify-center text-muted/60 hover:text-ink transition-colors"
                 aria-label={isSidebarCollapsed ? "Sidebar ausklappen" : "Sidebar einklappen"}
                 aria-expanded={!isSidebarCollapsed}
               >
@@ -271,8 +275,7 @@ export function App() {
                   <button
                     onClick={() => navigateTo(item.id)}
                     tabIndex={0}
-                    className={`group relative flex cursor-pointer items-center rounded-md px-4 py-3 text-left text-xs font-bold uppercase tracking-widest transition-all duration-300 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3'} ${isActive ? 'bg-surface text-ink' : 'text-muted hover:bg-surface hover:text-ink'
-                      }`}
+                    className={`group relative flex cursor-pointer items-center rounded-md px-4 py-3 text-left text-xs font-bold transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-3'} ${isActive ? 'bg-surface text-ink' : 'text-muted hover:bg-surface hover:text-ink' }`}
                   >
                     <div className={`flex items-center justify-center transition-transform duration-300 ${isSidebarCollapsed ? 'scale-110' : 'scale-100'}`}>
                       <Icon size={18} />
@@ -305,14 +308,14 @@ export function App() {
             })}
           </nav>
 
-          <div className={`mt-auto pt-4 transition-all duration-300 ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+          <div className={`mt-auto pt-4 transition-colors duration-300 ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
             {!isSidebarCollapsed ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="w-full"
               >
-                <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted flex justify-between items-center">
+                <div className="mb-2 kv-label flex justify-between items-center">
                   <span>Diese Woche</span>
                   <span className="text-accent">{percentComplete}%</span>
                 </div>
@@ -320,7 +323,7 @@ export function App() {
                   {formatHM(weekSeconds)}
                 </div>
                 <div className="mt-2 flex items-end justify-between">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted whitespace-nowrap">
+                  <div className="kv-label whitespace-nowrap">
                     von {targetHours} Std.
                   </div>
                 </div>
@@ -336,7 +339,7 @@ export function App() {
               <div className="group relative flex flex-col items-center">
                 <div className="h-20 w-1 bg-divider rounded-full overflow-hidden relative">
                   <div
-                    className="absolute bottom-0 left-0 right-0 bg-ink transition-all duration-1000 ease-out"
+                    className="absolute bottom-0 left-0 right-0 bg-ink transition-colors duration-1000 ease-out"
                     style={{ height: `${percentComplete}%` }}
                   />
                 </div>
@@ -351,7 +354,7 @@ export function App() {
                   role="button"
                   aria-label="Show details"
                 >
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted mb-2">Details</div>
+                  <div className="kv-label mb-2">Details</div>
                   <div className="font-display text-lg font-bold">{formatHM(weekSeconds)}</div>
                   <div className="text-[10px] text-muted uppercase mt-1">von {targetHours}h</div>
                   <div className="mt-2 h-1 w-full bg-divider rounded-full overflow-hidden">
@@ -410,7 +413,7 @@ export function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/80 backdrop-blur-2xl"
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center kv-scrim"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -435,7 +438,7 @@ export function App() {
                 <h2 className="font-display text-2xl font-bold uppercase tracking-tight text-ink">
                   Daten werden wiederhergestellt
                 </h2>
-                <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                <p className="mt-2 kv-label">
                   Einen Moment bitte…
                 </p>
               </div>

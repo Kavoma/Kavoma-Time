@@ -19,13 +19,13 @@ interface CardProps {
 
 function Card({ label, value, icon: Icon, sub, highlight = 'neutral' }: CardProps) {
   const valueClass =
-    highlight === 'negative' ? 'text-red-400' :
-    highlight === 'positive' && value > 0 ? 'text-emerald-400' :
+    highlight === 'negative' ? 'text-danger' :
+    highlight === 'positive' && value > 0 ? 'text-success' :
     'text-ink';
   return (
-    <div className="rounded-lg border border-divider bg-surface p-5">
+    <div className="kv-card p-5">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{label}</span>
+        <span className="kv-label">{label}</span>
         <Icon size={14} className="text-muted" />
       </div>
       <div className={`font-display text-3xl font-bold tabular-nums leading-none ${valueClass}`}>
@@ -43,7 +43,7 @@ export function ProfitLossHero({ totals, forecast, rangeLabel, forecastYear }: P
   return (
     <div className="mb-8">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{rangeLabel}</h3>
+        <h3 className="kv-label">{rangeLabel}</h3>
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Card label="Einnahmen" value={totals.revenue} icon={Euro} />
@@ -56,7 +56,7 @@ export function ProfitLossHero({ totals, forecast, rangeLabel, forecastYear }: P
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CalendarRange size={14} className="text-muted" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+            <span className="kv-label">
               Hochrechnung Jahresende {forecastYear}
             </span>
             <Tooltip
@@ -90,22 +90,22 @@ export function ProfitLossHero({ totals, forecast, rangeLabel, forecastYear }: P
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Einnahmen-Prognose</div>
+            <div className="kv-label">Einnahmen-Prognose</div>
             <div className="mt-1 font-display text-2xl font-bold tabular-nums text-ink">
               {formatEuro(forecast.revenueForecast)}
             </div>
             <div className="mt-1 text-[11px] text-muted">YTD {formatEuro(forecast.revenueYtd)}</div>
           </div>
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Ausgaben-Prognose</div>
+            <div className="kv-label">Ausgaben-Prognose</div>
             <div className="mt-1 font-display text-2xl font-bold tabular-nums text-ink">
               {formatEuro(forecast.expensesForecast)}
             </div>
             <div className="mt-1 text-[11px] text-muted">YTD {formatEuro(forecast.expensesYtd)}</div>
           </div>
           <div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Gewinn-Prognose</div>
-            <div className={`mt-1 font-display text-2xl font-bold tabular-nums ${forecastProfitHighlight === 'negative' ? 'text-red-400' : 'text-emerald-400'}`}>
+            <div className="kv-label">Gewinn-Prognose</div>
+            <div className={`mt-1 font-display text-2xl font-bold tabular-nums ${forecastProfitHighlight === 'negative' ? 'text-danger' : 'text-success'}`}>
               {formatEuro(forecast.profitForecast)}
             </div>
             <div className="mt-1 text-[11px] text-muted">YTD {formatEuro(forecast.profitYtd)}</div>

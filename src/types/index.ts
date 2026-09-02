@@ -256,6 +256,26 @@ export interface AppState {
   endOfDayReminderHour?: number;
   endOfDayReminderMinute?: number;
 
+  // === Erscheinungsbild ===
+  /**
+   * Gewaehltes Thema. `'system'` folgt dem Betriebssystem und ist die
+   * Vorgabe — auch fuer bestehende Installationen, damit ein bisher
+   * dunkles System keinen ueberraschenden Bruch erlebt.
+   */
+  appearance?: 'system' | 'light' | 'dark';
+  /**
+   * Benannter Akzent. Eine freie Farbwahl gibt es bewusst nicht: Jede
+   * Kombination muss in beiden Themen fuer Text, Fokus, Auswahl und
+   * Warnung geprueft sein.
+   */
+  accent?: 'neutral' | 'crimson';
+  /**
+   * Dezentes Glas auf Navigation und Ueberlagerungen. Geraetelokal, weil
+   * es an Bildschirm und Grafikleistung haengt — siehe DEVICE_LOCAL_KEYS.
+   * Wird erst in Etappe 5 ausgewertet.
+   */
+  glassEnabled?: boolean;
+
   // === Anhänge und dokumentierte Belege/Verträge ===
   attachments: Attachment[];
   vendorInvoices: VendorInvoice[];
@@ -320,6 +340,15 @@ declare global {
       platform: string;
       /** Ob dieses System das schwebende Timer-Overlay anbietet (macOS: nein). */
       overlaySupported: boolean;
+
+      /**
+       * Meldet das WIRKSAME Thema an den Main-Prozess — nicht die
+       * Einstellung. Im Systemmodus weiss nur der Renderer, was das
+       * Betriebssystem gerade sagt. Der Main-Prozess zieht daraufhin
+       * `nativeTheme`, Fensterhintergrund und (unter Windows) die eigene
+       * Titelleiste nach.
+       */
+      setNativeTheme: (resolved: 'light' | 'dark') => Promise<void>;
 
       saveData: (key: string, data: any) => Promise<void>;
       loadData: (key: string) => Promise<any>;

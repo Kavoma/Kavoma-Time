@@ -151,14 +151,14 @@ export function TimeEntryPicker({
           transition={{ duration: 0.15 }}
         >
           <motion.div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 kv-scrim"
             onClick={onCancel}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           />
           <motion.div
-            className="relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-divider bg-surface text-ink shadow-[0_25px_60px_-12px_rgba(0,0,0,0.6)]"
+            className="relative z-10 flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden kv-overlay text-ink"
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -167,8 +167,8 @@ export function TimeEntryPicker({
           >
             <div className="flex items-center justify-between border-b border-divider px-5 py-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/15">
-                  <Clock size={15} className="text-blue-300" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-info-soft">
+                  <Clock size={15} className="text-info" />
                 </div>
                 <div>
                   <div className="text-sm font-bold">Zeit-Einträge auswählen</div>
@@ -190,11 +190,11 @@ export function TimeEntryPicker({
               <button
                 type="button"
                 onClick={toggleAll}
-                className="flex cursor-pointer items-center gap-1.5 font-bold uppercase tracking-widest text-muted hover:text-ink"
+                className="flex cursor-pointer items-center gap-1.5 font-bold text-muted hover:text-ink"
               >
                 <Check
                   size={12}
-                  className={selected.size === matched.length && matched.length > 0 ? 'text-green-400' : ''}
+                  className={selected.size === matched.length && matched.length > 0 ? 'text-success' : ''}
                 />
                 {selected.size === matched.length && matched.length > 0 ? 'Alle abwählen' : 'Alle wählen'}
               </button>
@@ -221,13 +221,13 @@ export function TimeEntryPicker({
                         <button
                           type="button"
                           onClick={() => toggleOne(e.id)}
-                          className={`flex w-full cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-left text-[12px] transition-all ${
-                            isSel ? 'border-blue-400/50 bg-blue-500/5' : 'border-divider bg-paper/40 hover:border-ink/30'
+                          className={`flex w-full cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-left text-[12px] transition-colors ${
+                            isSel ? 'border-info-line bg-info-soft' : 'border-divider bg-paper/40 hover:border-ink/30'
                           }`}
                         >
                           <div
                             className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-sm border ${
-                              isSel ? 'border-blue-400 bg-blue-400 text-paper' : 'border-divider'
+                              isSel ? 'border-info-line bg-info text-paper' : 'border-divider'
                             }`}
                           >
                             {isSel && <Check size={11} strokeWidth={3} />}
@@ -261,14 +261,14 @@ export function TimeEntryPicker({
               <div className="flex gap-2">
                 <button
                   onClick={onCancel}
-                  className="cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-divider hover:text-ink"
+                  className="kv-btn kv-btn-quiet"
                 >
                   Abbrechen
                 </button>
                 <button
                   onClick={confirm}
                   disabled={selected.size === 0}
-                  className="cursor-pointer rounded-md bg-ink px-4 py-1.5 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-accent active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="kv-btn kv-btn-primary"
                 >
                   Übernehmen ({selected.size})
                 </button>

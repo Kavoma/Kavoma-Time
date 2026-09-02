@@ -641,7 +641,68 @@ ipcMain.handle('attachment-delete', async (_event, id) => {
   return true;
 });
 
-nativeTheme.themeSource = 'dark';
+// ============================================================
+// ERSCHEINUNGSBILD
+// ============================================================
+// Die Farben von Fensterrahmen und eigener Titelleiste gehoeren zum Thema.
+// Sie werden beim Erzeugen des Fensters gesetzt und muessen beim Wechsel
+// nachgezogen werden — ohne das bliebe die Titelleiste unter Windows
+// dunkel stehen, ein sofort sichtbarer Fehler.
+//
+// Die Werte spiegeln `--color-paper` und `--color-ink` aus `src/style.css`.
+// Zwei Stellen fuer dieselbe Farbe sind unschoen, aber unvermeidlich: Der
+// Main-Prozess kann kein CSS lesen, und er braucht die Farbe, bevor der
+// Renderer existiert.
+const THEME_CHROME = {
+  dark:  { background: '#0a0a0a', symbol: '#ffffff' },
+  light: { background: '#f1f1f3', symbol: '#18181b' },
+};
+
+/**
+ * Das Thema, mit dem das Fenster aufgebaut wird.
+ *
+ * Wird VOR dem ersten Frame gebraucht, deshalb direkt aus dem Store statt
+ * ueber den Renderer. Im Modus „System" entscheidet `nativeTheme` — der
+ * Main-Prozess kennt die Einstellung des Betriebssystems ohnehin.
+ */
+function resolveStartupTheme() {
+  let appearance = 'system';
+  try {
+    const saved = store?.get('kavoma_time');
+    if (saved && (saved.appearance === 'light' || saved.appearance === 'dark')) {
+      appearance = saved.appearance;
+    }
+  } catch { /* kein Store, kein Thema — dann eben die Systemvorgabe */ }
+  if (appearance === 'light' || appearance === 'dark') return appearance;
+  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
+}
+
+/** Zieht Fensterhintergrund und Titelleiste auf das gegebene Thema. */
+function applyThemeToWindow(resolved) {
+  const chrome = THEME_CHROME[resolved] || THEME_CHROME.dark;
+  nativeTheme.themeSource = resolved;
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.setBackgroundColor(chrome.background);
+  // titleBarOverlay gibt es nur unter Windows/Linux; macOS zeichnet die
+  // Ampel selbst und faerbt sie mit dem System-Thema.
+  if (!IS_MAC) {
+    try {
+      mainWindow.setTitleBarOverlay({
+        color: chrome.background,
+        symbolColor: chrome.symbol,
+        height: 40,
+      });
+    } catch { /* aeltere Windows-Builds ohne Overlay-Unterstuetzung */ }
+  }
+}
+
+// Der Renderer meldet das WIRKSAME Thema. Im Systemmodus weiss nur er, was
+// das Betriebssystem gerade sagt — `matchMedia` lebt dort, nicht hier.
+ipcMain.handle('set-native-theme', (_event, resolved) => {
+  if (resolved !== 'light' && resolved !== 'dark') return false;
+  applyThemeToWindow(resolved);
+  return true;
+});
 
 // ============================================================
 // APPLICATION MENU
@@ -790,6 +851,12 @@ function handleExternalLinks(webContents) {
 }
 
 function createMainWindow() {
+  // Das Thema muss stehen, BEVOR das Fenster existiert. Wird es erst
+  // nachtraeglich gesetzt, blitzt beim Start die falsche Farbe auf.
+  const startupTheme = resolveStartupTheme();
+  const chrome = THEME_CHROME[startupTheme];
+  nativeTheme.themeSource = startupTheme;
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 980,
@@ -797,7 +864,7 @@ function createMainWindow() {
     minHeight: 750,
     title: 'Kavoma Time',
     icon: WINDOW_ICON_PATH,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: chrome.background,
     // macOS zeichnet die Ampel-Buttons weiterhin, nur eingerückt —
     // titleBarOverlay gibt es dort nicht, das ist Windows/Linux-only.
     titleBarStyle: 'hidden',
@@ -805,8 +872,8 @@ function createMainWindow() {
       ? { trafficLightPosition: { x: 16, y: 13 } }
       : {
           titleBarOverlay: {
-            color: '#0a0a0a',
-            symbolColor: '#ffffff',
+            color: chrome.background,
+            symbolColor: chrome.symbol,
             height: 40,
           },
         }),

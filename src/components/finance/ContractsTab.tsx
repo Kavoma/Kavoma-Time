@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, FileSignature, Search } from 'lucide-react';
+import {
+  Plus, FileSignature,
+} from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
+import { SearchField } from '../SearchField';
+import { FilterButton, FilterSection, FilterChoice } from '../FilterButton';
 import { Attachment, Contract } from '../../types';
 import { ContractUploadModal } from './ContractUploadModal';
 import { PdfViewerModal } from './PdfViewerModal';
@@ -85,38 +89,47 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
         <div>
           <h2 className="font-display text-2xl font-black tracking-tight">Verträge</h2>
           <p className="mt-1 text-[12px] text-muted">
-            Unterschriebene Kundenverträge als PDF archivieren — verschlüsselt lokal abgelegt.
+            Unterschriebene Kundenverträge als PDF archivieren, verschlüsselt lokal abgelegt.
           </p>
         </div>
         <button
           onClick={() => setUploadOpen(true)}
           disabled={customers.length === 0}
-          className="flex cursor-pointer items-center gap-2 rounded-md bg-ink px-3 py-2 text-[11px] font-bold uppercase tracking-widest text-paper transition-all hover:bg-paper hover:text-ink hover:ring-2 hover:ring-ink active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+          className="kv-btn kv-btn-primary"
         >
           <Plus size={13} /> Vertrag hochladen
         </button>
       </div>
 
-      <div className="mb-4 flex items-center gap-3 rounded-lg border border-divider bg-surface px-3 py-2">
-        <div className="flex flex-1 items-center gap-2">
-          <Search size={14} className="text-muted" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Titel oder Notiz suchen…"
-            className="flex-1 border-0 bg-transparent text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-0"
-          />
-        </div>
-        <select
-          value={customerFilter}
-          onChange={(e) => setCustomerFilter(Number(e.target.value))}
-          className="border-0 bg-transparent text-[12px] font-bold uppercase tracking-widest text-ink focus:outline-none focus:ring-0"
+      <div className="kv-toolbar mb-4">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Verträge durchsuchen"
+        />
+
+        <FilterButton
+          activeCount={customerFilter === 0 ? 0 : 1}
+          onReset={() => setCustomerFilter(0)}
         >
-          <option value={0}>Alle Kunden</option>
-          {customers.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+          <FilterSection title="Kunde">
+            <FilterChoice
+              role="radio"
+              label="Alle Kunden"
+              checked={customerFilter === 0}
+              onToggle={() => setCustomerFilter(0)}
+            />
+            {customers.map((c) => (
+              <FilterChoice
+                key={c.id}
+                role="radio"
+                label={c.name}
+                checked={customerFilter === c.id}
+                onToggle={() => setCustomerFilter(c.id)}
+              />
+            ))}
+          </FilterSection>
+        </FilterButton>
       </div>
 
       {filtered.length === 0 ? (
@@ -140,7 +153,7 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
               <button
                 key={c.id}
                 onClick={() => setViewerId(c.id)}
-                className="group cursor-pointer rounded-lg border border-divider bg-surface p-4 text-left transition-all hover:border-muted hover:bg-paper/40"
+                className="group cursor-pointer kv-card p-5 text-left transition-colors hover:border-muted hover:bg-paper/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -156,7 +169,7 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
                   </div>
                   <div>
                     <div className="text-muted">Gültig bis</div>
-                    <div className={`mt-0.5 tabular-nums ${expired ? 'text-amber-300' : ''}`}>
+                    <div className={`mt-0.5 tabular-nums ${expired ? 'text-warning' : ''}`}>
                       {c.validUntil ? formatDate(c.validUntil) : '—'}
                     </div>
                   </div>

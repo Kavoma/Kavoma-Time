@@ -15,19 +15,29 @@ function djb2(str: string): number {
  * Liefert ein farbiges Tag-Token (Hue + sanfte Saturation/Lightness) als CSS-Strings.
  * Die Farbe ist stabil über App-Restarts hinweg, weil sie aus dem Text gehasht wird.
  *
- * Returnt zwei Töne: `bg` (gedämpfter Hintergrund), `text` (kräftiger Vordergrund),
- * `border` (subtile Border). Designt für die dunkle App-Palette.
+ * Returnt drei Töne: `bg` (gedämpfter Hintergrund), `text` (kräftiger Vordergrund),
+ * `border` (subtile Border).
+ *
+ * Die Helligkeiten liegen doppelt vor. Ein Ton, der auf Schwarz freundlich
+ * wirkt (75 % Lightness), ist auf Weiß nicht mehr lesbar — dieselbe Hue
+ * braucht im Hellmodus rund 32 %. Die Auswahl übernimmt `light-dark()`:
+ * Es folgt dem `color-scheme`, das `style.css` am Wurzelelement setzt, und
+ * kommt damit ohne JavaScript und ohne Kenntnis des AppState aus.
  */
 export function tagColors(tag: string): { bg: string; text: string; border: string } {
   const normalized = tag.trim().toLowerCase();
   if (!normalized) {
-    return { bg: 'rgba(100,116,139,0.15)', text: '#94a3b8', border: 'rgba(100,116,139,0.3)' };
+    return {
+      bg: 'light-dark(rgba(100,116,139,0.12), rgba(100,116,139,0.15))',
+      text: 'light-dark(#475569, #94a3b8)',
+      border: 'light-dark(rgba(100,116,139,0.28), rgba(100,116,139,0.3))',
+    };
   }
   const hue = djb2(normalized) % 360;
   return {
-    bg: `hsl(${hue} 60% 55% / 0.15)`,
-    text: `hsl(${hue} 70% 75%)`,
-    border: `hsl(${hue} 60% 55% / 0.35)`,
+    bg: `light-dark(hsl(${hue} 65% 45% / 0.12), hsl(${hue} 60% 55% / 0.15))`,
+    text: `light-dark(hsl(${hue} 70% 32%), hsl(${hue} 70% 75%))`,
+    border: `light-dark(hsl(${hue} 55% 45% / 0.30), hsl(${hue} 60% 55% / 0.35))`,
   };
 }
 

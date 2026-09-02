@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, Trash2, Copy, Plus, ChevronRight, Search, X, ListChecks } from 'lucide-react';
+import { Pencil, Trash2, Copy, Plus, ChevronRight, ChevronDown, Search, X, ListChecks, Square } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
 import { CustomAutocomplete } from '../components/CustomAutocomplete';
 import { Checkbox } from '../components/Checkbox';
@@ -16,7 +16,7 @@ import { collectDescriptionSuggestions } from '../utils/descriptionSuggestions';
 import { UndoToast } from '../components/UndoToast';
 import { SwipeRow } from '../components/SwipeRow';
 import { newNumericId } from '../sync/ids';
-import { NO_PROJECT_ID, NO_PROJECT_LABEL, projectLabel } from '../utils/projects';
+import { NO_PROJECT_ID, NO_PROJECT_LABEL, NO_PROJECT_OPTION, projectLabel } from '../utils/projects';
 
 /** Wie lange sich eine Löschung zurückholen lässt. */
 const UNDO_WINDOW_MS = 8000;
@@ -27,6 +27,8 @@ export function TrackerView() {
   const projects = state?.projects ?? [];
 
   const [, setLiveDurationTick] = useState(0);
+  /** Kunde und Projekt liegen zusammengeklappt hinter einer Zeile. */
+  const [pickerOffen, setPickerOffen] = useState(false);
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, entryId: number } | null>(null);
   const [deleteModalEntryId, setDeleteModalEntryId] = useState<number | null>(null);
@@ -111,8 +113,13 @@ export function TrackerView() {
     const validCustomer = state.customers.find(c => c.id === state.currentCustomerId);
     const targetCustomerId = validCustomer?.id ?? state.customers[0]?.id ?? 0;
 
-    const validProject = state.projects.find(p => p.id === state.currentProjectId && p.customerId === targetCustomerId);
-    const targetProjectId = validProject?.id ?? state.projects.find(p => p.customerId === targetCustomerId)?.id ?? 0;
+    // „Ohne Projekt" (NO_PROJECT_ID) ist eine gueltige Wahl, keine Luecke.
+    // Vorher sprang dieser Effekt bei 0 auf das erste Projekt des Kunden und
+    // ueberschrieb die Auswahl sofort wieder — „Ohne Projekt" liess sich
+    // dadurch gar nicht setzen, sobald der Kunde ein Projekt hatte.
+    const projektPasst = state.currentProjectId === NO_PROJECT_ID
+      || state.projects.some(p => p.id === state.currentProjectId && p.customerId === targetCustomerId);
+    const targetProjectId = projektPasst ? state.currentProjectId : NO_PROJECT_ID;
 
     if (targetCustomerId !== state.currentCustomerId || targetProjectId !== state.currentProjectId) {
       setState(s => s ? { ...s, currentCustomerId: targetCustomerId, currentProjectId: targetProjectId } : null);
@@ -235,85 +242,140 @@ export function TrackerView() {
   };
 
   const availableProjects = projects.filter(p => p.customerId === state.currentCustomerId);
+  const aktiverKunde = customers.find(c => c.id === state.currentCustomerId);
   const allDescriptions = collectDescriptionSuggestions(state.entries);
 
   return (
     <>
-      <header className="mb-3 text-center">
-        <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-          {state.isRunning && state.startedAt ? `Läuft seit ${new Date(state.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Bereit'}
-        </div>
-      </header>
-
-      <div className={`mb-12 text-center font-display text-[88px] font-bold leading-[0.85] tabular-nums tracking-tight transition-colors duration-500 ${state.isRunning ? 'text-ink' : 'text-muted'}`}>
+      {/* Die Zeit fuehrt, alles andere ordnet sich ihr unter. */}
+      <div className={`mb-1 text-center font-display text-[76px] font-bold leading-[0.9] tabular-nums tracking-tight transition-colors duration-500 ${state.isRunning ? 'text-ink' : 'text-muted'}`}>
         {formatHMS(liveDuration)}
       </div>
 
-      {(() => {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todaySec = state.entries
-          .filter(e => e.startedAt >= todayStart.getTime())
-          .reduce((s, e) => s + e.durationSeconds, 0) + liveDuration;
-        const h = Math.floor(todaySec / 3600);
-        const m = Math.floor((todaySec % 3600) / 60);
-        return (
-          <div className="mb-8 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-            Heute: <span className="text-ink">{h}:{String(m).padStart(2, '0')} Std.</span>
-          </div>
-        );
-      })()}
-
-      <form className="mb-4 grid grid-cols-2 gap-x-3 gap-y-5" onSubmit={e => e.preventDefault()}>
-        <CustomSelect
-          id="customerSelect"
-          label="Kunde"
-          value={state.currentCustomerId}
-          options={customers}
-          onChange={(v) => setState(s => s ? ({ ...s, currentCustomerId: v as number, currentProjectId: projects.find(p => p.customerId === v)?.id || 0 }) : null)}
-        />
-        <CustomSelect
-          id="projectSelect"
-          label="Projekt"
-          value={state.currentProjectId}
-          options={availableProjects}
-          onChange={(v) => setState(s => s ? ({ ...s, currentProjectId: v as number }) : null)}
-        />
-
-        <div className="col-span-2">
-          <CustomAutocomplete
-            id="descriptionInput"
-            label="Beschreibung"
-            options={allDescriptions}
-            placeholder="Woran arbeitest du?"
-            value={state.currentDescription}
-            onChange={v => setState(s => s ? ({ ...s, currentDescription: v }) : null)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') handleStart();
-            }}
+      {/* Eine Zeile Kontext statt zweier Auswahlfelder. Kunde und Projekt
+          aendern sich selten; sie staendig zu zeigen kostet Ruhe, ohne
+          etwas zu erleichtern. Antippen klappt die Auswahl auf. */}
+      <div className="mb-5 flex justify-center">
+        <button
+          type="button"
+          onClick={() => setPickerOffen(o => !o)}
+          aria-expanded={pickerOffen}
+          className="flex cursor-pointer items-center gap-2 rounded-full border border-divider px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:border-ink hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          <span
+            aria-hidden="true"
+            className="h-2 w-2 shrink-0 rounded-full"
+            style={{ background: aktiverKunde?.color ?? 'var(--color-muted)' }}
           />
-        </div>
-      </form>
+          {aktiverKunde ? aktiverKunde.name : 'Kunde wählen'}
+          {aktiverKunde && (
+            <span>· {projectLabel(projects, state.currentProjectId)}</span>
+          )}
+          <ChevronDown
+            size={13}
+            aria-hidden="true"
+            className={`transition-transform ${pickerOffen ? 'rotate-180' : ''}`}
+          />
+        </button>
+      </div>
 
-      <div className="mb-12 flex gap-2">
+      <AnimatePresence initial={false}>
+        {pickerOffen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="mb-5 grid grid-cols-2 gap-3 pt-1">
+              <CustomSelect
+                id="customerSelect"
+                label="Kunde"
+                value={state.currentCustomerId}
+                options={customers}
+                onChange={(v) => setState(s => {
+                  if (!s) return null;
+                  // Die Kundenwahl setzt das Projekt NICHT mehr automatisch.
+                  // Wer Zeit nur auf einen Kunden buchen will, soll nicht
+                  // erst ein fremdes Projekt wegklicken muessen.
+                  const passtNoch = projects.some(
+                    (pr) => pr.id === s.currentProjectId && pr.customerId === v,
+                  );
+                  return {
+                    ...s,
+                    currentCustomerId: v as number,
+                    currentProjectId: passtNoch ? s.currentProjectId : NO_PROJECT_ID,
+                  };
+                })}
+              />
+              <CustomSelect
+                id="projectSelect"
+                label="Projekt"
+                value={state.currentProjectId}
+                options={[NO_PROJECT_OPTION, ...availableProjects]}
+                onChange={(v) => setState(s => s ? ({ ...s, currentProjectId: v as number }) : null)}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="mb-4">
+        <CustomAutocomplete
+          id="descriptionInput"
+          label=""
+          options={allDescriptions}
+          placeholder="Woran arbeitest du?"
+          value={state.currentDescription}
+          onChange={v => setState(s => s ? ({ ...s, currentDescription: v }) : null)}
+          onKeyDown={e => { if (e.key === 'Enter') handleStart(); }}
+        />
+      </div>
+
+      <div className="mb-3 flex gap-2">
         <button
           type="button"
           onClick={state.isRunning ? handlePause : handleStart}
-          className={`flex-1 cursor-pointer rounded-md border px-4 py-3 text-sm font-bold uppercase tracking-widest transition-all active:scale-95 ${state.isRunning
-            ? 'border-amber-500 bg-amber-500 text-paper hover:bg-paper hover:text-amber-500'
-            : 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink'
-            }`}
+          className={`kv-btn flex-1 ${state.isRunning ? 'kv-btn-outline' : 'kv-btn-primary'}`}
         >
           {state.isRunning ? 'Pause' : 'Start'}
         </button>
         <button
           type="button"
           onClick={handleStop}
-          className="cursor-pointer rounded-md border border-ink bg-paper px-6 py-3 text-sm font-bold uppercase tracking-widest text-ink transition-all hover:bg-ink hover:text-paper active:scale-95"
+          aria-label="Stoppen und sichern"
+          title="Stoppen und sichern"
+          className="kv-icon-btn border-divider text-ink hover:border-ink"
         >
-          Stop
+          <Square size={13} aria-hidden="true" />
         </button>
       </div>
+
+      {/* Tagesstand als ruhige Fusszeile unter den Aktionen — nicht als
+          eigener Block ueber ihnen, wo er die Zeit vom Start trennte. */}
+      {(() => {
+        const tagesBeginn = new Date();
+        tagesBeginn.setHours(0, 0, 0, 0);
+        const heuteSek = state.entries
+          .filter(e => e.startedAt >= tagesBeginn.getTime())
+          .reduce((summe, e) => summe + e.durationSeconds, 0) + liveDuration;
+        const h = Math.floor(heuteSek / 3600);
+        const m = Math.floor((heuteSek % 3600) / 60);
+        return (
+          <div className="mb-12 flex items-center justify-center gap-2 text-[12px] text-muted">
+            <span className="tabular-nums">Heute {h}:{String(m).padStart(2, '0')} Std.</span>
+            {state.isRunning && state.startedAt && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="tabular-nums">
+                  läuft seit {new Date(state.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {(() => {
         const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -421,8 +483,7 @@ export function TrackerView() {
                     <button
                       key={v}
                       onClick={() => setEntryView(v)}
-                      className={`cursor-pointer rounded px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest transition-colors ${entryView === v ? 'bg-ink text-paper' : 'text-muted hover:text-ink'
-                        }`}
+                      className={`cursor-pointer rounded px-2.5 py-1 text-xs font-bold transition-colors ${entryView === v ? 'bg-ink text-paper' : 'text-muted hover:text-ink' }`}
                     >
                       {v === 'date' ? 'Datum' : 'Projekt'}
                     </button>
@@ -433,10 +494,7 @@ export function TrackerView() {
                 {state.entries.length > 0 && (
                   <button
                     onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
-                    className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest transition-colors ${selectMode
-                      ? 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink'
-                      : 'border-divider text-muted hover:border-ink hover:text-ink'
-                      }`}
+                    className={`flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${selectMode ? 'border-ink bg-ink text-paper hover:bg-paper hover:text-ink' : 'border-divider text-muted hover:border-ink hover:text-ink' }`}
                   >
                     {selectMode ? <X size={12} /> : <ListChecks size={12} />}
                     {selectMode ? 'Fertig' : 'Auswählen'}
@@ -444,7 +502,7 @@ export function TrackerView() {
                 )}
                 <button
                   onClick={() => setNewEntryOpen(true)}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-divider px-2.5 py-1 text-[11px] font-bold uppercase tracking-widest text-muted transition-colors hover:border-ink hover:text-ink"
+                  className="kv-btn kv-btn-quiet"
                 >
                   <Plus size={12} /> Nachtragen
                 </button>
@@ -459,7 +517,7 @@ export function TrackerView() {
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                   placeholder="Einträge durchsuchen…"
-                  className="w-full !pl-11 !pr-9 !py-1.5 text-[11px] font-bold tracking-wider bg-surface/40 border-divider hover:border-muted focus:border-ink focus:bg-surface transition-all rounded-md outline-none placeholder:text-muted/50"
+                  className="w-full !pl-11 !pr-9 !py-1.5 text-xs font-bold bg-surface/40 border-divider hover:border-muted focus:border-ink focus:bg-surface transition-colors rounded-md outline-none placeholder:text-muted/50"
                 />
                 {searchTerm && (
                   <button
@@ -488,7 +546,7 @@ export function TrackerView() {
                             onChange={(checked) => setGroupSelected(g.entries, checked)}
                           />
                         )}
-                        <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">{g.label}</h3>
+                        <h3 className="kv-label">{g.label}</h3>
                       </div>
                       <span className="text-[11px] tabular-nums text-muted">{formatHM(g.total)} Std.</span>
                     </div>
@@ -555,14 +613,14 @@ export function TrackerView() {
                   exit={{ opacity: 0, y: 16 }}
                   transition={{ duration: 0.15, ease: 'easeOut' }}
                 >
-                  <div className="pointer-events-auto flex items-center gap-3 rounded-lg border border-divider bg-surface px-4 py-2.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]">
+                  <div className="pointer-events-auto flex items-center gap-3 kv-overlay px-4 py-2.5">
                     <span className="text-[11px] font-bold uppercase tracking-widest text-muted tabular-nums">
                       {selectedIds.size} ausgewählt
                     </span>
                     <span className="h-4 w-px bg-divider" />
                     <button
                       onClick={() => setGroupSelected(sorted, sorted.length > 0 && !sorted.every(e => selectedIds.has(e.id)))}
-                      className="cursor-pointer text-[11px] font-bold uppercase tracking-widest text-muted transition-colors hover:text-ink"
+                      className="cursor-pointer text-xs font-bold text-muted transition-colors hover:text-ink"
                     >
                       {sorted.length > 0 && sorted.every(e => selectedIds.has(e.id)) ? 'Keine' : 'Alle'}
                     </button>
@@ -570,7 +628,7 @@ export function TrackerView() {
                     <button
                       onClick={() => setBulkDeleteOpen(true)}
                       disabled={selectedIds.size === 0}
-                      className="flex cursor-pointer items-center gap-1.5 rounded-md bg-red-500/15 px-3 py-1.5 text-[11px] font-bold uppercase tracking-widest text-red-400 transition-all hover:bg-red-500 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-red-500/15 disabled:hover:text-red-400"
+                      className="kv-btn kv-btn-danger"
                     >
                       <Trash2 size={12} />
                       Löschen{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
@@ -587,7 +645,7 @@ export function TrackerView() {
         {contextMenu && (
           <motion.div
             key={`ctx-${contextMenu.entryId}-${contextMenu.x}-${contextMenu.y}`}
-            className="fixed z-50 rounded-lg border border-divider bg-surface p-1.5 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.5)]"
+            className="fixed z-50 kv-overlay p-1.5"
             style={{ top: Math.min(contextMenu.y, window.innerHeight - 100), left: Math.min(contextMenu.x, window.innerWidth - 160) }}
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -596,21 +654,21 @@ export function TrackerView() {
           >
             <button
               onClick={() => { setEditModalEntryId(contextMenu.entryId); setContextMenu(null); }}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-ink transition-colors hover:bg-divider"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-bold text-ink transition-colors hover:bg-divider"
             >
               <Pencil size={13} className="text-muted" />
               Bearbeiten
             </button>
             <button
               onClick={() => { handleDuplicateEntry(contextMenu.entryId); setContextMenu(null); }}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-ink transition-colors hover:bg-divider"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-bold text-ink transition-colors hover:bg-divider"
             >
               <Copy size={13} className="text-muted" />
               Duplizieren
             </button>
             <button
               onClick={() => { setDeleteModalEntryId(contextMenu.entryId); setContextMenu(null); }}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-[11px] font-bold uppercase tracking-widest text-red-400 transition-colors hover:bg-divider"
+              className="flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs font-bold text-danger transition-colors hover:bg-divider"
             >
               <Trash2 size={13} />
               Löschen

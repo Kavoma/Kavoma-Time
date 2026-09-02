@@ -6,20 +6,234 @@
 
 @import '@fontsource-variable/bricolage-grotesque';
 
-@theme {
-    /* === Colors === */
-    --color-paper: #0a0a0a;
-    --color-surface: #141414;
-    --color-ink: #ffffff;
-    --color-muted: #525252;
-    --color-accent: #a3a3a3;
-    --color-divider: #262626;
-    --color-divider-soft: #1a1a1f;
-    /* noch dezenter für ruhige Trenner */
+/* ============================================================
+   FARBROLLEN
+   ============================================================
+   Die Werte hier sind das DUNKLE Thema und entsprechen exakt dem, was die
+   App bisher zeigte. Sie sind zugleich die Rückfallebene: Steht kein
+   `data-theme` am <html>, sieht die App aus wie immer.
 
-    /* === Fonts === */
+   Der Hellmodus überschreibt weiter unten in einem einzigen ungelayerten
+   Block. Tailwind v4 legt `@theme` in `@layer theme` ab, und ungelayerte
+   Regeln gewinnen gegen gelayerte unabhängig von der Spezifität — deshalb
+   braucht der Hellmodus kein `!important` und keine Selektor-Akrobatik.
+
+   Komponenten wählen keine Farbe mehr, sondern eine Rolle. Was eine Farbe
+   BEDEUTET, steht hier; wie sie aussieht, ist Sache des Themas. */
+
+@theme {
+    /* --- Flächen ---------------------------------------------------- */
+    --color-paper: #0a0a0a;
+    /* Seiten- und Fensterhintergrund */
+    --color-surface: #141414;
+    /* ruhiger Inhalt: Listen, Tabellen, Formulare */
+    --color-raised: #1e1e1e;
+    /* Karte oder Abschnitt INNERHALB einer Inhaltsfläche */
+    --color-overlay: #171717;
+    /* Drawer, Dialog, Kontextmenü — eine Ebene über dem Inhalt */
+    --color-scrim: rgba(0, 0, 0, 0.6);
+    /* Schleier hinter Überlagerungen */
+
+    /* --- Text ------------------------------------------------------- */
+    --color-ink: #ffffff;
+    /* Nachgemessen: 5,89:1 auf `paper`, 5,48:1 auf `surface`, 4,96:1 auf
+       `raised`. Der vorherige Wert #525252 erreichte nur 2,36:1 und lag
+       damit weit unter der Anforderung — bei der haeufigsten Textrolle
+       der App. Wer Zahlen behauptet, muss sie gerechnet haben. */
+    --color-muted: #8c8c8c;
+
+    /* --- Trennung --------------------------------------------------- */
+    --color-divider: #262626;
+    /* funktionale Trennung */
+    --color-divider-soft: #1a1a1f;
+    /* rein optische Trennung */
+
+    /* --- Interaktion ------------------------------------------------ */
+    --color-accent: #a3a3a3;
+    /* dezenter Tönungston für Hover, Fokusrand, Auswahl */
+    --color-primary: #ffffff;
+    /* Füllung der EINEN Primäraktion je Ansicht */
+    --color-on-primary: #0a0a0a;
+    --color-focus: #4f9cf9;
+    /* Tastaturfokus — bewusst unabhängig vom Akzent, damit er auf
+       jeder Fläche sichtbar bleibt, auch auf der Primäraktion selbst */
+    --color-on-solid: #ffffff;
+    /* Text auf einer gesättigten Statusfüllung */
+
+    /* --- Fachliche Zustände ----------------------------------------- */
+    /* Je Rolle drei Verwendungen: Text, gedämpfte Fläche, Rand.
+       `-solid` nur dort, wo es tatsächlich gefüllte Knöpfe gibt. */
+    --color-danger: #f87171;
+    --color-danger-soft: rgba(239, 68, 68, 0.15);
+    --color-danger-line: rgba(239, 68, 68, 0.40);
+    --color-danger-solid: #ef4444;
+
+    --color-warning: #fbbf24;
+    --color-warning-soft: rgba(245, 158, 11, 0.15);
+    --color-warning-line: rgba(245, 158, 11, 0.35);
+    --color-warning-solid: #f59e0b;
+
+    --color-success: #4ade80;
+    --color-success-soft: rgba(34, 197, 94, 0.15);
+    --color-success-line: rgba(34, 197, 94, 0.30);
+    --color-success-solid: #22c55e;
+
+    --color-info: #60a5fa;
+    --color-info-soft: rgba(59, 130, 246, 0.15);
+    --color-info-line: rgba(59, 130, 246, 0.30);
+
+    --color-neutral-soft: rgba(113, 113, 122, 0.15);
+    --color-neutral-line: rgba(113, 113, 122, 0.30);
+
+    /* --- Rundungen ---------------------------------------------------
+       Tailwinds Skala wird auf das Masssystem gezogen. Ohne das truege
+       jedes verbliebene `rounded-md` weiterhin 6 px, waehrend die
+       Bausteine 10 px zeigen — zwei Formensprachen nebeneinander.
+       So folgt auch der noch nicht umgestellte Bestand dem System. */
+    --radius-sm: 6px;
+    --radius-md: 10px;   /* = --kv-r-control */
+    --radius-lg: 16px;   /* = --kv-r-card */
+    --radius-xl: 20px;   /* = --kv-r-overlay */
+    --radius-2xl: 24px;
+
+    /* --- Schrift ---------------------------------------------------- */
     --font-sans: "Inter", system-ui, sans-serif;
     --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", "Inter", system-ui, sans-serif;
+}
+
+/* ============================================================
+   HELLES THEMA
+   ============================================================
+   Nur die Rollen, die sich unterscheiden. Die Statustöne sind hier
+   deutlich dunkler als im Dunkelmodus — ein Amber-400 auf Weiß ist
+   nicht lesbar, egal wie hübsch es auf Schwarz aussah. */
+
+:root[data-theme='light'] {
+    --color-paper: #f1f1f3;
+    --color-surface: #ffffff;
+    --color-raised: #f8f8fa;
+    --color-overlay: #ffffff;
+    --color-scrim: rgba(15, 15, 20, 0.35);
+
+    --color-ink: #18181b;
+    /* 5,28:1 auf `surface`, 4,68:1 auf `paper`. Der vorherige Wert war auf
+       dem Seitengrund mit 4,28:1 knapp unter der Anforderung. */
+    --color-muted: #6b6b74;
+
+    --color-divider: #e4e4e7;
+    --color-divider-soft: #f0f0f2;
+
+    --color-accent: #52525b;
+    --color-primary: #18181b;
+    --color-on-primary: #ffffff;
+    --color-focus: #1d6fe0;
+    --color-on-solid: #ffffff;
+
+    --color-danger: #dc2626;
+    --color-danger-soft: rgba(220, 38, 38, 0.10);
+    --color-danger-line: rgba(220, 38, 38, 0.30);
+    --color-danger-solid: #dc2626;
+
+    --color-warning: #b45309;
+    --color-warning-soft: rgba(245, 158, 11, 0.15);
+    --color-warning-line: rgba(180, 83, 9, 0.30);
+    --color-warning-solid: #d97706;
+
+    --color-success: #15803d;
+    --color-success-soft: rgba(34, 197, 94, 0.12);
+    --color-success-line: rgba(21, 128, 61, 0.28);
+    --color-success-solid: #16a34a;
+
+    --color-info: #1d4ed8;
+    --color-info-soft: rgba(59, 130, 246, 0.10);
+    --color-info-line: rgba(29, 78, 216, 0.28);
+
+    --color-neutral-soft: rgba(113, 113, 122, 0.10);
+    --color-neutral-line: rgba(113, 113, 122, 0.28);
+
+    --kv-chart-1: #2563eb;
+    --kv-chart-2: #7c3aed;
+    --kv-chart-3: #b45309;
+    --kv-chart-4: #059669;
+    --kv-chart-5: #db2777;
+    --kv-chart-6: #52525b;
+    --kv-chart-cursor: rgba(24, 24, 27, 0.06);
+}
+
+/* ============================================================
+   AKZENT
+   ============================================================
+   Ein Akzent verstellt drei Rollen: die Fuellung der Primaeraktion, den
+   Text darauf und den dezenten Toenungston fuer Hover, Fokusrand und
+   Auswahl. Alles andere bleibt, wie es ist.
+
+   Neutral ist die Voreinstellung und braucht deshalb keinen Block — es
+   sind die Werte, die oben schon stehen.
+
+   Diese Bloecke stehen bewusst NACH dem hellen Thema: Sie muessen in
+   beiden Themen gewinnen. Der zweite ist spezifischer als der erste und
+   sticht ihn im Hellmodus.
+
+   Ein freier Farbwaehler ist bewusst nicht vorgesehen. Jede angebotene
+   Kombination muss in beiden Themen fuer Text, Fokus, Auswahl und Warnung
+   funktionieren, und das prueft niemand fuer eine selbst gemischte Farbe. */
+
+:root[data-accent='crimson'] {
+    --color-primary: #9f1239;
+    --color-on-primary: #ffffff;
+    --color-accent: #be3455;
+}
+
+:root[data-theme='light'][data-accent='crimson'] {
+    --color-primary: #9f1239;
+    --color-on-primary: #ffffff;
+    --color-accent: #881337;
+}
+
+/* ============================================================
+   MASSE UND BEWEGUNG
+   ============================================================
+   Verbindlich für alle Bedienelemente. Eine Werkzeugleiste ist nur dann
+   auf einer Linie, wenn niemand mehr lokal über Höhe und Radius
+   entscheidet — deshalb stehen die Werte hier und nicht an 135 Stellen. */
+
+:root {
+    --kv-h-control: 36px;
+    /* Knopf, Feld, Auswahl, Suche, Filter, Segment */
+    --kv-h-row: 44px;
+    /* Tabellen- und Listenzeile (Mindesthöhe) */
+    /* Etwas runder als das Konzept vorgab (8/12/16). Die Anleihe bei
+       aktuellen macOS-Oberflaechen kostet nichts ausser Konsequenz, und
+       10/16/20 traegt sie sichtbar, ohne dass Knoepfe zu Pillen werden —
+       eine 36 px hohe Kontrolle waere ab 18 px Radius eine Pille. */
+    --kv-r-control: 10px;
+    --kv-r-card: 16px;
+    --kv-r-overlay: 20px;
+
+    --kv-dur-fast: 120ms;
+    /* Hover, Fokus, Tastendruck */
+    --kv-dur: 160ms;
+    /* Reiterwechsel, Popover, Dialog */
+    --kv-dur-slow: 240ms;
+    /* Drawer */
+    --kv-ease: cubic-bezier(0.32, 0.72, 0, 1);
+    /* eine Kurve für alles */
+
+    /* --- Kategoriale Diagrammfarben ----------------------------------
+       Reihenfolge ist bedeutungslos, Zuordnung geschieht im Diagramm.
+       Sie liegen NICHT in `@theme`: Recharts nimmt Farben als Prop, nicht
+       als Klasse — eine Tailwind-Utility hätte hier niemand gebraucht.
+       Ohne diese Stufe blieben die Diagramme im Hellmodus unlesbar, und
+       zwar ohne Fehlermeldung. */
+    --kv-chart-1: #60a5fa;
+    --kv-chart-2: #a78bfa;
+    --kv-chart-3: #fbbf24;
+    --kv-chart-4: #34d399;
+    --kv-chart-5: #f472b6;
+    --kv-chart-6: #a3a3a3;
+    /* Flaeche hinter dem Balken, ueber dem der Zeiger steht. Muss die Saeule
+       heben, nicht ueberdecken — deshalb sehr schwach. */
+    --kv-chart-cursor: rgba(255, 255, 255, 0.07);
 }
 
 /* Reset: Tailwind Preflight macht das Wesentliche — eigenes * { margin: 0 }
@@ -29,7 +243,13 @@ html,
 body {
     height: 100%;
     color-scheme: dark;
-    /* Zwingt native OS-Elemente (wie Dropdowns und Scrollbars) in den Dark Mode */
+    /* Zwingt native OS-Elemente (Dropdowns, Rollbalken) ins passende Thema.
+       Ohne das bleibt ein Rollbalken im Hellmodus schwarz. */
+}
+
+:root[data-theme='light'],
+:root[data-theme='light'] body {
+    color-scheme: light;
 }
 
 body {
@@ -39,9 +259,12 @@ body {
     font-size: 14px;
 }
 
+/* Das Timer-Overlay ist ein eigenes, transparentes Fenster mit eigenen
+   Farben. Es nimmt am Themensystem bewusst NICHT teil. */
 body.timer-overlay-body {
     overflow: hidden;
     background: transparent;
+    color-scheme: dark;
 }
 
 body.timer-overlay-body #root {
@@ -72,6 +295,56 @@ body.timer-overlay-body #root {
     pointer-events: none;
 }
 
+/* Die schwebende Uhr. Eigenes Fenster, aber nicht mehr eigene Farben:
+   `main.tsx` setzt dort fest `data-theme="dark"`, also loesen dieselben
+   Rollen wie im Rest der App auf ihre dunklen Werte auf.
+
+   Kleiner als zuvor (44 statt 54 px hoch, 168 statt 184 breit) und mit
+   derselben Rundung wie jede andere Ueberlagerung. Die Flaeche bleibt
+   halbdurchscheinend — sie liegt ueber fremden Fenstern und soll nicht
+   wie ein Kasten darauf kleben. */
+.timer-overlay-chip {
+    height: 44px;
+    width: 168px;
+    border-radius: var(--kv-r-overlay);
+    background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 0 color-mix(in srgb, var(--color-ink) 9%, transparent);
+}
+
+/* Beim Aufnehmen hebt sich die Uhr leicht. Kein Kippen: Ein rotierender
+   Kasten waere Jahrmarkt, keine Rueckmeldung. */
+.timer-overlay-chip.is-lifted {
+    box-shadow:
+        0 22px 56px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 0 color-mix(in srgb, var(--color-ink) 14%, transparent);
+}
+
+/* Die beiden Knoepfe der Uhr. Kleiner als eine Symbolschaltflaeche im
+   Hauptfenster, weil sie ueber fremden Fenstern schwebt und nicht mehr
+   Platz nehmen soll als noetig. */
+.timer-overlay-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    width: 32px;
+    border-radius: 11px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color var(--kv-dur-fast) var(--kv-ease),
+                color var(--kv-dur-fast) var(--kv-ease);
+}
+
+.timer-overlay-btn:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+}
+
 @keyframes timer-status-pulse {
     0%, 100% {
         transform: scale(1);
@@ -95,8 +368,8 @@ body.timer-overlay-body #root {
 }
 
 ::selection {
-    background: #ffffff;
-    color: #000000;
+    background: var(--color-ink);
+    color: var(--color-paper);
 }
 
 /* Scrollbars global verstecken (Funktion bleibt — nur die Optik weg) */
@@ -156,11 +429,11 @@ progress::-webkit-progress-bar {
 }
 
 progress::-webkit-progress-value {
-    background: var(--color-ink);
+    background: var(--color-accent);
 }
 
 progress::-moz-progress-bar {
-    background: var(--color-ink);
+    background: var(--color-accent);
 }
 
 /* === Select: Vollständig CSS-gesteuert via base-select (Chromium 135+) === */
@@ -169,6 +442,9 @@ select::picker(select) {
     appearance: base-select;
 }
 
+/* Voreinstellung für Felder ohne eigene Klasse. Sie hat Spezifität 0 und
+   wird von `.kv-input` überschrieben — beide dürfen nebeneinander stehen,
+   solange die Umstellung läuft. */
 :where(select,
 input[type="text"],
 input[type="email"],
@@ -181,14 +457,15 @@ input[type="date"]) {
     background-color: var(--color-paper);
     color: var(--color-ink);
     border: 1px solid var(--color-divider);
-    border-radius: 0.375rem;
+    border-radius: var(--kv-r-control);
     padding: 0.5rem 0.75rem;
     font-family: inherit;
     font-size: 0.875rem;
     font-weight: 700;
     letter-spacing: 0.05em;
     outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color var(--kv-dur-fast) var(--kv-ease),
+                box-shadow var(--kv-dur-fast) var(--kv-ease);
 }
 
 /* Symmetrical vertical padding for elements with a height class to center text and prevent clipping */
@@ -211,9 +488,9 @@ select:focus {
 
 /* Dropdown-Popup */
 select::picker(select) {
-    background: var(--color-surface);
+    background: var(--color-overlay);
     border: 1px solid var(--color-divider);
-    border-radius: 0.375rem;
+    border-radius: var(--kv-r-control);
     padding: 0.25rem;
 }
 
@@ -237,11 +514,408 @@ option:checked {
     color: var(--color-paper);
 }
 
+/* ============================================================
+   GEMEINSAME BAUSTEINE
+   ============================================================
+   Diese Klassen kapseln Maß, Rundung, Fokus und Zustand. Sie ersetzen die
+   Klassenketten, die heute an über tausend Stellen kopiert stehen — aus
+   zwölf Utilities werden zwei Klassennamen.
+
+   Sie liegen in `components`, also VOR den Utilities: Eine Aufrufstelle
+   kann weiterhin gezielt etwas übersteuern (`w-full`, eine andere Farbe),
+   ohne dass hier eine Variante dafür erfunden werden muss.
+
+   Regel für neue Ansichten: keine eigenen Knopf- oder Feldvarianten aus
+   Utilities bauen. Fehlt etwas, entsteht es hier. */
+
+@layer components {
+
+    /* --- Knopf ------------------------------------------------------ */
+    .kv-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        height: var(--kv-h-control);
+        padding-inline: 0.875rem;
+        border: 1px solid transparent;
+        border-radius: var(--kv-r-control);
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
+        cursor: pointer;
+        /* Bewusst keine Versalien: Doku 2 verlangt normale Schreibweise für
+           Beschriftungen. Versalien bleiben Label und Abzeichen vorbehalten. */
+        transition: background-color var(--kv-dur-fast) var(--kv-ease),
+                    border-color var(--kv-dur-fast) var(--kv-ease),
+                    color var(--kv-dur-fast) var(--kv-ease);
+    }
+
+    .kv-btn:focus-visible,
+    .kv-icon-btn:focus-visible,
+    .kv-input:focus-visible {
+        outline: 2px solid var(--color-focus);
+        outline-offset: 2px;
+    }
+
+    .kv-btn:disabled,
+    .kv-icon-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
+    }
+
+    /* Die eine gefüllte Handlung je Ansicht. */
+    .kv-btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: var(--color-on-primary);
+    }
+
+    .kv-btn-primary:hover:not(:disabled) {
+        background: var(--color-accent);
+        border-color: var(--color-accent);
+    }
+
+    /* Sekundär mit Rand — steht neben der Primäraktion, ohne mit ihr zu
+       konkurrieren. */
+    .kv-btn-outline {
+        background: var(--color-paper);
+        border-color: var(--color-divider);
+        color: var(--color-ink);
+    }
+
+    .kv-btn-outline:hover:not(:disabled) {
+        border-color: var(--color-ink);
+    }
+
+    /* Sekundär, randlos — für Werkzeugleisten und Drawer-Köpfe. */
+    .kv-btn-quiet {
+        background: transparent;
+        color: var(--color-muted);
+    }
+
+    .kv-btn-quiet:hover:not(:disabled) {
+        background: var(--color-divider);
+        color: var(--color-ink);
+    }
+
+    /* Destruktiv. Ruhig, bis man darauf zeigt. */
+    .kv-btn-danger {
+        background: var(--color-danger-soft);
+        color: var(--color-danger);
+    }
+
+    .kv-btn-danger:hover:not(:disabled) {
+        background: var(--color-danger-solid);
+        color: var(--color-on-solid);
+    }
+
+    /* --- Symbolschaltfläche ----------------------------------------- */
+    /* Gleiche Klickfläche wie ein Textknopf. Braucht immer einen
+       zugänglichen Namen (`aria-label`) und einen Tooltip. */
+    .kv-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: var(--kv-h-control);
+        width: var(--kv-h-control);
+        flex-shrink: 0;
+        border: 1px solid transparent;
+        border-radius: var(--kv-r-control);
+        color: var(--color-muted);
+        cursor: pointer;
+        transition: background-color var(--kv-dur-fast) var(--kv-ease),
+                    border-color var(--kv-dur-fast) var(--kv-ease),
+                    color var(--kv-dur-fast) var(--kv-ease);
+    }
+
+    .kv-icon-btn:hover:not(:disabled) {
+        background: var(--color-divider);
+        color: var(--color-ink);
+    }
+
+    /* --- Eingabefeld ------------------------------------------------ */
+    .kv-input {
+        height: var(--kv-h-control);
+        width: 100%;
+        padding-inline: 0.75rem;
+        background: var(--color-paper);
+        border: 1px solid var(--color-divider);
+        border-radius: var(--kv-r-control);
+        color: var(--color-ink);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 400;
+        letter-spacing: normal;
+        outline: none;
+        transition: border-color var(--kv-dur-fast) var(--kv-ease);
+    }
+
+    .kv-input::placeholder {
+        color: var(--color-muted);
+    }
+
+    .kv-input:focus {
+        border-color: var(--color-accent);
+    }
+
+    .kv-input:disabled {
+        cursor: not-allowed;
+        opacity: 0.4;
+    }
+
+    /* --- Kleines Metadaten-Label ------------------------------------ */
+    /* Ersetzt die rund neunzig wörtlich identischen Ketten
+       „text-[10px] font-bold uppercase tracking-[0.2em] text-muted".
+       Hier bleiben Versalien richtig: kurze Metadaten, keine Bedienung. */
+    .kv-label {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--color-muted);
+    }
+
+    /* --- Karte / Formularabschnitt ---------------------------------- */
+    .kv-card {
+        background: var(--color-surface);
+        border: 1px solid var(--color-divider);
+        border-radius: var(--kv-r-card);
+    }
+
+    /* Ein Block INNERHALB einer Karte. */
+    .kv-raised {
+        background: var(--color-raised);
+        border: 1px solid var(--color-divider-soft);
+        border-radius: 12px;
+    }
+
+    /* --- Überlagerung: Drawer, Dialog, Kontextmenü ------------------- */
+    /* Eine Ebene über dem Inhalt — nicht eine weitere Kartenvariante. */
+    .kv-overlay {
+        background: var(--color-overlay);
+        border: 1px solid var(--color-divider);
+        border-radius: var(--kv-r-overlay);
+        box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.45);
+    }
+
+    /* --- Statusabzeichen -------------------------------------------- */
+    .kv-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.125rem 0.5rem;
+        border: 1px solid transparent;
+        border-radius: 9999px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+    }
+
+    /* --- Segment-Schalter ------------------------------------------- */
+    /* Eine einzige Auswahl aus wenigen Moeglichkeiten — der
+       Ansichtsumschalter ist der Hauptfall.
+
+       Das MASZ gilt fuer den Schalter als Ganzes: Er ist
+       `--kv-h-control` hoch und steht damit auf der Linie der
+       Werkzeugleiste. Ein einzelnes Segment ist bewusst kleiner; es ist
+       keine freistehende Symbolschaltflaeche, sondern ein Teil von einer. */
+    .kv-segmented {
+        display: inline-flex;
+        /* stretch, NICHT center: Mit `center` schrumpfen die Segmente auf
+           Inhaltshoehe — sie waren dadurch nur so hoch wie ihr Symbol und
+           boten eine winzige Klickflaeche neben einem 36-px-Knopf. */
+        align-items: stretch;
+        gap: 2px;
+        height: var(--kv-h-control);
+        padding: 2px;
+        background: var(--color-paper);
+        border: 1px solid var(--color-divider);
+        border-radius: var(--kv-r-control);
+    }
+
+    .kv-segment {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        height: 100%;
+        min-width: 34px;
+        padding-inline: 0.625rem;
+        border-radius: calc(var(--kv-r-control) - 3px);
+        color: var(--color-muted);
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: background-color var(--kv-dur-fast) var(--kv-ease),
+                    color var(--kv-dur-fast) var(--kv-ease);
+    }
+
+    .kv-segment:hover:not([aria-checked='true']) {
+        color: var(--color-ink);
+    }
+
+    .kv-segment[aria-checked='true'] {
+        background: var(--color-accent);
+        color: var(--color-on-primary);
+    }
+
+    .kv-segment:focus-visible {
+        outline: 2px solid var(--color-focus);
+        outline-offset: -1px;
+    }
+
+    /* --- Popover ----------------------------------------------------- */
+    /* Schwebende Auswahl ueber dem Inhalt — dieselbe Ebene wie Dialog und
+       Kontextmenue, deshalb dieselbe Rundung und derselbe Schatten. */
+    .kv-popover {
+        position: absolute;
+        z-index: 50;
+        min-width: 240px;
+        padding: 0.75rem;
+        background: color-mix(in srgb, var(--color-overlay) 88%, transparent);
+        backdrop-filter: blur(30px) saturate(180%);
+        -webkit-backdrop-filter: blur(30px) saturate(180%);
+        border: 1px solid var(--color-divider);
+        border-radius: var(--kv-r-overlay);
+        box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Anzahl aktiver Kriterien am Filterknopf. */
+    .kv-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 18px;
+        height: 18px;
+        padding-inline: 5px;
+        border-radius: 9999px;
+        background: var(--color-primary);
+        color: var(--color-on-primary);
+        font-size: 10px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* --- Material ---------------------------------------------------
+       Glas zeigt Schichtung, nicht Dekoration.
+
+       Es liegt auf Navigation, schwebender Bedienung und Ueberlagerungen —
+       nie unter Tabellen, Formularen, Zahlenreihen oder der PDF-Vorschau.
+       Deshalb traegt der SCHLEIER die Unschaerfe und nicht die Dialogflaeche
+       darueber: Dort steht der Inhalt, um den es geht.
+
+       Eine Stufe, nicht drei. „Deutliches Glas" wird bewusst nicht
+       angeboten — in einer Rechnungs- und Zeiterfassungs-App wuerde es die
+       Informationshierarchie schwaechen, ohne eine Aufgabe besser zu loesen. */
+
+    /* Bedienungschrom: Seitenleiste, Titelleiste, schwebende Leisten. */
+    .kv-glass {
+        background: color-mix(in srgb, var(--color-surface) 38%, transparent);
+        backdrop-filter: blur(30px) saturate(200%);
+        -webkit-backdrop-filter: blur(30px) saturate(200%);
+        /* Die feine Oberkante ist das, was Glas als Material lesbar macht:
+           eine Lichtkante dort, wo die Schicht beginnt. Ohne sie ist eine
+           durchscheinende Flaeche nur eine blassere Flaeche. */
+        box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--color-ink) 12%, transparent);
+    }
+
+    /* Ueberlagerungen sind ebenfalls Glas — Doku 2 fuehrt sie in der
+       Materialtabelle ausdruecklich als „dezent mit klarer Kante und
+       Schatten". Nur der INHALT bleibt deckend: Tabellen, Formularzeilen
+       und Zahlenreihen bekommen kein Glas untergelegt. */
+    .kv-overlay {
+        background: color-mix(in srgb, var(--color-overlay) 88%, transparent);
+        backdrop-filter: blur(30px) saturate(180%);
+        -webkit-backdrop-filter: blur(30px) saturate(180%);
+    }
+
+    /* Schleier hinter Dialog und Drawer. */
+    .kv-scrim {
+        background: var(--color-scrim);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+
+    /* --- Reiter ------------------------------------------------------
+       EIN Muster fuer die ganze App. Vorher standen zwei nebeneinander:
+       eine gefuellte Pille in den Finanzen, ein Unterstrich in den
+       Einstellungen — zwei Loesungen fuer dieselbe Aufgabe.
+
+       Der Unterstrich gewinnt, weil er keine Flaeche beansprucht („Inhalt
+       fuehrt, Bedienung unterstuetzt") und auch fuenf Textreiter im
+       schmalen Fenster traegt. Die Markierung ist der Akzent — damit ist
+       er endlich dort zu sehen, wo etwas ausgewaehlt ist. */
+    .kv-tabs {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        border-bottom: 1px solid var(--color-divider);
+    }
+
+    .kv-tab {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        height: var(--kv-h-control);
+        padding-inline: 0.875rem;
+        color: var(--color-muted);
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: color var(--kv-dur-fast) var(--kv-ease);
+    }
+
+    .kv-tab:hover:not([aria-selected='true']) {
+        color: var(--color-ink);
+    }
+
+    .kv-tab[aria-selected='true'] {
+        color: var(--color-ink);
+    }
+
+    .kv-tab:focus-visible {
+        outline: 2px solid var(--color-focus);
+        outline-offset: -2px;
+        border-radius: var(--kv-r-control);
+    }
+
+    /* Die wandernde Markierung. Liegt auf der Trennlinie, nicht darunter. */
+    .kv-tab-marker {
+        position: absolute;
+        inset-inline: 0;
+        bottom: -1px;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--color-accent);
+    }
+
+    /* --- Werkzeugleiste --------------------------------------------- */
+    /* Hält Suche, Filter, Umschalter und Primäraktion auf einer Linie.
+       Alles darin ist `--kv-h-control` hoch. */
+    .kv-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .kv-toolbar > * {
+        flex-shrink: 0;
+    }
+}
+
 /* === React Colorful Styling === */
 .react-colorful {
     width: 100% !important;
     height: 160px !important;
-    border-radius: 12px !important;
+    border-radius: var(--kv-r-card) !important;
     overflow: hidden !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
 }
@@ -265,4 +939,81 @@ option:checked {
 
 .react-colorful__interactive:focus .react-colorful__pointer {
     transform: scale(1.1);
+}
+
+/* ============================================================
+   GLAS ABSCHALTEN
+   ============================================================
+   „Glas: Aus" ist eine vollwertige Einstellung, kein Notbehelf. Dieselben
+   Flaechen stehen dann deckend da, Rundungen, Raender und Schatten
+   bleiben. Keine Funktion und keine Information haengt am Glas.
+
+   Unschaerfe kostet Rechenzeit — auf schwacher Grafik koennen grossflaechige
+   Ebenen ruckeln. Deshalb ist der Schalter geraetelokal (siehe
+   DEVICE_LOCAL_KEYS in `src/sync/classify.ts`). */
+
+:root[data-glass='off'] .kv-glass {
+    background: var(--color-surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+:root[data-glass='off'] .kv-scrim {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+:root[data-glass='off'] .kv-overlay,
+:root[data-glass='off'] .kv-popover {
+    background: var(--color-overlay);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* Der Systemwunsch sticht die App-Einstellung. Wer „Transparenz
+   reduzieren" gesetzt hat, meint es — unabhaengig davon, was in den
+   Einstellungen steht. */
+@media (prefers-reduced-transparency: reduce) {
+    .kv-glass {
+        background: var(--color-surface);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    .kv-scrim,
+    .kv-popover {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    .kv-overlay,
+    .kv-popover {
+        background: var(--color-overlay);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+}
+
+/* ============================================================
+   BEWEGUNG REDUZIEREN
+   ============================================================
+   Raeumliche Bewegung, Skalierung, pulsierende Effekte und animierte
+   Unschaerfe fallen weg. Was bleibt, ist der kurze Wechsel von Farbe und
+   Deckkraft — ohne ihn faende man den Fokus nicht wieder.
+
+   Das gilt nur fuer CSS. Framer Motion animiert ueber Inline-Styles, die
+   keine Media Query erreicht; dort erledigt es `<MotionConfig
+   reducedMotion="user">` in `main.tsx`. Beide Hebel werden gebraucht. */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-property: opacity, color, background-color, border-color, box-shadow !important;
+        transition-duration: var(--kv-dur-fast) !important;
+        scroll-behavior: auto !important;
+    }
 }

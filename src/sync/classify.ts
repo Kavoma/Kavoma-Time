@@ -48,6 +48,8 @@ export const SYNCED_SETTINGS: readonly SettingSpec[] = [
   { kind: 'value',  path: 'weeklyTargetHours',  label: 'Wochen-Sollstunden' },
   { kind: 'value',  path: 'invoicePrefix',      label: 'Rechnungs-Präfix' },
   { kind: 'value',  path: 'eInvoiceEnabled',    label: 'E-Rechnung' },
+  { kind: 'value',  path: 'appearance',         label: 'Erscheinungsbild' },
+  { kind: 'value',  path: 'accent',             label: 'Akzentfarbe' },
 ] as const;
 
 /**
@@ -66,6 +68,9 @@ export const SYNCED_SETTINGS: readonly SettingSpec[] = [
  *   Zumutung.
  * - Nummernkreise: werden durch den serverseitigen Allokator ersetzt, ein
  *   mitwandernder Zähler wäre genau die Dublettenquelle, die wir vermeiden.
+ * - `glassEnabled`: Unschärfe kostet Rechenzeit. Ob sie sich lohnt, hängt an
+ *   Bildschirm, Fenstergröße und Grafikleistung — also am Gerät. Thema und
+ *   Akzent wandern dagegen mit: Die sind Geschmack der Person.
  */
 export const DEVICE_LOCAL_KEYS: readonly (keyof AppState)[] = [
   'isRunning',
@@ -76,6 +81,7 @@ export const DEVICE_LOCAL_KEYS: readonly (keyof AppState)[] = [
   'currentProjectId',
   'currentDescription',
   'timerOverlayEnabled',
+  'glassEnabled',
   'shortcuts',
   'afkPauseEnabled',
   'afkTimeoutMinutes',
