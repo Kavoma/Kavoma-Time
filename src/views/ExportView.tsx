@@ -441,7 +441,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     <>
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold uppercase tracking-tight leading-none">Rechnungsverwaltung</h2>
+          <h2 className="font-display text-2xl font-bold tracking-tight leading-none">Rechnungsverwaltung</h2>
           <p className="mt-1.5 text-xs text-muted">{filteredInvoices.length} Dokumente gefunden</p>
         </div>
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-surface">

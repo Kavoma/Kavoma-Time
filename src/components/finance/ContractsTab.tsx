@@ -153,7 +153,7 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
               <button
                 key={c.id}
                 onClick={() => setViewerId(c.id)}
-                className="group cursor-pointer kv-card p-4 text-left transition-colors hover:border-muted hover:bg-paper/40"
+                className="group cursor-pointer kv-card p-5 text-left transition-colors hover:border-muted hover:bg-paper/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

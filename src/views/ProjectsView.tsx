@@ -289,7 +289,7 @@ export function ProjectsView({ navigateTo, intentProjectId, onIntentConsumed }: 
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold uppercase tracking-tight leading-none">Projekte</h2>
+          <h2 className="font-display text-2xl font-bold tracking-tight leading-none">Projekte</h2>
           <p className="mt-1.5 text-xs text-muted">
             {visibleCount === totalCount
               ? `${totalCount} ${totalCount === 1 ? 'Projekt' : 'Projekte'}`

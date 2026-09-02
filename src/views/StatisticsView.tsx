@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Cell, ReferenceLine,
 } from 'recharts';
 import { useAppState } from '../state/AppStateContext';
+import { useChartColors } from '../utils/chartColors';
 import { TimeEntry } from '../types';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { profitabilityByCustomer, profitabilityByProject, forecastYear, resolveRate } from '../utils/analytics';
@@ -78,12 +79,16 @@ function Card({ icon: Icon, label, value, rawValue, format = 'number', sub, diff
 }
 
 // === Tooltip ====================================================
+/** Kunden ohne eigene Farbe bekommen den neutralen Diagrammton — der
+ *  folgt dem Thema, ein festes Dunkelgrau taete das nicht. */
+const FALLBACK_SERIES = 'var(--kv-chart-6)';
+
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload || !payload.length) return null;
   const data = payload[0].payload;
   
   return (
-    <div className="rounded-md border border-divider bg-surface px-3 py-2 text-xs shadow-lg">
+    <div className="kv-overlay px-3 py-2 text-xs">
       <div className="mb-1 font-bold text-ink">{label}</div>
       <div className="tabular-nums text-muted">
         Stunden: <span className="text-ink">{data.hours.toFixed(1)} h</span>
@@ -100,6 +105,7 @@ function ChartTooltip({ active, payload, label }: any) {
 // === Main ========================================================
 export function StatisticsView() {
   const { state } = useAppState();
+  const chart = useChartColors();
   const [period, setPeriod] = useState<Period>('month');
 
   // Sichere Zugriffe (state kann null sein während Loading)
@@ -217,7 +223,7 @@ export function StatisticsView() {
         return {
           name: c?.name ?? 'Unbekannt',
           hours: seconds / 3600,
-          color: c?.color ?? '#525252',
+          color: c?.color ?? FALLBACK_SERIES,
           revenue: entriesInPeriod
             .filter((e: TimeEntry) => e.customerId === customerId)
             .reduce((s: number, e: TimeEntry) => s + (e.durationSeconds / 3600) * resolveRate(e, customers, projects), 0),
@@ -247,7 +253,7 @@ export function StatisticsView() {
           projectId,
           name:    p?.name ?? 'Unbekannt',
           customer: c?.name ?? '—',
-          color:   c?.color ?? '#525252',
+          color:   c?.color ?? FALLBACK_SERIES,
           seconds,
           hours:   seconds / 3600,
           revenue: entriesInPeriod
@@ -317,7 +323,7 @@ export function StatisticsView() {
       {/* Header + Period Picker */}
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold uppercase tracking-tight leading-none">Statistik</h2>
+          <h2 className="font-display text-2xl font-bold tracking-tight leading-none">Statistik</h2>
           <p className="mt-1.5 text-xs text-muted">{PERIOD_LABELS[period]} im Überblick</p>
         </div>
         <div className="flex gap-1 rounded-md border border-divider bg-surface p-1">
@@ -392,7 +398,7 @@ export function StatisticsView() {
         const arrow = topDiff === null ? '' : topDiff > 0 ? '↑' : topDiff < 0 ? '↓' : '→';
         const arrowColor = topDiff === null ? 'text-muted' : topDiff > 0 ? 'text-success' : topDiff < 0 ? 'text-danger' : 'text-muted';
         return (
-          <div className="mb-6 kv-card p-4">
+          <div className="mb-6 kv-card p-5">
             <div className="flex items-center gap-3">
               <span className="size-3.5 shrink-0 rounded-full" style={{ background: topCustomer.color }} />
               <div className="flex-1">
@@ -424,14 +430,14 @@ export function StatisticsView() {
         <div className="h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={dailyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: '#525252', fontSize: 10 }} axisLine={{ stroke: '#262626' }} tickLine={false} />
-              <YAxis tick={{ fill: '#525252', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: '#262626' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: chart.axis, fontSize: 11 }} axisLine={{ stroke: chart.grid }} tickLine={false} />
+              <YAxis tick={{ fill: chart.axis, fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursor }} />
               {period === 'week' && (
-                <ReferenceLine y={target / 7} stroke="#a3a3a3" strokeDasharray="3 3" />
+                <ReferenceLine y={target / 7} stroke={chart.reference} strokeDasharray="3 3" />
               )}
-              <Bar dataKey="hours" name="Stunden" fill="#ffffff" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="hours" name="Stunden" fill={chart.primary} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -491,11 +497,11 @@ export function StatisticsView() {
           <div className="h-44 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weekdayData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#262626" vertical={false} />
-                <XAxis dataKey="label" tick={{ fill: '#525252', fontSize: 10 }} axisLine={{ stroke: '#262626' }} tickLine={false} />
-                <YAxis tick={{ fill: '#525252', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: '#262626' }} />
-                <Bar dataKey="hours" name="Stunden" fill="#a3a3a3" radius={[3, 3, 0, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+                <XAxis dataKey="label" tick={{ fill: chart.axis, fontSize: 11 }} axisLine={{ stroke: chart.grid }} tickLine={false} />
+                <YAxis tick={{ fill: chart.axis, fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: chart.cursor }} />
+                <Bar dataKey="hours" name="Stunden" fill={chart.secondary} radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -503,7 +509,7 @@ export function StatisticsView() {
       </div>
 
       {/* Top-Projekte Tabelle */}
-      <div className="kv-card">
+      <div className="mb-6 kv-card">
         <div className="border-b border-divider px-4 py-3">
           <span className="kv-label">Top-Projekte</span>
         </div>
@@ -538,7 +544,7 @@ export function StatisticsView() {
       </div>
 
       {yearForecast && yearForecast.yearToDateRevenue > 0 && (
-        <div className="mt-6 kv-card p-5">
+        <div className="mb-6 kv-card p-5">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp size={14} className="text-muted" />
@@ -573,14 +579,14 @@ export function StatisticsView() {
 
       {/* === Profitabilität pro Kunde === */}
       {profitabilityCustomers.length > 0 && (
-        <div className="mt-6 kv-card">
+        <div className="mb-6 kv-card">
           <div className="border-b border-divider px-4 py-3">
             <span className="kv-label">Profitabilität pro Kunde</span>
           </div>
           <ul className="divide-y divide-divider">
             {profitabilityCustomers.map(p => (
               <li key={p.customerId} className="flex items-center gap-3 px-4 py-3">
-                <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.customer?.color ?? '#525252' }} />
+                <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.customer?.color ?? 'var(--kv-chart-6)' }} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold text-ink">{p.customer?.name ?? '—'}</div>
                   <div className="text-[11px] text-muted tabular-nums">
@@ -601,7 +607,7 @@ export function StatisticsView() {
 
       {/* === Profitabilität pro Projekt mit Budget/Pauschal === */}
       {profitabilityProjects.filter(p => p.budgetHours || p.fixedPrice).length > 0 && (
-        <div className="mt-6 kv-card">
+        <div className="mb-6 kv-card">
           <div className="border-b border-divider px-4 py-3">
             <span className="kv-label">Projekte mit Budget / Pauschalpreis</span>
           </div>
@@ -610,7 +616,7 @@ export function StatisticsView() {
               const overBudget = p.budgetUsagePercent && p.budgetUsagePercent > 100;
               return (
                 <li key={p.projectId} className="flex items-center gap-3 px-4 py-3">
-                  <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.customer?.color ?? '#525252' }} />
+                  <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.customer?.color ?? 'var(--kv-chart-6)' }} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-bold text-ink">{p.project?.name ?? '—'}</div>
                     <div className="text-[11px] text-muted tabular-nums">

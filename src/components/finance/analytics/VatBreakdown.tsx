@@ -22,7 +22,7 @@ export function VatBreakdown({ year, onYearChange, quarters }: Props) {
   const empty = totals.collected === 0 && totals.deductible === 0 && totals.missing === 0;
 
   return (
-    <div className="mb-8 kv-card p-5">
+    <div className="mb-6 kv-card p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Receipt size={14} className="text-muted" />

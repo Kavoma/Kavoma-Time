@@ -25,8 +25,13 @@ export interface ChartColors {
   axis: string;
   /** Hauptserie — die Zahl, um die es geht. */
   primary: string;
-  /** Vergleichsserie. */
+  /** Vergleichsserie. Bewusst NICHT der Akzent: Eine Datenreihe ist keine
+   *  Auswahl, und sie soll nicht mitwandern, wenn jemand den Akzent aendert. */
   secondary: string;
+  /** Flaeche hinter dem Balken, ueber dem der Zeiger steht. */
+  cursor: string;
+  /** Ziellinie und andere Hilfslinien. */
+  reference: string;
   /** Fläche hinter Tooltip und Legende. */
   surface: string;
   /** Text im Tooltip. */
@@ -44,7 +49,9 @@ export function getChartColors(): ChartColors {
     grid:      readToken('--color-divider', '#262626'),
     axis:      readToken('--color-muted', '#525252'),
     primary:   readToken('--color-ink', '#ffffff'),
-    secondary: readToken('--color-accent', '#a3a3a3'),
+    secondary: readToken('--kv-chart-6', '#a3a3a3'),
+    cursor:    readToken('--kv-chart-cursor', 'rgba(255,255,255,0.07)'),
+    reference: readToken('--color-muted', '#525252'),
     surface:   readToken('--color-overlay', '#171717'),
     ink:       readToken('--color-ink', '#ffffff'),
     success:   readToken('--color-success', '#4ade80'),
