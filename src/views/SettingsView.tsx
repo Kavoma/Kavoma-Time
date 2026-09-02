@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings, Sliders, Receipt, Database, Info } from 'lucide-react';
+import { Settings, Sliders, Palette, Receipt, Database, Info } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ConfirmRestoreModal } from '../components/ConfirmRestoreModal';
 import { ConfirmWipeModal } from '../components/ConfirmWipeModal';
 import { LegalModal, type LegalDocument } from '../components/LegalModal';
 import { TemplateManagementModal } from '../components/TemplateManagementModal';
 import { GeneralTab } from '../components/settings/GeneralTab';
+import { AppearanceTab } from '../components/settings/AppearanceTab';
 import { InvoicesTab } from '../components/settings/InvoicesTab';
 import { DataTab } from '../components/settings/DataTab';
 import { AboutTab } from '../components/settings/AboutTab';
 import { useAppState } from '../state/AppStateContext';
 
-type TabKey = 'general' | 'invoices' | 'data' | 'about';
+type TabKey = 'general' | 'appearance' | 'invoices' | 'data' | 'about';
 
 interface TabDef {
   key: TabKey;
@@ -22,8 +23,9 @@ interface TabDef {
 }
 
 const TABS: ReadonlyArray<TabDef> = [
-  { key: 'general',  label: 'Allgemein',  icon: Sliders,  subtitle: 'Workflow, Timer und Tastenkürzel' },
-  { key: 'invoices', label: 'Rechnungen', icon: Receipt,  subtitle: 'Nummernkreis, Vorlagen und Absender' },
+  { key: 'general',    label: 'Allgemein',   icon: Sliders,  subtitle: 'Workflow, Timer und Tastenkürzel' },
+  { key: 'appearance', label: 'Darstellung', icon: Palette,  subtitle: 'Thema und Akzentfarbe' },
+  { key: 'invoices',   label: 'Rechnungen',  icon: Receipt,  subtitle: 'Nummernkreis, Vorlagen und Absender' },
   { key: 'data',     label: 'Daten',      icon: Database, subtitle: 'Backup, Export und DSGVO' },
   { key: 'about',    label: 'Über',       icon: Info,     subtitle: 'Updates, System und Rechtliches' },
 ];
@@ -31,7 +33,7 @@ const TABS: ReadonlyArray<TabDef> = [
 const TAB_STORAGE_KEY = 'kavoma_settings_tab';
 
 function isTabKey(v: unknown): v is TabKey {
-  return v === 'general' || v === 'invoices' || v === 'data' || v === 'about';
+  return v === 'general' || v === 'appearance' || v === 'invoices' || v === 'data' || v === 'about';
 }
 
 function loadInitialTab(): TabKey {
@@ -153,6 +155,7 @@ export function SettingsView() {
           transition={{ duration: 0.15 }}
         >
           {activeTab === 'general' && <GeneralTab />}
+          {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'invoices' && (
             <InvoicesTab onOpenTemplateModal={() => setTemplateModalOpen(true)} />
           )}

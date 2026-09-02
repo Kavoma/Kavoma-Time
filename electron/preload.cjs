@@ -58,6 +58,10 @@ contextBridge.exposeInMainWorld('api', {
   showMainWindowFromOverlay: () => ipcRenderer.invoke('overlay-show-main-window'),
   setIgnoreMouseEvents: (ignore, options) => ipcRenderer.send('overlay-set-ignore-mouse-events', ignore, options),
 
+  // Erscheinungsbild: der Renderer meldet das WIRKSAME Thema, nicht die
+  // Einstellung. Im Systemmodus weiss nur er, was das Betriebssystem sagt.
+  setNativeTheme: (resolved) => ipcRenderer.invoke('set-native-theme', resolved),
+
   setStartPauseShortcut: (accelerator) => ipcRenderer.invoke('set-start-pause-shortcut', accelerator),
 
   // Erkannte Abwesenheit — der Renderer fragt nach, was mit der Zeit passieren soll

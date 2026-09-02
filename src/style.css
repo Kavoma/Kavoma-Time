@@ -143,6 +143,36 @@
 }
 
 /* ============================================================
+   AKZENT
+   ============================================================
+   Ein Akzent verstellt drei Rollen: die Fuellung der Primaeraktion, den
+   Text darauf und den dezenten Toenungston fuer Hover, Fokusrand und
+   Auswahl. Alles andere bleibt, wie es ist.
+
+   Neutral ist die Voreinstellung und braucht deshalb keinen Block — es
+   sind die Werte, die oben schon stehen.
+
+   Diese Bloecke stehen bewusst NACH dem hellen Thema: Sie muessen in
+   beiden Themen gewinnen. Der zweite ist spezifischer als der erste und
+   sticht ihn im Hellmodus.
+
+   Ein freier Farbwaehler ist bewusst nicht vorgesehen. Jede angebotene
+   Kombination muss in beiden Themen fuer Text, Fokus, Auswahl und Warnung
+   funktionieren, und das prueft niemand fuer eine selbst gemischte Farbe. */
+
+:root[data-accent='crimson'] {
+    --color-primary: #9f1239;
+    --color-on-primary: #ffffff;
+    --color-accent: #be3455;
+}
+
+:root[data-theme='light'][data-accent='crimson'] {
+    --color-primary: #9f1239;
+    --color-on-primary: #ffffff;
+    --color-accent: #881337;
+}
+
+/* ============================================================
    MASSE UND BEWEGUNG
    ============================================================
    Verbindlich für alle Bedienelemente. Eine Werkzeugleiste ist nur dann

@@ -8,6 +8,7 @@ import type { Op } from '../sync/types';
 import { stampChanges } from '../sync/stamp';
 import { resolveDeviceInfo } from '../sync/device';
 import { timestampFromId } from '../sync/ids';
+import { applyTheme, watchSystemAppearance } from '../utils/theme';
 
 const STORAGE_KEY = 'kavoma_time';
 
@@ -62,6 +63,9 @@ const SEED_STATE: AppState = {
   nextTemplateId: 1,
   nextRecurringId: 1,
   eInvoiceEnabled: true,
+  appearance: 'system',
+  accent: 'neutral',
+  glassEnabled: true,
   syncTombstones: [],
   syncConflicts: [],
 };
@@ -129,6 +133,15 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
 
   // ZUGFeRD — Einbettung ist Default an
   if (typeof migrated.eInvoiceEnabled !== 'boolean') migrated.eInvoiceEnabled = true;
+
+  // Erscheinungsbild — bestehende Installationen starten im Modus „System".
+  // Wer die App bisher dunkel kannte und ein dunkles System nutzt, merkt
+  // keinen Bruch; wer ein helles System nutzt, bekommt, was er erwartet.
+  if (migrated.appearance !== 'light' && migrated.appearance !== 'dark' && migrated.appearance !== 'system') {
+    migrated.appearance = 'system';
+  }
+  if (migrated.accent !== 'neutral' && migrated.accent !== 'crimson') migrated.accent = 'neutral';
+  if (typeof migrated.glassEnabled !== 'boolean') migrated.glassEnabled = true;
 
   // Gerätesynchronisation — ohne Defaults stürzt die App bei alten Backups ab
   if (!Array.isArray(migrated.syncTombstones)) migrated.syncTombstones = [];
@@ -281,6 +294,33 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       .then((info) => { deviceIdRef.current = info.id; })
       .catch(() => { /* ohne Kennung wird eben nichts protokolliert */ });
   }, []);
+
+  // Erscheinungsbild anwenden.
+  //
+  // Das Timer-Overlay bleibt aussen vor: eigenes transparentes Fenster mit
+  // eigenen Farben, das vom Themensystem nicht erfasst wird.
+  //
+  // An den Main-Prozess geht das AUFGELOESTE Thema, nicht die Einstellung.
+  // Im Modus „System" weiss nur der Renderer, was das Betriebssystem sagt —
+  // `matchMedia` gibt es im Main-Prozess nicht.
+  const appearance = state?.appearance ?? null;
+  const accent = state?.accent ?? null;
+  useEffect(() => {
+    if (isTimerOverlay) return;
+    // Solange nichts geladen ist, gilt der Hinweis, den `main.tsx` vor dem
+    // ersten Frame gesetzt hat. Hier ersatzweise „System" anzuwenden waere
+    // genau das Aufblitzen, das der Hinweis verhindert: Bei gewaehltem
+    // Dunkel auf hellem System schluege die Farbe zweimal um.
+    if (!appearance || !accent) return;
+    const sync = () => {
+      const resolved = applyTheme(appearance, accent);
+      window.api?.setNativeTheme?.(resolved);
+    };
+    sync();
+    // Nur im Systemmodus kann sich etwas ohne Zutun der Person aendern.
+    if (appearance !== 'system') return;
+    return watchSystemAppearance(sync);
+  }, [appearance, accent, isTimerOverlay]);
 
   // Laden (einmalig)
   useEffect(() => {
