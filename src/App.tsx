@@ -11,6 +11,7 @@ import { useAppState } from './state/AppStateContext';
 import { Tooltip } from './components/Tooltip';
 import { TitleBar } from './components/TitleBar';
 import { EncryptionBanner } from './components/EncryptionBanner';
+import { BackupRecoveryBanner } from './components/BackupRecoveryBanner';
 import { OnboardingModal } from './components/OnboardingModal';
 import { LegalModal } from './components/LegalModal';
 import { AfkPauseModal } from './components/AfkPauseModal';
@@ -228,6 +229,7 @@ export function App() {
     <div className={`app ${isSidebarCollapsed ? 'collapsed' : ''}`}>
       <TitleBar />
       <EncryptionBanner />
+      <BackupRecoveryBanner onOpenSettings={() => setActiveView('settings')} />
       <OnboardingModal
         open={needsOnboarding}
         onComplete={() => setNeedsOnboarding(false)}

@@ -1,4 +1,5 @@
 import type { Conflict, SyncStatus, Tombstone } from '../sync/types';
+import type { DatevSettings } from '../utils/datevExport';
 
 export type CustomerStatus = 'active' | 'paused' | 'archived';
 
@@ -114,6 +115,32 @@ export interface DunningReminder {
   notes?: string;
 }
 
+/** Wie eine Zahlung in die App kam. */
+export type PaymentSource = 'manual' | 'switch';
+
+/**
+ * Ein einzelner Zahlungseingang auf eine Rechnung.
+ *
+ * Mehrere sind ausdrücklich erlaubt — Anzahlung, Restzahlung, Nachzahlung der
+ * Mahngebühr. Der Betrag ist immer positiv; eine Rückzahlung wird über eine
+ * Storno-Rechnung abgebildet, nicht über einen negativen Eingang.
+ */
+export interface Payment {
+  id: string;
+  /** € brutto, positiv. */
+  amount: number;
+  paidAt: number;
+  method?: 'transfer' | 'cash' | 'card' | 'other';
+  note?: string;
+  /**
+   * `'switch'` heisst: aus dem früheren Ja/Nein-Schalter **erschlossen**, nicht
+   * erfasst. Der Unterschied gehört in eine Betriebsprüfung — wir wissen, dass
+   * die Rechnung als bezahlt galt, nicht, wann welcher Betrag einging.
+   */
+  source: PaymentSource;
+  createdAt: number;
+}
+
 export interface Invoice {
   id: string;
   number: string;
@@ -131,8 +158,20 @@ export interface Invoice {
   vatAmount: number;
   total: number;
   notes: string;
+  /**
+   * Abgeleitet aus `payments` — nicht von Hand setzen.
+   *
+   * Bleibt als Feld bestehen, weil rund zwanzig Stellen es lesen. Gepflegt wird
+   * es ausschliesslich von den Funktionen in `src/utils/payments.ts`.
+   */
   paid: boolean;
+  /** Tag der Zahlung, die die Rechnung ausgeglichen hat. Ebenfalls abgeleitet. */
   paidAt?: number;
+  /**
+   * Die einzelnen Zahlungseingänge. Fehlt das Feld, stammt die Rechnung aus
+   * der Zeit vor B5 und wird beim Laden umgestellt (`migrateData`).
+   */
+  payments?: Payment[];
 
   // === Status (active | cancelled | draft) ===
   // Drafts sind in Umsatz-Statistiken unsichtbar und können nachträglich
@@ -150,6 +189,54 @@ export interface Invoice {
   // ID der RecurringInvoice-Definition, aus der dieser Draft generiert wurde.
   // Wird beim Finalisieren beibehalten als Audit-Spur.
   recurringId?: string;
+
+  /** Angebot, aus dem diese Rechnung entstanden ist. Audit-Spur wie `recurringId`. */
+  quoteId?: string;
+}
+
+// === Angebote ===
+
+/**
+ * Was aus einem Angebot geworden ist.
+ *
+ * `expired` steht bewusst **nicht** hier: Ob ein Angebot abgelaufen ist, ergibt
+ * sich aus `validUntil` und dem heutigen Datum. Als gespeicherter Zustand
+ * müsste es jemand umsetzen — und niemand ist da, wenn die Frist nachts um
+ * zwölf verstreicht.
+ */
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'invoiced';
+
+export interface Quote {
+  id: string;
+  /**
+   * Eigener Nummernkreis, unabhängig von den Rechnungen.
+   *
+   * Bewusst **lokal** vergeben, auch bei eingeschalteter Synchronisierung: Ein
+   * Angebot ist kein Buchungsbeleg, für seine Nummer gibt es keine
+   * Lückenlosigkeitspflicht. Die Vergabe zu verweigern, weil ein Server nicht
+   * erreichbar ist, wäre bei einer Rechnung richtig und hier absurd.
+   */
+  number: string;
+  customerId: number;
+  projectId: number | null;
+  createdAt: number;
+  /** Bis wann das Angebot gilt. Danach gilt es als abgelaufen. */
+  validUntil: number;
+  items: InvoiceItem[];
+  subtotal: number;
+  vatRate: number;
+  vatAmount: number;
+  total: number;
+  notes: string;
+  status: QuoteStatus;
+  sentAt?: number;
+  /** Wann angenommen oder abgelehnt wurde. */
+  decidedAt?: number;
+  declineReason?: string;
+  /** Die Rechnung, die daraus entstanden ist. */
+  invoiceId?: string;
+  /** Vorlage, aus der die Positionen kamen. */
+  templateId?: string;
 }
 
 // === Phase 1.5: Rechnungs-Vorlagen ===
@@ -183,7 +270,7 @@ export interface RecurringInvoice {
 export interface Attachment {
   id: string;                       // UUID, identisch zum Dateinamen
   filename: string;                 // Original-Dateiname für Anzeige
-  mimeType: 'application/pdf';
+  mimeType: 'application/pdf' | 'application/xml';
   sizeBytes: number;
   sha256: string;                   // Integritäts-Check, hex
   uploadedAt: number;
@@ -208,6 +295,21 @@ export interface VendorInvoice {
   category: VendorInvoiceCategory;
   note?: string;
   createdAt: number;
+  /**
+   * Gesetzt, wenn der Beleg aus einer E-Rechnung eingelesen wurde statt von
+   * Hand erfasst. Fehlt das Feld, war es Handarbeit — so ist es bei allen
+   * Belegen aus der Zeit vor dem Einlesen.
+   *
+   * Die Angabe ist Herkunftsnachweis, kein Zwischenspeicher: Die Zahlen stehen
+   * im Datensatz, das vollständige XML im Anhang. Beides doppelt zu halten
+   * hieße, es könnte auseinanderlaufen.
+   */
+  eInvoice?: {
+    syntax: 'cii' | 'ubl';
+    profileLabel?: string;
+    /** Lag das XML im PDF, oder war die Datei selbst das XML? */
+    source: 'embedded' | 'standalone';
+  };
 }
 
 export interface Contract {
@@ -283,6 +385,19 @@ export interface AppState {
   nextVendorInvoiceId?: number;
   nextContractId?: number;
 
+  // === Angebote ===
+  quotes: Quote[];
+  /**
+   * Präfix für Angebotsnummern. Vorgabe: `AN-<Jahr>-`.
+   *
+   * Einen Zähler gibt es bewusst **nicht**: Die nächste Nummer wird aus dem
+   * tatsächlichen Bestand errechnet (`nextQuoteNumber`). Ein mitwandernder
+   * Zähler wäre auf einem zweiten Gerät entweder zu niedrig oder er müsste
+   * synchronisiert werden — beides schlechter, als nachzusehen, was es schon
+   * gibt.
+   */
+  quotePrefix?: string;
+
   // === Phase 1.5: Vorlagen + Wiederkehrend ===
   invoiceTemplates: InvoiceTemplate[];
   recurringInvoices: RecurringInvoice[];
@@ -292,6 +407,14 @@ export interface AppState {
   // === E-Rechnung (ZUGFeRD / Factur-X, Profil EN 16931) ===
   /** Default true — bettet das CII-XML in jedes Rechnungs-PDF ein. */
   eInvoiceEnabled?: boolean;
+
+  // === Steuerliche Exporte ===
+  /**
+   * Kontenrahmen und Kontonummern für den DATEV-Export. Fehlt das Feld, gilt
+   * die Vorgabe aus `DATEV_VORGABEN` — der Export ist dann noch nicht
+   * abgestimmt, aber lauffähig.
+   */
+  datev?: DatevSettings;
 
   // === Gerätesynchronisation ===
   // Die Geräte-Kennung liegt bewusst NICHT hier, sondern unter einem eigenen
@@ -329,8 +452,67 @@ export interface AutoBackupConfig {
   /** Wie viele Backups im Zielordner behalten werden. */
   keep: number;
   lastRunAt: number;
+  /** Ob die PDF-Belege mitgesichert werden. Voreingestellt an. */
+  includeAttachments: boolean;
   lastError?: string | null;
   lastFile?: string | null;
+}
+
+/** Ein Beleg, der beim Sichern oder Einspielen liegengeblieben ist. */
+export interface BackupAttachmentIssue {
+  id: string;
+  filename: string | null;
+  grund: string;
+}
+
+/** Zustand des Wiederherstellungscodes für den Sicherungsschlüssel. */
+export interface BackupRecoveryStatus {
+  /** Ob für diesen Rechner ein Code angelegt wurde. */
+  hasEnvelope: boolean;
+  /**
+   * Ob der Code einmal richtig abgetippt wurde. Angelegt ist nicht dasselbe
+   * wie angekommen: Wer ihn nur wegklickt, hat ihn nicht.
+   */
+  confirmed: boolean;
+  createdAt: string | null;
+  /** Ob überhaupt ein Verschlüsselungsschlüssel geladen ist. */
+  keyAvailable: boolean;
+}
+
+export interface BackupExportResult {
+  ok: boolean;
+  canceled?: boolean;
+  error?: string;
+  file?: string;
+  bytes?: number;
+  attachmentCount?: number;
+  skippedAttachments?: BackupAttachmentIssue[];
+  /** Ob die Datei einen Wiederherstellungs-Umschlag trägt. */
+  hasRecovery?: boolean;
+}
+
+/**
+ * Was beim Öffnen einer Sicherung herauskommt, bevor sie eingespielt wird.
+ *
+ * `version` ist 2 für den Container, 1 für die alte JSON-Sicherung und 0 für
+ * einen Klartext-Export. `needsCode` heisst: Der Schlüssel dieses Rechners
+ * passt nicht — die Datei stammt von woanders und braucht den
+ * Wiederherstellungscode.
+ */
+export interface BackupImportResult {
+  canceled?: boolean;
+  error?: string;
+  version?: 0 | 1 | 2;
+  file?: string;
+  createdAt?: string | null;
+  appVersion?: string | null;
+  attachmentCount?: number;
+  skippedAttachments?: BackupAttachmentIssue[];
+  needsCode?: boolean;
+  /** Ob die Datei überhaupt einen Umschlag trägt, den ein Code öffnen könnte. */
+  hasRecovery?: boolean;
+  /** Der Datenbestand als JSON-Text — `null`, solange der Code fehlt. */
+  state?: string | null;
 }
 
 declare global {
@@ -371,8 +553,39 @@ declare global {
       onAfkPauseDetected: (cb: (pause: DetectedPause) => void) => () => void;
       getPendingAfkPause: () => Promise<DetectedPause | null>;
       resolveAfkPause: () => Promise<void>;
-      encryptBackup: (plaintext: string) => Promise<any>;
-      decryptBackup: (payload: any) => Promise<string>;
+      // === Sicherungen ===
+      backupRecoveryStatus: () => Promise<BackupRecoveryStatus>;
+      /** Legt den Code an und gibt ihn **genau einmal** zurück. */
+      backupRecoveryCreate: (options?: { force?: boolean }) => Promise<{ recoveryCode: string }>;
+      backupRecoveryVerify: (code: string) => Promise<boolean>;
+      backupExport: (options?: {
+        mode?: 'dialog' | 'auto';
+        prefix?: string;
+        includeAttachments?: boolean;
+      }) => Promise<BackupExportResult>;
+      /** Öffnet den Dateidialog und liest, was drinsteht. Spielt noch nichts ein. */
+      backupImportPick: () => Promise<BackupImportResult>;
+      /** Zweiter Anlauf für eine fremde Sicherung, mit dem Wiederherstellungscode. */
+      backupImportUnlock: (code: string) => Promise<{ ok: boolean; state?: string; error?: string }>;
+      /** Packt die Belege aus — erst nach der Bestätigung aufrufen. */
+      backupRestoreAttachments: () => Promise<{ restored: number; failed: BackupAttachmentIssue[] }>;
+      backupImportCancel: () => Promise<boolean>;
+      /** Schreibt eine einzelne Exportdatei nach Rückfrage. */
+      exportWriteFile: (options: {
+        dateiname: string;
+        bytes: Uint8Array;
+        titel?: string;
+        filter?: { name: string; extensions: string[] };
+      }) => Promise<{ ok: boolean; canceled?: boolean; error?: string; file?: string }>;
+      /** Schreibt mehrere zusammengehörige Dateien in einen neuen Unterordner. */
+      exportWriteFolder: (options: {
+        ordnerName: string;
+        dateien: { name: string; bytes: Uint8Array }[];
+        titel?: string;
+      }) => Promise<{
+        ok: boolean; canceled?: boolean; error?: string;
+        directory?: string; files?: string[];
+      }>;
       autoBackupGetConfig: () => Promise<AutoBackupConfig>;
       autoBackupSetConfig: (patch: Partial<AutoBackupConfig>) => Promise<AutoBackupConfig>;
       autoBackupChooseDirectory: () => Promise<string | null>;

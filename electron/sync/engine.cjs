@@ -12,7 +12,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const crypto = require('./crypto.cjs');
+const crypto = require('../crypto.cjs');
 const { createSyncClient } = require('./supabase.cjs');
 const linking = require('./linking.cjs');
 

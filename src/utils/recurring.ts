@@ -87,6 +87,7 @@ export function generateDraftFromRecurring(params: {
       ? `${template.notes}\n\n(Automatisch erstellt aus Vorlage „${template.name}".)`
       : `Automatisch erstellt aus Vorlage „${template.name}".`,
     paid: false,
+    payments: [],
     status: 'draft',
     reminders: [],
     recurringId: recurring.id,

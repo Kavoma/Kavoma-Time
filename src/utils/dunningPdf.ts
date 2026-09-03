@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Invoice, Issuer, Customer } from '../types';
+import { gezahlt } from './payments';
 
 const fmtEuro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -91,10 +92,16 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
   const previousFees = invoice.reminders.slice(0, -1).reduce((s, r) => s + r.fee, 0);
   const feeLabel = latestReminder.level === 1 ? 'Bearbeitungsgebühr' : 'Mahngebühr';
   
+  // Was bereits geflossen ist, wird abgezogen — **das** ist der Grund, warum
+  // es Zahlungseingänge gibt. Eine Mahnung über den vollen Betrag nach einer
+  // Anzahlung ist der Fehler, den man dem Kunden nicht erklären möchte.
+  const bereitsGezahlt = gezahlt(invoice);
+
   const rows = [
-    ['Offener Rechnungsbetrag', fmtEuro(invoice.total)],
+    ['Rechnungsbetrag', fmtEuro(invoice.total)],
     previousFees > 0 ? ['Bisherige Gebühren', fmtEuro(previousFees)] : null,
     latestReminder.fee > 0 ? [`Aktuelle ${feeLabel}`, fmtEuro(latestReminder.fee)] : null,
+    bereitsGezahlt > 0 ? ['Bereits gezahlt', `− ${fmtEuro(bereitsGezahlt)}`] : null,
   ].filter(Boolean) as any[];
 
   autoTable(doc, {
@@ -116,7 +123,7 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
 
   // === Gesamt ===
   const sumX = W - 20;
-  const totalOutstanding = invoice.total + previousFees + latestReminder.fee;
+  const totalOutstanding = invoice.total + previousFees + latestReminder.fee - bereitsGezahlt;
   doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.text('Gesamtforderung:', sumX - 60, y, { align: 'left' });

@@ -1,5 +1,6 @@
 import { AppState, Customer, Project, TimeEntry, Invoice } from '../types';
 import { newNumericId } from '../sync/ids';
+import { gezahlt } from './payments';
 
 // === Stundensatz-Auflösung ====================================
 export function resolveRate(entry: TimeEntry, customers: Customer[], projects: Project[]): number {
@@ -55,8 +56,11 @@ export function profitabilityByCustomer(state: AppState): Map<number, CustomerPr
     const slot = result.get(inv.customerId);
     if (!slot) continue;
     slot.invoicedRevenue += inv.total;
-    if (inv.paid) slot.paidRevenue += inv.total;
-    else slot.openRevenue += inv.total;
+    // Seit es Teilzahlungen gibt, ist das eine Aufteilung und kein
+    // Entweder-oder: Eine halb bezahlte Rechnung stand vorher voll im Offenen.
+    const eingegangen = gezahlt(inv);
+    slot.paidRevenue += Math.min(eingegangen, inv.total);
+    slot.openRevenue += Math.max(inv.total - eingegangen, 0);
   }
 
   // Effektiver Stundensatz: tatsächlich abgerechnet / geleistete Stunden
@@ -225,6 +229,7 @@ export function createCancellationInvoice(original: Invoice, reason: string, new
     total: negTotal,
     notes: `Storno zu Rechnung ${original.number}.${reason ? ` Grund: ${reason}` : ''}`,
     paid: false,
+    payments: [],
     status: 'active',
     cancelsInvoiceId: original.id,
     reminders: [],

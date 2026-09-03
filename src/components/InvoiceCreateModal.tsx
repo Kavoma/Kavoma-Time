@@ -205,6 +205,7 @@ export function InvoiceCreateModal({
     total: totals.total,
     notes: notes.trim(),
     paid: false,
+    payments: [],
     status,
     reminders: editingDraft?.reminders ?? [],
     recurringId: editingDraft?.recurringId,

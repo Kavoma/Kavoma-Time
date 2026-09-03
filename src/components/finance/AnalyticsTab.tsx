@@ -55,8 +55,8 @@ export function AnalyticsTab() {
     [state],
   );
   const vatQuarters = useMemo(
-    () => state ? computeVatBreakdown(state, vatYear) : [],
-    [state, vatYear],
+    () => state ? computeVatBreakdown(state, vatYear, accountingMode) : [],
+    [state, vatYear, accountingMode],
   );
   const categoryExpenses = useMemo(
     () => state ? computeExpenseCategories(state, dateRange) : [],

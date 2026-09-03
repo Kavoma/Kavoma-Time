@@ -1,9 +1,11 @@
 import { useState, useRef, type DragEvent, type ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, FileText, AlertTriangle } from 'lucide-react';
+import { X, Upload, FileText, FileCode2, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
 import { Attachment, VendorInvoice, VendorInvoiceCategory } from '../../types';
-import { uploadPdf, formatFileSize } from '../../utils/attachments';
+import { uploadDocument, formatFileSize, detectMime } from '../../utils/attachments';
+import { findEInvoiceInFile, type EInvoiceFound } from '../../utils/eInvoicePdf';
 import { DatePicker } from '../DatePicker';
+import { EInvoiceView } from './EInvoiceView';
 import { newNumericId } from '../../sync/ids';
 
 interface Props {
@@ -54,6 +56,13 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /** Gelesene E-Rechnung, falls die Datei eine enthält. */
+  const [eRechnung, setERechnung] = useState<EInvoiceFound | null>(null);
+  const [lese, setLese] = useState(false);
+  /** Warum in einer Datei keine E-Rechnung gefunden wurde — nur bei XML relevant. */
+  const [leseFehler, setLeseFehler] = useState<string | null>(null);
+  const [zeigeDetails, setZeigeDetails] = useState(false);
+
   const reset = () => {
     setFile(null);
     setVendorName('');
@@ -66,6 +75,10 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
     setError(null);
     setBusy(false);
     setDragging(false);
+    setERechnung(null);
+    setLese(false);
+    setLeseFehler(null);
+    setZeigeDetails(false);
   };
 
   const handleClose = () => {
@@ -74,24 +87,75 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
     onClose();
   };
 
-  const acceptFile = (f: File | undefined | null) => {
+  /**
+   * Nimmt die Datei an und **liest sie**, statt sie nur abzulegen.
+   *
+   * Steckt eine E-Rechnung darin — als eingebettetes XML in einem ZUGFeRD-PDF
+   * oder als reine XRechnung —, werden die Felder daraus vorbelegt. Das ist der
+   * eigentliche Gewinn: Bislang wurde jedes Feld getippt, obwohl die Zahlen in
+   * der Datei schon maschinenlesbar standen.
+   *
+   * Vorbelegt heißt nicht festgeschrieben. Alle Felder bleiben änderbar, und
+   * was der Leser beanstandet, steht sichtbar daneben.
+   */
+  const acceptFile = async (f: File | undefined | null) => {
     if (!f) return;
-    if (f.type !== 'application/pdf') {
-      setError('Nur PDF-Dateien sind erlaubt.');
+    const mime = detectMime(f);
+    if (mime === null) {
+      setError('Nur PDF- oder XML-Dateien sind erlaubt.');
       return;
     }
     setError(null);
     setFile(f);
+    setERechnung(null);
+    setLeseFehler(null);
+    setZeigeDetails(false);
+    setLese(true);
+
+    try {
+      const gefunden = await findEInvoiceInFile(f);
+      if (gefunden) {
+        setERechnung(gefunden);
+        uebernehmen(gefunden);
+      } else if (mime === 'application/xml') {
+        // Bei einem PDF ist „keine E-Rechnung" der Normalfall und keiner
+        // Meldung wert. Bei einer XML-Datei hat jemand etwas erwartet.
+        setLeseFehler('In dieser XML-Datei steckt keine E-Rechnung, die Kavoma Time lesen kann.');
+      }
+    } catch (e) {
+      setLeseFehler(e instanceof Error ? e.message : 'Die E-Rechnung konnte nicht gelesen werden.');
+    } finally {
+      setLese(false);
+    }
+  };
+
+  /** Die gelesenen Werte in die Formularfelder. */
+  const uebernehmen = ({ invoice }: EInvoiceFound) => {
+    if (invoice.seller.name) setVendorName(invoice.seller.name);
+    if (invoice.number) setInvoiceNumber(invoice.number);
+    if (invoice.issueDate !== undefined) {
+      const d = new Date(invoice.issueDate);
+      const p = (n: number) => String(n).padStart(2, '0');
+      setInvoiceDate(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+    }
+    // Der Zahlbetrag geht dem Bruttobetrag vor: Bei einer Anzahlung ist er das,
+    // was tatsächlich fließt. Beträge werden deutsch formatiert ins Feld
+    // geschrieben, damit sie zum Parser des Formulars passen.
+    const brutto = invoice.duePayable ?? invoice.grandTotal;
+    if (brutto !== undefined) setAmountGross(brutto.toFixed(2).replace('.', ','));
+
+    const ust = invoice.taxTotal;
+    if (ust !== undefined) setVatAmount(ust.toFixed(2).replace('.', ','));
   };
 
   const handleDrop = (e: DragEvent<HTMLLabelElement>) => {
     e.preventDefault();
     setDragging(false);
-    acceptFile(e.dataTransfer.files?.[0]);
+    void acceptFile(e.dataTransfer.files?.[0]);
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    acceptFile(e.target.files?.[0]);
+    void acceptFile(e.target.files?.[0]);
     e.target.value = '';
   };
 
@@ -122,7 +186,10 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const attachment = await uploadPdf(file);
+      // Eingangsrechnungen nehmen auch XML an: Eine XRechnung kommt als reine
+      // XML-Datei ohne PDF, und wer die abweist, kann die Empfangspflicht seit
+      // 2025 nicht erfüllen.
+      const attachment = await uploadDocument(file, ['application/pdf', 'application/xml']);
       const vendor: VendorInvoice = {
         id: newNumericId(),
         attachmentId: attachment.id,
@@ -134,6 +201,13 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
         category,
         note: note.trim() || undefined,
         createdAt: Date.now(),
+        eInvoice: eRechnung
+          ? {
+              syntax: eRechnung.invoice.syntax,
+              profileLabel: eRechnung.invoice.profileLabel,
+              source: eRechnung.source,
+            }
+          : undefined,
       };
       onSave(vendor, attachment);
       reset();
@@ -202,18 +276,27 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
                 <input
                   ref={inputRef}
                   type="file"
-                  accept="application/pdf"
+                  accept="application/pdf,application/xml,text/xml,.pdf,.xml"
                   onChange={handleChange}
                   className="hidden"
                 />
                 {file ? (
                   <>
-                    <FileText size={28} className="text-success" />
+                    {detectMime(file) === 'application/xml'
+                      ? <FileCode2 size={28} className="text-success" />
+                      : <FileText size={28} className="text-success" />}
                     <div className="text-sm font-bold">{file.name}</div>
-                    <div className="text-[11px] text-muted">{formatFileSize(file.size)} · PDF</div>
+                    <div className="text-[11px] text-muted">
+                      {formatFileSize(file.size)} · {detectMime(file) === 'application/xml' ? 'XML' : 'PDF'}
+                    </div>
                     <button
                       type="button"
-                      onClick={(e) => { e.preventDefault(); setFile(null); }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setFile(null);
+                        setERechnung(null);
+                        setLeseFehler(null);
+                      }}
                       className="mt-2 cursor-pointer text-xs font-bold text-muted underline hover:text-ink"
                     >
                       Andere Datei wählen
@@ -222,11 +305,78 @@ export function VendorInvoiceUploadModal({ open, onClose, onSave }: Props) {
                 ) : (
                   <>
                     <Upload size={28} className="text-muted" />
-                    <div className="text-sm font-bold">PDF hierher ziehen oder klicken</div>
-                    <div className="text-[11px] text-muted">Max. 15 MB · wird AES-256 verschlüsselt gespeichert</div>
+                    <div className="text-sm font-bold">PDF oder XML hierher ziehen oder klicken</div>
+                    <div className="text-[11px] text-muted">
+                      Max. 15 MB · wird AES-256 verschlüsselt gespeichert
+                    </div>
+                    <div className="text-[11px] text-muted">
+                      E-Rechnungen (ZUGFeRD, Factur-X, XRechnung) werden gelesen und füllen die Felder aus
+                    </div>
                   </>
                 )}
               </label>
+
+              {lese && (
+                <div className="mt-3 flex items-center gap-2 rounded-md border border-divider bg-paper px-3 py-2 text-[12px] text-muted">
+                  <Loader2 size={13} className="animate-spin" />
+                  Datei wird auf eine E-Rechnung geprüft…
+                </div>
+              )}
+
+              {leseFehler && !lese && (
+                <div className="mt-3 flex items-start gap-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2 text-[12px] text-warning">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                  <span>{leseFehler} Du kannst die Felder von Hand ausfüllen — der Beleg wird trotzdem gespeichert.</span>
+                </div>
+              )}
+
+              {eRechnung && !lese && (
+                <div className="mt-3 rounded-md border border-success-line/40 bg-success-soft px-3 py-2.5">
+                  <div className="flex items-start gap-2">
+                    <Sparkles size={14} className="mt-0.5 shrink-0 text-success" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12px] font-bold text-ink">
+                        E-Rechnung erkannt — die Felder sind ausgefüllt.
+                      </div>
+                      <div className="mt-0.5 text-[11px] leading-relaxed text-muted">
+                        {eRechnung.invoice.profileLabel ?? (eRechnung.invoice.syntax === 'cii' ? 'CII' : 'UBL')}
+                        {eRechnung.source === 'embedded'
+                          ? ` · im PDF eingebettet als ${eRechnung.filename}`
+                          : ' · eigenständige XML-Datei'}
+                        {'. '}
+                        Prüfe die Werte, bevor du speicherst — geändert werden dürfen sie alle.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setZeigeDetails((v) => !v)}
+                        className="mt-1.5 cursor-pointer text-[11px] font-bold text-muted underline decoration-divider hover:text-ink"
+                      >
+                        {zeigeDetails ? 'Rechnung ausblenden' : 'Ganze Rechnung ansehen'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {zeigeDetails && (
+                    <div className="mt-3 border-t border-divider-soft pt-3">
+                      <EInvoiceView invoice={eRechnung.invoice} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Auffälligkeiten auch ohne aufgeklappte Ansicht zeigen — sie
+                  betreffen genau die Zahlen, die gleich übernommen werden. */}
+              {eRechnung && !lese && !zeigeDetails && eRechnung.invoice.warnings.length > 0 && (
+                <div className="mt-2 rounded-md border border-warning-line bg-warning-soft px-3 py-2">
+                  <div className="mb-1 flex items-center gap-1.5 text-warning">
+                    <AlertTriangle size={12} />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Bitte nachsehen</span>
+                  </div>
+                  <ul className="space-y-1 text-[11px] leading-relaxed text-muted">
+                    {eRechnung.invoice.warnings.map((warnung, i) => <li key={i}>{warnung}</li>)}
+                  </ul>
+                </div>
+              )}
 
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div className="col-span-2 flex flex-col">

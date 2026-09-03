@@ -73,9 +73,21 @@ contextBridge.exposeInMainWorld('api', {
   getPendingAfkPause: () => ipcRenderer.invoke('afk-pause-get-pending'),
   resolveAfkPause: () => ipcRenderer.invoke('afk-pause-resolve'),
 
-  // Backup-Verschlüsselung
-  encryptBackup: (plaintext) => ipcRenderer.invoke('backup-encrypt', plaintext),
-  decryptBackup: (payload)   => ipcRenderer.invoke('backup-decrypt', payload),
+  // Sicherungen. Datei-Ein- und -Ausgabe liegt im Main-Prozess: Nur dort sind
+  // Schlüssel und Belege, und eine Sicherung mit Belegen ist zu gross, um sie
+  // durch den Renderer zu schieben.
+  backupRecoveryStatus: () => ipcRenderer.invoke('backup-recovery-status'),
+  backupRecoveryCreate: (options) => ipcRenderer.invoke('backup-recovery-create', options),
+  backupRecoveryVerify: (code) => ipcRenderer.invoke('backup-recovery-verify', code),
+  backupExport: (options) => ipcRenderer.invoke('backup-export', options),
+  backupImportPick: () => ipcRenderer.invoke('backup-import-pick'),
+  backupImportUnlock: (code) => ipcRenderer.invoke('backup-import-unlock', code),
+  backupRestoreAttachments: () => ipcRenderer.invoke('backup-restore-attachments'),
+  backupImportCancel: () => ipcRenderer.invoke('backup-import-cancel'),
+
+  // Steuerliche Exporte — DATEV (eine Datei), Z3 (ein Ordner voller Dateien)
+  exportWriteFile: (options) => ipcRenderer.invoke('export-write-file', options),
+  exportWriteFolder: (options) => ipcRenderer.invoke('export-write-folder', options),
 
   // Automatisches Backup
   autoBackupGetConfig: () => ipcRenderer.invoke('auto-backup-get-config'),

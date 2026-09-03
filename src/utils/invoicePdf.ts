@@ -3,6 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { Invoice, Issuer, Customer } from '../types';
 import { buildFacturXXml, collectEInvoiceIssues } from './eInvoiceXml';
 import { attachFacturX } from './zugferdPdf';
+import { SEITENBREITE, briefFuss, briefkopf, fmtDate, fmtEuro } from './pdfLetterhead';
 
 /** Steuert, ob dem PDF das ZUGFeRD-XML beigelegt wird. */
 export interface EInvoiceOptions {
@@ -10,18 +11,6 @@ export interface EInvoiceOptions {
   embedXml?: boolean;
 }
 
-const fmtEuro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-const getAddr = (obj: any) => {
-  const lines = [
-    obj.street,
-    obj.address2,
-    `${obj.zip || ''} ${obj.city || ''}`.trim()
-  ].filter(Boolean);
-  if (lines.length === 0 && obj.address) return obj.address.split('\n').filter(Boolean);
-  return lines;
-};
 
 export function generateInvoicePdf(invoice: Invoice, issuer: Issuer, customer: Customer, entries?: any[]): Blob {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -82,41 +71,12 @@ export function generateEInvoiceXml(invoice: Invoice, issuer: Issuer, customer: 
 }
 
 function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, customer: Customer) {
-  const W = 210;
-  let y = 20;
+  const W = SEITENBREITE;
 
-  // === Absender (oben rechts, klein) ===
-  doc.setFontSize(8);
-  doc.setTextColor(80);
-  const senderLines = [
-    issuer.name,
-    ...getAddr(issuer),
-    issuer.email && `E-Mail: ${issuer.email}`,
-    issuer.phone && `Tel: ${issuer.phone}`,
-  ].filter(Boolean) as string[];
-  senderLines.forEach((line, i) => {
-    doc.text(line, W - 20, y + i * 4, { align: 'right' });
-  });
-
-  // === Empfänger (links, Fenster-Position DIN 5008) ===
-  y = 50;
-  doc.setFontSize(8);
-  doc.setTextColor(120);
-  doc.text(`${issuer.name} · ${issuer.street || ''} · ${issuer.zip || ''} ${issuer.city || ''}`, 25, y);
-
-  y = 56;
-  doc.setFontSize(11);
-  doc.setTextColor(0);
-  doc.text(customer.name, 25, y);
-  const addrLines = getAddr(customer);
-  addrLines.forEach((line: string, i: number) => {
-    doc.text(line, 25, y + 5 + i * 5);
-  });
-  
-  // (Rest des Codes bleibt gleich...)
+  // === Briefkopf — geteilt mit Angebot und Mahnung ===
+  let y = briefkopf(doc, issuer, customer);
 
   // === Titel + Meta ===
-  y = 95;
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
   doc.text(`Rechnung ${invoice.number}`, 20, y);
@@ -235,20 +195,7 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
   if (issuer.bic)  { doc.text(`BIC: ${issuer.bic}`,  20, y); y += 4; }
   doc.text(`Verwendungszweck: ${invoice.number}`, 20, y);
 
-  // === Footer (Steuernummer etc.) ===
-  doc.setFontSize(7);
-  doc.setTextColor(140);
-  const taxParts = [
-    issuer.taxId ? `Steuer-Nr.: ${issuer.taxId}` : '',
-    issuer.vatId ? `USt-IdNr.: ${issuer.vatId}` : '',
-  ].filter(Boolean);
-  const footerLines = [
-    `${issuer.name}${taxParts.length ? ` · ${taxParts.join(' · ')}` : ''}`,
-    issuer.email,
-  ].filter(Boolean) as string[];
-  footerLines.forEach((line, i) => {
-    doc.text(line, W / 2, 284 + i * 4, { align: 'center' });
-  });
+  briefFuss(doc, issuer);
 }
 
 function renderServiceReportOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, customer: Customer, allEntries: any[]) {

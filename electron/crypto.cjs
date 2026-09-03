@@ -1,21 +1,31 @@
 // ============================================================
-// Schlüssel und Umschläge für die Gerätesynchronisation
+// Schlüssel, Umschläge und Wiederherstellungscodes
 // ============================================================
 // Der lokale Schutz (`safeStorage`, DPAPI bzw. Schlüsselbund) ist an dieses
-// Benutzerkonto auf diesem Rechner gebunden — ein zweites Gerät kann damit
-// nichts anfangen. Synchronisierung braucht deshalb einen zweiten
-// Schlüsselweg: eine Passphrase, die der Mensch kennt und auf beiden Geräten
-// eingibt. Der lokale Weg bleibt davon unberührt.
+// Benutzerkonto auf diesem Rechner gebunden. Für alles, was den Rechner
+// überleben soll, braucht es einen zweiten Schlüsselweg: ein Geheimnis, das
+// der Mensch besitzt. Der lokale Weg bleibt davon unberührt.
+//
+// Zwei Teile der App benutzen dieses Modul, aus demselben Grund:
+//
+//   - Die **Gerätesynchronisation** (`electron/sync/`) — ein zweites Gerät
+//     kann mit dem Schlüsselbund des ersten nichts anfangen.
+//   - Die **Sicherungen** (`electron/backupKey.cjs`) — eine `.kvbak`, die sich
+//     nur auf dem Rechner öffnen lässt, der sie geschrieben hat, ist keine
+//     Sicherung. Bei acht Jahren Aufbewahrungsfrist nach § 147 AO ist der
+//     Rechnerwechsel der Normalfall, nicht die Ausnahme.
+//
+// Deshalb liegt das Modul hier und nicht mehr unter `sync/`.
 //
 //   Passphrase             ──scrypt──▶ KEK_pass ─┐
-//                                                 ├─▶ zwei Umschläge um denselben DEK
+//                                                 ├─▶ zwei Umschläge um denselben Schlüssel
 //   Wiederherstellungscode ──scrypt──▶ KEK_rec  ─┘
 //
 //   DEK (32 Byte, einmalig zufällig) ──▶ AES-256-GCM für alle Nutzdaten
 //
-// Der Datenschlüssel wird bewusst NICHT direkt aus der Passphrase abgeleitet.
-// Sonst müsste ein Passphrase-Wechsel den gesamten Bestand neu verschlüsseln;
-// so wird nur der Umschlag neu geschrieben.
+// Der Datenschlüssel wird bewusst NICHT direkt aus dem Geheimnis abgeleitet.
+// Sonst müsste ein Wechsel des Geheimnisses den gesamten Bestand neu
+// verschlüsseln; so wird nur der Umschlag neu geschrieben.
 
 const crypto = require('node:crypto');
 
