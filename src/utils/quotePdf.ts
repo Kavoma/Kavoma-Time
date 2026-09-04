@@ -13,9 +13,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Customer, Issuer, Quote } from '../types';
 import { RAND, SEITENBREITE, briefFuss, briefkopf, fmtDate, fmtEuro } from './pdfLetterhead';
+import { PDF_FONT, registriereSchrift } from './pdfFonts';
 
 export function generateQuotePdf(quote: Quote, issuer: Issuer, customer: Customer): Blob {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  registriereSchrift(doc);
   renderQuoteOnDoc(doc, quote, issuer, customer);
   return doc.output('blob');
 }
@@ -26,19 +28,19 @@ function renderQuoteOnDoc(doc: jsPDF, quote: Quote, issuer: Issuer, customer: Cu
 
   // === Titel + Kopfangaben ===
   doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.text(`Angebot ${quote.number}`, RAND, y);
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(9);
   doc.setTextColor(80);
   y += 8;
   doc.text(`Angebotsdatum: ${fmtDate(quote.createdAt)}`, RAND, y);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.text(`Gültig bis: ${fmtDate(quote.validUntil)}`, RAND, y + 5);
 
   y += 17;
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setTextColor(40);
   doc.text(
     'gerne unterbreiten wir Ihnen folgendes Angebot über die nachstehenden Leistungen.',
@@ -57,6 +59,10 @@ function renderQuoteOnDoc(doc: jsPDF, quote: Quote, issuer: Issuer, customer: Cu
       fmtEuro(item.total),
     ]),
     theme: 'plain',
+    // Ohne diese Angabe setzt jspdf-autotable für seine Zellen die
+    // eingebaute Helvetica — und damit stünde eine nicht eingebettete
+    // Standardschrift im Dokument, die PDF/A sofort durchfallen lässt.
+    styles: { font: PDF_FONT },
     headStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold', fontSize: 9 },
     bodyStyles: { fontSize: 9, textColor: 30 },
     columnStyles: {
@@ -92,13 +98,13 @@ function renderQuoteOnDoc(doc: jsPDF, quote: Quote, issuer: Issuer, customer: Cu
   doc.setDrawColor(200);
   doc.line(sumX - 50, y, sumX, y);
   y += 5;
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.setFontSize(11);
   doc.text('Angebotssumme:', sumX - 50, y, { align: 'left' });
   doc.text(fmtEuro(quote.total), sumX, y, { align: 'right' });
 
   y += 12;
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(8);
   doc.setTextColor(80);
   if (quote.vatRate === 0) {
@@ -124,9 +130,9 @@ function renderQuoteOnDoc(doc: jsPDF, quote: Quote, issuer: Issuer, customer: Cu
   y += 6;
   doc.setFontSize(9);
   doc.setTextColor(0);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.text('Gültigkeit und Annahme', RAND, y);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setTextColor(80);
   doc.setFontSize(8);
   y += 5;
@@ -160,6 +166,7 @@ export function renderQuotePreviewDataUrl(
   quote: Quote, issuer: Issuer, customer: Customer,
 ): string {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  registriereSchrift(doc);
   renderQuoteOnDoc(doc, quote, issuer, customer);
   return doc.output('dataurlstring');
 }

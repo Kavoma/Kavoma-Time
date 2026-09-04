@@ -72,6 +72,17 @@ export interface TimeEntry {
   startedAt: number;
   endedAt: number | null;
   durationSeconds: number;
+  /**
+   * Ob diese Zeit dem Kunden berechnet wird.
+   *
+   * **Fehlt das Feld, gilt sie als abrechenbar** — so waren alle Einträge
+   * gemeint, die vor dieser Unterscheidung entstanden sind. Deshalb wird es
+   * beim Laden auch **nicht** nachgetragen: Ein `billable: true` an jedem
+   * Altbestand wäre für den Abgleich eine Änderung an jedem einzelnen Eintrag
+   * und ergäbe beim ersten Start nach dem Update einen Schwall von Ops. Wer
+   * den Wert braucht, fragt `istAbrechenbar()`.
+   */
+  billable?: boolean;
 }
 
 export interface Issuer {

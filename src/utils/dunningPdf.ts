@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Invoice, Issuer, Customer } from '../types';
 import { gezahlt } from './payments';
+import { PDF_FONT, registriereSchrift } from './pdfFonts';
 
 const fmtEuro = (n: number) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 const fmtDate = (ts: number) => new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -18,6 +19,7 @@ const getAddr = (obj: any) => {
 
 export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: Customer) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  registriereSchrift(doc);
   const W = 210;
   let y = 20;
 
@@ -61,10 +63,10 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
   // === Titel ===
   y = 95;
   doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.text(title, 20, y);
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(9);
   doc.setTextColor(80);
   y += 8;
@@ -109,6 +111,10 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
     head: [['Posten', 'Betrag']],
     body: rows,
     theme: 'plain',
+    // Ohne diese Angabe setzt jspdf-autotable für seine Zellen die
+    // eingebaute Helvetica — und damit stünde eine nicht eingebettete
+    // Standardschrift im Dokument, die PDF/A sofort durchfallen lässt.
+    styles: { font: PDF_FONT },
     headStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold', fontSize: 9 },
     bodyStyles: { fontSize: 9, textColor: 30 },
     columnStyles: {
@@ -125,7 +131,7 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
   const sumX = W - 20;
   const totalOutstanding = invoice.total + previousFees + latestReminder.fee - bereitsGezahlt;
   doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.text('Gesamtforderung:', sumX - 60, y, { align: 'left' });
   doc.text(fmtEuro(totalOutstanding), sumX, y, { align: 'right' });
 
@@ -133,9 +139,9 @@ export function downloadDunningPdf(invoice: Invoice, issuer: Issuer, customer: C
   y += 15;
   doc.setFontSize(9);
   doc.setTextColor(0);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.text('Zahlungsinformationen', 20, y);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setTextColor(80);
   doc.setFontSize(8);
   y += 5;

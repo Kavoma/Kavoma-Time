@@ -4,6 +4,7 @@ import { Invoice, Issuer, Customer } from '../types';
 import { buildFacturXXml, collectEInvoiceIssues } from './eInvoiceXml';
 import { attachFacturX } from './zugferdPdf';
 import { SEITENBREITE, briefFuss, briefkopf, fmtDate, fmtEuro } from './pdfLetterhead';
+import { PDF_FONT, registriereSchrift } from './pdfFonts';
 
 /** Steuert, ob dem PDF das ZUGFeRD-XML beigelegt wird. */
 export interface EInvoiceOptions {
@@ -14,6 +15,7 @@ export interface EInvoiceOptions {
 
 export function generateInvoicePdf(invoice: Invoice, issuer: Issuer, customer: Customer, entries?: any[]): Blob {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  registriereSchrift(doc);
   renderInvoiceOnDoc(doc, invoice, issuer, customer);
   if (entries && entries.length > 0) {
     doc.addPage();
@@ -37,6 +39,7 @@ export async function generateEInvoicePdf(
   options?: EInvoiceOptions,
 ): Promise<Blob> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  registriereSchrift(doc);
   renderInvoiceOnDoc(doc, invoice, issuer, customer);
   if (entries && entries.length > 0) {
     doc.addPage();
@@ -78,10 +81,10 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
 
   // === Titel + Meta ===
   doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.text(`Rechnung ${invoice.number}`, 20, y);
 
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(9);
   doc.setTextColor(80);
   y += 8;
@@ -92,13 +95,13 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
 
   y += 12;
   if (invoice.periodFrom && invoice.periodTo) {
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(PDF_FONT, 'bold');
     doc.text(`Leistungszeitraum: ${fmtDate(invoice.periodFrom)} – ${fmtDate(invoice.periodTo)}`, 20, y);
     y += 6;
   }
 
   // === Betreff / Kurzbeschreibung ===
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setTextColor(40);
   doc.text('Gegenstand der Leistung: Erbringung von Dienstleistungen laut nachfolgender Aufstellung.', 20, y);
 
@@ -116,6 +119,10 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
     head: [['Leistung / Beschreibung', 'Menge', 'Einzelpreis', 'Gesamt']],
     body: rows,
     theme: 'plain',
+    // Ohne diese Angabe setzt jspdf-autotable für seine Zellen die
+    // eingebaute Helvetica — und damit stünde eine nicht eingebettete
+    // Standardschrift im Dokument, die PDF/A sofort durchfallen lässt.
+    styles: { font: PDF_FONT },
     headStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold', fontSize: 9 },
     bodyStyles: { fontSize: 9, textColor: 30 },
     columnStyles: {
@@ -153,14 +160,14 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
   doc.setDrawColor(200);
   doc.line(sumX - 50, y, sumX, y);
   y += 5;
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.setFontSize(11);
   doc.text('Gesamtbetrag:', sumX - 50, y, { align: 'left' });
   doc.text(fmtEuro(invoice.total), sumX, y, { align: 'right' });
 
   // === Kleinunternehmer-Hinweis ===
   y += 12;
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(8);
   doc.setTextColor(80);
   if (invoice.vatRate === 0) {
@@ -182,9 +189,9 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
   y += 6;
   doc.setFontSize(9);
   doc.setTextColor(0);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.text('Zahlungsinformationen', 20, y);
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setTextColor(80);
   doc.setFontSize(8);
   y += 5;
@@ -209,10 +216,10 @@ function renderServiceReportOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, 
   
   y = 40;
   doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(PDF_FONT, 'bold');
   doc.text('Tätigkeitsbericht / Leistungsnachweis', 20, y);
   
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(PDF_FONT, 'normal');
   doc.setFontSize(9);
   y += 8;
   doc.text(`Kunde: ${customer.name}`, 20, y);
@@ -233,6 +240,8 @@ function renderServiceReportOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, 
     head: [['Datum', 'Tätigkeit / Beschreibung', 'Dauer']],
     body: rows,
     theme: 'striped',
+    // Wie oben: sonst zieht autotable seine eingebaute Helvetica heran.
+    styles: { font: PDF_FONT },
     headStyles: { fillColor: [60, 60, 60], textColor: 255, fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 30 },
@@ -244,6 +253,7 @@ function renderServiceReportOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, 
 
 export function generateServiceReportPdf(invoice: Invoice, issuer: Issuer, customer: Customer, allEntries: any[]): Blob {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  registriereSchrift(doc);
   renderServiceReportOnDoc(doc, invoice, issuer, customer, allEntries);
   return doc.output('blob');
 }
@@ -261,6 +271,7 @@ export function renderInvoicePreviewDataUrl(
   entries?: any[],
 ): string {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  registriereSchrift(doc);
   renderInvoiceOnDoc(doc, invoice, issuer, customer);
   if (entries && entries.length > 0) {
     doc.addPage();

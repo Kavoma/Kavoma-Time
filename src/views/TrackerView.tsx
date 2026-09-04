@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, Trash2, Copy, Plus, ChevronRight, ChevronDown, Search, X, ListChecks, Square } from 'lucide-react';
+import { Pencil, Trash2, Copy, Plus, ChevronRight, ChevronDown, Search, X, ListChecks, Square, Euro } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
 import { CustomAutocomplete } from '../components/CustomAutocomplete';
 import { Checkbox } from '../components/Checkbox';
@@ -15,6 +15,7 @@ import { getLiveDurationSeconds } from '../utils/trackerTimer';
 import { collectDescriptionSuggestions } from '../utils/descriptionSuggestions';
 import { UndoToast } from '../components/UndoToast';
 import { SwipeRow } from '../components/SwipeRow';
+import { istAbrechenbar, mitAbrechenbarkeit } from '../utils/billable';
 import { newNumericId } from '../sync/ids';
 import { NO_PROJECT_ID, NO_PROJECT_LABEL, NO_PROJECT_OPTION, projectLabel } from '../utils/projects';
 
@@ -160,6 +161,22 @@ export function TrackerView() {
       y: e.clientY,
       entryId
     });
+  };
+
+  /**
+   * Abrechenbar oder intern umschalten.
+   *
+   * Beim Zurückschalten wird das Feld entfernt statt auf `true` gesetzt —
+   * siehe `mitAbrechenbarkeit`. Sonst unterschieden sich zwei Geräte dauerhaft
+   * in einem Wert, der dasselbe bedeutet.
+   */
+  const toggleBillable = (id: number) => {
+    setState(s => s ? {
+      ...s,
+      entries: s.entries.map(e =>
+        e.id === id ? mitAbrechenbarkeit(e, !istAbrechenbar(e)) : e,
+      ),
+    } : null);
   };
 
   const handleDeleteEntry = (id: number) => {
@@ -451,9 +468,33 @@ export function TrackerView() {
                 </span>
               )}
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="truncate text-xs font-bold text-ink">{entry.description || '(ohne Beschreibung)'}</div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-xs font-bold text-ink">{entry.description || '(ohne Beschreibung)'}</span>
+                  {!istAbrechenbar(entry) && (
+                    <span className="shrink-0 rounded-full bg-neutral-soft px-1.5 text-[9px] font-bold uppercase tracking-wider text-muted">
+                      intern
+                    </span>
+                  )}
+                </div>
                 <div className="truncate text-[11px] text-muted">{customer?.name} · {projectLabel(projects, entry.projectId)}</div>
               </div>
+              {/* Umschalten direkt in der Zeile: Ob eine Zeit berechnet wird,
+                  weiss man beim Erfassen — dafür soll niemand einen Dialog
+                  öffnen müssen. */}
+              <button
+                type="button"
+                className="kv-icon-btn shrink-0"
+                aria-pressed={istAbrechenbar(entry)}
+                aria-label={istAbrechenbar(entry)
+                  ? 'Als interne Zeit kennzeichnen'
+                  : 'Als abrechenbar kennzeichnen'}
+                title={istAbrechenbar(entry) ? 'Abrechenbar' : 'Interne Zeit — kommt auf keine Rechnung'}
+                onClick={(e) => { e.stopPropagation(); toggleBillable(entry.id); }}
+              >
+                {istAbrechenbar(entry)
+                  ? <Euro size={13} className="text-success" />
+                  : <Euro size={13} className="text-muted opacity-40" />}
+              </button>
               <div className="flex flex-col items-end gap-0.5">
                 <div className="text-[11px] text-muted tabular-nums">
                   {d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} · {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {entry.endedAt ? new Date(entry.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'läuft'}

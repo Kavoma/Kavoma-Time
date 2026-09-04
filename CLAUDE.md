@@ -436,6 +436,13 @@ Eine Rechnung trägt einzelne `Payment`-Einträge statt eines Ja/Nein-Schalters.
   Z3-Export in einer eigenen Spalte — eine Prüfung darf beides nicht
   verwechseln. `migriereZahlungsschalter` ist idempotent; sie läuft bei jedem
   Start.
+- **Zahlungen werden beim Abgleich vereinigt, nicht ersetzt** (`mergePayments`
+  in `src/sync/merge.ts`) — dieselbe Überlegung wie bei den Mahnstufen, nur
+  teurer: Eine auf dem anderen Gerät erfasste Zahlung ist Geld, das eingegangen
+  ist. Danach werden `paid`/`paidAt` neu abgeleitet, **aber nur, wenn
+  mindestens eine Seite eine `payments`-Liste führt**. Eine Op von einem noch
+  nicht aktualisierten Gerät trägt `paid: true` ohne Liste; abzuleiten machte
+  die Rechnung dort stillschweigend wieder unbezahlt.
 - **Die Ist-Versteuerung rechnet je Zahlung** (`ustAnteil`, anteilig zum
   Rechnungsbetrag ohne Mahngebühren — eine Mahngebühr ist Schadensersatz und
   nicht steuerbar). Die **Vorsteuer** bleibt am Belegdatum: Für Eingangsrechnungen
@@ -472,6 +479,59 @@ Eigener Reiter vor den Rechnungen. `src/utils/quotes.ts` hält die Logik,
   Rechnung, Mahnung und Angebot (DIN 5008). Zwei Briefköpfe wären zwei Stellen
   für eine geänderte Adresse — und eine würde vergessen.
 - **Kein ZUGFeRD im Angebot.** Das eingebettete XML beschreibt eine Rechnung.
+
+### PDF/A-3B und die eingebettete Schrift
+
+Das Rechnungs-PDF mit ZUGFeRD-XML ist seit September 2026 ein **PDF/A-3B**.
+Vier Dinge gehören dazu; fehlt eines, weist ein Prüfprogramm die Datei ab.
+
+- **`src/utils/pdfFonts.ts`** meldet **Liberation Sans** an jedem frischen
+  Dokument an (`registriereSchrift`) — muss **vor** der ersten Textausgabe
+  laufen, jsPDF hält die Dateiablage pro Dokument. Gewählt wurde sie, weil sie
+  metrisch zu Arial passt: Das gegen Helvetica gebaute Layout bleibt
+  unverändert. Der Familienname ist bewusst **nicht** `helvetica` — sonst
+  griffe `setFont('helvetica')` je nach Reihenfolge auf die eingebaute
+  Standardschrift.
+- **Die Schrift liegt als Base64-Modul** unter `src/utils/fonts/` (generiert,
+  nicht von Hand bearbeiten; vom Lint ausgenommen). Grund: Der Renderer läuft
+  in der gebauten App unter `file://`, ein `fetch()` auf eine relative URL ist
+  dort gesperrt. Kostet rund 1,1 MB Bundle und lässt eine Rechnung von 9 KB auf
+  143 KB wachsen.
+- **jsPDF schreibt die Standardschriften ungefragt mit**, auch ungenutzt, und
+  seine Schriftverwaltung liegt in einer Closure — vorher leeren geht nicht.
+  `entferneNichtEingebetteteSchriften` in `zugferdPdf.ts` räumt sie hinterher
+  aus Seiten-Resources **und** Objektbestand, aber nur wenn sie weder
+  eingebettet noch im Inhaltsstrom benutzt sind. Eine benutzte bleibt stehen,
+  damit der Fehler auffällt.
+- **`jspdf-autotable` setzt für seine Zellen eigenständig Helvetica.** Jeder
+  `autoTable`-Aufruf braucht deshalb `styles: { font: PDF_FONT }`. Wer eine
+  neue Tabelle einbaut und das vergisst, macht das PDF still ungültig.
+- **`src/utils/srgbProfile.ts`** baut die Ausgabebedingung aus den Normwerten
+  (IEC 61966-2-1) statt eine fremde Profildatei mitzuliefern. Die
+  Primärvalenzen sind die **an D50 angepassten** — mit den D65-Werten lädt das
+  Profil und ist trotzdem falsch.
+- **Die Datei-ID wird abgeleitet, nicht gewürfelt.** pdf-lib schreibt sonst
+  eine zufällige, und dieselbe Rechnung sähe bei jedem Erzeugen anders aus.
+- **Nicht gegen veraPDF geprüft** — das braucht Java. Getestet ist stattdessen
+  das erzeugte PDF (`pdfaConformance.test.ts`) an den Punkten, an denen es
+  realistisch scheitert.
+- **Nur die E-Rechnung ist PDF/A.** Angebot und Mahnung erheben den Anspruch
+  nicht und laufen nicht durch `attachFacturX`. Sie benutzen dieselbe
+  eingebettete Schrift, aber ohne Ausgabebedingung und Kennung.
+
+### Abrechenbare Zeit
+
+`TimeEntry.billable` trennt bezahlte Arbeit von Akquise, Buchhaltung und
+Fortbildung. Gefragt wird über `istAbrechenbar()` in `src/utils/billable.ts`.
+
+- **Fehlt das Feld, ist die Zeit abrechenbar.** Nur ein ausdrückliches `false`
+  schliesst aus. Deshalb wird beim Laden **nichts nachgetragen**: Ein
+  `billable: true` an jedem Altbestand wäre für den Diff eine Änderung an jedem
+  einzelnen Eintrag und ergäbe beim ersten Start nach dem Update einen Schwall
+  von Ops. Aus demselben Grund **entfernt** `mitAbrechenbarkeit` das Feld beim
+  Zurückschalten, statt `true` stehenzulassen.
+- **`TimeEntryPicker` bietet interne Zeit gar nicht erst an.** Sie dort
+  stehenzulassen hiesse, den Fehler einen Klick später zu machen.
 
 ### PDF-Generierung
 
