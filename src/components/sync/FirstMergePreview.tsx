@@ -57,7 +57,7 @@ export function FirstMergePreview({ open, onClose, onSettled }: Props) {
       // Nicht verhandelbar: Vor dem Zusammenführen liegt eine Sicherung des
       // lokalen Standes auf der Platte. Wenn hier etwas schiefgeht, ist der
       // Weg zurück eine Datei, kein Bedauern.
-      await writeEncryptedBackup(state, 'kavoma-time-vor-erstabgleich');
+      await writeEncryptedBackup('kavoma-time-vor-erstabgleich');
 
       if (wahl === 'zusammenfuehren' && ops) {
         setState(() => applyOps(state, ops).state);

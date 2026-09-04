@@ -178,12 +178,26 @@ export function SettingsView() {
         onCancel={() => {
           setIsRestoreModalOpen(false);
           setPendingBackupData(null);
+          // Die geöffnete Datei im Main-Prozess wieder loslassen. Ausgepackt
+          // wurde bis hierher nichts — deshalb bleiben nach einem Abbruch auch
+          // keine verwaisten Belege liegen.
+          void window.api?.backupImportCancel();
         }}
         onConfirm={async () => {
           if (pendingBackupData) {
             setIsRestoreModalOpen(false);
             await restoreBackup(pendingBackupData);
             setPendingBackupData(null);
+            // Erst jetzt die Belege auspacken: Sie gehören zum Bestand, der
+            // gerade eingespielt wurde. Enthält die Sicherung keine, gibt der
+            // Aufruf schlicht null zurück.
+            const belege = await window.api?.backupRestoreAttachments();
+            if (belege?.failed?.length) {
+              alert(
+                `${belege.restored} Belege wiederhergestellt, ${belege.failed.length} nicht:\n\n` +
+                belege.failed.map((f) => `• ${f.filename ?? f.id}: ${f.grund}`).join('\n'),
+              );
+            }
           }
         }}
       />

@@ -59,6 +59,26 @@ function mergeReminders(a: Invoice, b: Invoice): Invoice['reminders'] {
 }
 
 /**
+ * Vereinigt Zahlungseingänge statt sie zu ersetzen.
+ *
+ * Derselbe Grund wie bei den Mahnungen, nur teurer: Eine auf dem anderen Gerät
+ * erfasste Zahlung ist Geld, das eingegangen ist. Verschwände sie, weil hier
+ * gleichzeitig etwas anderes an der Rechnung geändert wurde, mahnte die App
+ * anschliessend einen Betrag an, der längst bezahlt ist.
+ *
+ * Vereinigt wird über die Zahlungs-ID. Sie ist eine UUID, also auf beiden
+ * Geräten verschieden — zwei Erfassungen desselben Eingangs stünden danach
+ * doppelt da. Das ist die richtige Richtung des Fehlers: Eine doppelte Zahlung
+ * fällt beim Ansehen sofort auf (die Rechnung ist überzahlt), eine
+ * verschwundene erst bei der Mahnung.
+ */
+function mergePayments(a: Invoice, b: Invoice): Invoice['payments'] {
+  const seen = new Map<string, NonNullable<Invoice['payments']>[number]>();
+  for (const p of [...(a.payments ?? []), ...(b.payments ?? [])]) seen.set(p.id, p);
+  return [...seen.values()].sort((x, y) => x.paidAt - y.paidAt);
+}
+
+/**
  * Entscheidet, welche Fassung einer Rechnung bleibt.
  *
  * Der Status ist hier kein normales Feld, sondern eine Rangfolge: Eine
@@ -101,13 +121,47 @@ function resolveInvoice(
     reason = 'lamport';
   }
 
-  return {
-    winner: {
-      ...base,
-      reminders: mergeReminders(local, remote),
-    },
-    reason,
+  const zusammengefuehrt: Invoice = {
+    ...base,
+    reminders: mergeReminders(local, remote),
+    payments: mergePayments(local, remote),
   };
+
+  // `paid` neu abzuleiten ist nur richtig, wenn überhaupt eine Seite Zahlungen
+  // **führt**. Eine Op von einem noch nicht aktualisierten Gerät trägt
+  // `paid: true` ganz ohne Zahlungsliste — würde hier abgeleitet, machte der
+  // Abgleich die Rechnung stillschweigend wieder unbezahlt. Genau das passiert
+  // während eines Roll-outs, wenn ein Gerät noch die alte Fassung hat.
+  const fuehrtZahlungen = Array.isArray(local.payments) || Array.isArray(remote.payments);
+  const winner = fuehrtZahlungen
+    ? nachZahlungenNachgezogen(zusammengefuehrt)
+    : zusammengefuehrt;
+
+  return { winner, reason };
+}
+
+/**
+ * Setzt `paid`/`paidAt` aus den vereinigten Zahlungen neu.
+ *
+ * Nötig, weil der Schalter abgeleitet ist: Nach dem Vereinigen stünde sonst
+ * der Wert einer Seite über den Zahlungen beider — und zwei Teilzahlungen, die
+ * zusammen aufgehen, ergäben trotzdem „offen".
+ */
+function nachZahlungenNachgezogen(inv: Invoice): Invoice {
+  const zahlungen = inv.payments ?? [];
+  const gesamt = zahlungen.reduce((s, p) => s + p.amount, 0);
+  const gebuehren = (inv.reminders ?? []).reduce((s, r) => s + r.fee, 0);
+  // Dieselbe Toleranz wie in `src/utils/payments.ts`: Ein halber Cent kann nur
+  // aus Fließkomma-Rauschen stammen, nicht aus einer Überweisung.
+  const bezahlt = gesamt - (inv.total + gebuehren) > -0.005;
+
+  const next: Invoice = { ...inv, payments: zahlungen, paid: bezahlt };
+  if (bezahlt && zahlungen.length > 0) {
+    next.paidAt = zahlungen[zahlungen.length - 1].paidAt;
+  } else {
+    delete next.paidAt;
+  }
+  return next;
 }
 
 function pruneTombstones(list: readonly Tombstone[], now: number): Tombstone[] {

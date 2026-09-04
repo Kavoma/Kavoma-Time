@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { BarChart3, Target, Clock, Activity, Euro, TrendingUp, Calendar } from 'lucide-react';
+import { BarChart3, Target, Clock, Activity, Euro, TrendingUp, Calendar, Percent } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   PieChart, Pie, Cell, ReferenceLine,
 } from 'recharts';
 import { useAppState } from '../state/AppStateContext';
 import { useChartColors } from '../utils/chartColors';
+import { abrechenbarerAnteil, interneSekunden } from '../utils/billable';
 import { TimeEntry } from '../types';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { profitabilityByCustomer, profitabilityByProject, forecastYear, resolveRate } from '../utils/analytics';
@@ -130,6 +131,9 @@ export function StatisticsView() {
   const prevTotalSeconds = entriesInPrevPeriod.reduce((sum: number, e: TimeEntry) => sum + e.durationSeconds, 0);
   
   const totalSeconds  = entriesInPeriod.reduce((sum: number, e: TimeEntry) => sum + e.durationSeconds, 0);
+  // Der Anteil bezahlter Arbeit. Ohne ihn sieht jede Auslastung besser aus,
+  // als sie ist — Akquise und Buchhaltung zählten als Kundenarbeit mit.
+  const anteilAbrechenbar = abrechenbarerAnteil(entriesInPeriod);
   const diffPercent = prevTotalSeconds > 0 ? ((totalSeconds - prevTotalSeconds) / prevTotalSeconds) * 100 : null;
 
   // Umsatz (geschätzt) — Projekt-Rate > Kunden-Rate
@@ -370,6 +374,16 @@ export function StatisticsView() {
           format="number"
           sub={sessionsCount > 0 ? `Ø ${formatHM(avgSession)} pro Session` : '—'}
           diff={sessionsDiff}
+        />
+        <Card
+          icon={Percent}
+          label="Abrechenbar"
+          value={anteilAbrechenbar === null ? '—' : `${anteilAbrechenbar} %`}
+          sub={
+            anteilAbrechenbar === null
+              ? 'noch keine Zeit erfasst'
+              : `${formatHM(interneSekunden(entriesInPeriod))} intern`
+          }
         />
         <Card
           icon={TrendingUp}

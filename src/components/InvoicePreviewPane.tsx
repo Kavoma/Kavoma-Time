@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RefreshCw, FileWarning } from 'lucide-react';
 import type { Invoice, Issuer, Customer, TimeEntry } from '../types';
-import { renderInvoicePreviewDataUrl } from '../utils/invoicePdf';
+import { renderInvoicePreviewDataUrl } from '../utils/pdfLazy';
 
 interface Props {
   invoice: Invoice | null;
@@ -23,24 +23,33 @@ export function InvoicePreviewPane({ invoice, issuer, customer, entries, debounc
   const [error, setError] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(false);
   const timerRef = useRef<number | null>(null);
+  // Der Renderer wird erst beim ersten Bedarf nachgeladen (siehe `pdfLazy`).
+  // Damit kann eine ältere Anfrage nach einer jüngeren fertig werden — beim
+  // Tippen im Formular ist das der Normalfall. Nur der jeweils letzte Lauf
+  // darf schreiben, sonst steht in der Vorschau ein überholter Stand.
+  const laufRef = useRef(0);
 
-  const render = () => {
+  const render = async () => {
     if (!invoice || !customer) {
+      laufRef.current++;
       setDataUrl(null);
       setError(null);
       return;
     }
+    const lauf = ++laufRef.current;
     setIsRendering(true);
     try {
-      const rawUrl = renderInvoicePreviewDataUrl(invoice, issuer, customer, entries);
+      const rawUrl = await renderInvoicePreviewDataUrl(invoice, issuer, customer, entries);
+      if (lauf !== laufRef.current) return;
       // Native Chrome-PDF-Toolbar/Sidebar ausblenden, auf Breite anpassen — füllt die Pane besser aus.
       const url = `${rawUrl}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
       setDataUrl(url);
       setError(null);
     } catch (e: any) {
+      if (lauf !== laufRef.current) return;
       setError(e?.message ?? 'Vorschau konnte nicht erzeugt werden.');
     } finally {
-      setIsRendering(false);
+      if (lauf === laufRef.current) setIsRendering(false);
     }
   };
 

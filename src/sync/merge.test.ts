@@ -125,6 +125,38 @@ describe('Gleichzeitig geänderter Kunde', () => {
   });
 });
 
+describe('Angebote', () => {
+  const angebot = (patch: Partial<import('../types').Quote> = {}) => ({
+    id: 'q-1', number: 'AN-2026-0001', customerId: 5, projectId: null,
+    createdAt: 0, validUntil: 0, items: [], subtotal: 100, vatRate: 19,
+    vatAmount: 19, total: 119, notes: '', status: 'draft' as const, ...patch,
+  });
+
+  it('wandert als eigene Sammlung mit', () => {
+    // Neue Sammlungen synchronisieren nur mit, wenn sie in `classify.ts`
+    // stehen. Der Test hält fest, dass daran gedacht wurde.
+    const lokal = localChange(baseState(), (s) => ({ ...s, quotes: [] }));
+    const fremd = op({
+      entity: 'quote', entityId: 'q-1', op: 'upsert',
+      payload: angebot({ status: 'sent' }),
+      lamport: (lokal.syncLamport ?? 0) + 1, deviceId: DEV_B,
+    });
+    const ergebnis = applyOps(lokal, [fremd]).state;
+    expect(ergebnis.quotes).toHaveLength(1);
+    expect(ergebnis.quotes[0].number).toBe('AN-2026-0001');
+  });
+
+  it('meldet ein geändertes Angebot als Änderung', () => {
+    // Die Gegenrichtung: Was hier passiert, muss der Diff auch finden.
+    const vorher = baseState({ quotes: [angebot()] });
+    const nachher = localChange(vorher, (s) => ({
+      ...s, quotes: [angebot({ status: 'accepted' })],
+    }));
+    const ops = diffState(vorher, nachher, DEV_A, nachher.syncLamport ?? 1);
+    expect(ops.some((o) => o.entity === 'quote' && o.op === 'upsert')).toBe(true);
+  });
+});
+
 describe('Rechnungen', () => {
   function invoice(patch: Partial<Invoice> = {}): Invoice {
     return {
@@ -134,6 +166,77 @@ describe('Rechnungen', () => {
       paid: false, status: 'active', reminders: [], ...patch,
     };
   }
+
+  const zahlung = (id: string, amount: number, paidAt: number) => ({
+    id, amount, paidAt, source: 'manual' as const, createdAt: paidAt,
+  });
+
+  it('vereinigt Zahlungseingänge beider Geräte, statt eine zu verlieren', () => {
+    // Der teuerste Verlust im ganzen Abgleich: Eine Zahlung, die auf dem
+    // anderen Gerät erfasst wurde, ist Geld, das eingegangen ist. Verschwände
+    // sie, mahnte die App anschliessend einen längst bezahlten Betrag an.
+    const lokal = localChange(baseState(), (s) => ({
+      ...s, invoices: [invoice({ payments: [zahlung('p-a', 50, 1000)] })],
+    }));
+    const fremd = op({
+      entity: 'invoice', entityId: 'inv-1', op: 'upsert',
+      payload: invoice({ payments: [zahlung('p-b', 69, 2000)], notes: 'von B' }),
+      lamport: (lokal.syncLamport ?? 0) + 5, deviceId: DEV_B,
+    });
+
+    const ergebnis = applyOps(lokal, [fremd]).state.invoices[0];
+    expect(ergebnis.payments!.map((p) => p.id).sort()).toEqual(['p-a', 'p-b']);
+    // 50 + 69 = 119 — die Rechnung ist damit ausgeglichen, obwohl **keine**
+    // der beiden Seiten sie für bezahlt hielt.
+    expect(ergebnis.paid).toBe(true);
+    expect(ergebnis.paidAt).toBe(2000);
+  });
+
+  it('lässt „bezahlt" wieder fallen, wenn die vereinigten Zahlungen nicht reichen', () => {
+    // `paid` ist abgeleitet — es darf nicht vom Gewinner mitgeschleppt werden.
+    const lokal = localChange(baseState(), (s) => ({
+      ...s,
+      invoices: [invoice({ paid: true, paidAt: 999, payments: [zahlung('p-a', 19, 999)] })],
+    }));
+    const fremd = op({
+      entity: 'invoice', entityId: 'inv-1', op: 'upsert',
+      payload: invoice({ paid: true, paidAt: 999, payments: [zahlung('p-a', 19, 999)] }),
+      lamport: (lokal.syncLamport ?? 0) + 5, deviceId: DEV_B,
+    });
+    const ergebnis = applyOps(lokal, [fremd]).state.invoices[0];
+    expect(ergebnis.paid).toBe(false);
+    expect('paidAt' in ergebnis).toBe(false);
+  });
+
+  it('lässt „bezahlt" von einem noch nicht aktualisierten Gerät in Ruhe', () => {
+    // Während eines Roll-outs schickt das alte Gerät `paid: true` ganz ohne
+    // Zahlungsliste. Würde hier abgeleitet, machte der Abgleich die Rechnung
+    // stillschweigend wieder unbezahlt.
+    const lokal = localChange(baseState(), (s) => ({
+      ...s, invoices: [invoice({ paid: false })],
+    }));
+    const altesGeraet = op({
+      entity: 'invoice', entityId: 'inv-1', op: 'upsert',
+      payload: invoice({ paid: true, paidAt: 4000 }),   // kein `payments`
+      lamport: (lokal.syncLamport ?? 0) + 5, deviceId: DEV_B,
+    });
+    const ergebnis = applyOps(lokal, [altesGeraet]).state.invoices[0];
+    expect(ergebnis.paid).toBe(true);
+    expect(ergebnis.paidAt).toBe(4000);
+  });
+
+  it('macht aus derselben Zahlung keine zwei', () => {
+    // Vereinigt wird über die Zahlungs-ID; zweimal dasselbe bleibt einmal.
+    const lokal = localChange(baseState(), (s) => ({
+      ...s, invoices: [invoice({ payments: [zahlung('p-a', 119, 1000)] })],
+    }));
+    const fremd = op({
+      entity: 'invoice', entityId: 'inv-1', op: 'upsert',
+      payload: invoice({ payments: [zahlung('p-a', 119, 1000)], notes: 'von B' }),
+      lamport: (lokal.syncLamport ?? 0) + 5, deviceId: DEV_B,
+    });
+    expect(applyOps(lokal, [fremd]).state.invoices[0].payments).toHaveLength(1);
+  });
 
   it('finalisierte Rechnung schlägt Entwurf — auch mit höherem Lamport', () => {
     const lokal = localChange(baseState(), (s) => ({ ...s, invoices: [invoice({ status: 'active' })] }));

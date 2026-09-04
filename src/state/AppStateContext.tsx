@@ -2,6 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, Re
 import { AppState } from '../types';
 import { runTimerCommand, startTimerWith, TimerCommand, QuickStartTarget } from '../utils/timerActions';
 import { evaluateRecurringInvoices } from '../utils/recurring';
+import { DATEV_VORGABEN } from '../utils/datevExport';
+import { migriereZahlungsschalter } from '../utils/payments';
+import { QUOTE_PREFIX_VORGABE } from '../utils/quotes';
 import { diffState } from '../sync/diff';
 import { applyOps } from '../sync/merge';
 import type { Op } from '../sync/types';
@@ -58,11 +61,13 @@ const SEED_STATE: AppState = {
   contracts: [],
   nextVendorInvoiceId: 1,
   nextContractId: 1,
+  quotes: [],
   invoiceTemplates: [],
   recurringInvoices: [],
   nextTemplateId: 1,
   nextRecurringId: 1,
   eInvoiceEnabled: true,
+  datev: DATEV_VORGABEN,
   appearance: 'system',
   accent: 'neutral',
   glassEnabled: true,
@@ -131,8 +136,35 @@ function migrateData(data: any, { recoverRunningTimer = true } = {}): AppState {
   if (typeof migrated.nextTemplateId !== 'number') migrated.nextTemplateId = 1;
   if (typeof migrated.nextRecurringId !== 'number') migrated.nextRecurringId = 1;
 
+  // Angebote (B1) — neue Sammlung, Vorgabe leer.
+  if (!Array.isArray(migrated.quotes)) migrated.quotes = [];
+  if (typeof migrated.quotePrefix !== 'string' || !migrated.quotePrefix) {
+    migrated.quotePrefix = QUOTE_PREFIX_VORGABE();
+  }
+
+  // Zahlungseingänge (B5) — der frühere Ja/Nein-Schalter wird zu einer
+  // Zahlung über den vollen Betrag, gekennzeichnet als erschlossen. Ohne diese
+  // Umstellung stünde bei einer als bezahlt markierten Rechnung „0,00 € von
+  // 1.190,00 € gezahlt".
+  if (Array.isArray(migrated.invoices)) {
+    migrated.invoices = migrated.invoices.map(migriereZahlungsschalter);
+  }
+
   // ZUGFeRD — Einbettung ist Default an
   if (typeof migrated.eInvoiceEnabled !== 'boolean') migrated.eInvoiceEnabled = true;
+
+  // DATEV — die Kontonummern sind Vorgaben, bis die Kanzlei sie bestätigt.
+  // Ergänzt wird feldweise: Wer den Kontenrahmen umgestellt, aber die
+  // Beraternummer noch nicht eingetragen hat, soll seine Einstellung behalten.
+  migrated.datev = {
+    ...DATEV_VORGABEN,
+    ...(migrated.datev ?? {}),
+    konten: {
+      ...DATEV_VORGABEN.konten,
+      ...(migrated.datev?.konten ?? {}),
+      aufwand: { ...DATEV_VORGABEN.konten.aufwand, ...(migrated.datev?.konten?.aufwand ?? {}) },
+    },
+  };
 
   // Erscheinungsbild — bestehende Installationen starten im Modus „System".
   // Wer die App bisher dunkel kannte und ein dunkles System nutzt, merkt

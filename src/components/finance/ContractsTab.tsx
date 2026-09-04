@@ -8,7 +8,7 @@ import { FilterButton, FilterSection, FilterChoice } from '../FilterButton';
 import { Attachment, Contract } from '../../types';
 import { ContractUploadModal } from './ContractUploadModal';
 import { PdfViewerModal } from './PdfViewerModal';
-import { deletePdf, formatFileSize } from '../../utils/attachments';
+import { deleteAttachment, formatFileSize } from '../../utils/attachments';
 
 interface Props {
   initialCustomerFilter?: number;
@@ -68,7 +68,7 @@ export function ContractsTab({ initialCustomerFilter, onInitialFilterConsumed }:
     const target = contracts.find((c) => c.id === id);
     if (!target) return;
     try {
-      await deletePdf(target.attachmentId);
+      await deleteAttachment(target.attachmentId);
       setState((s) => {
         if (!s) return s;
         return {

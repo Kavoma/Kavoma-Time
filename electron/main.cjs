@@ -9,6 +9,8 @@ const fsp  = require('node:fs/promises');
 const crypto = require('node:crypto');
 const Store = require('electron-store').default || require('electron-store');
 const { autoUpdater } = require('electron-updater');
+const backupKey = require('./backupKey.cjs');
+const backupFile = require('./backupFile.cjs');
 
 // === PLATTFORM ===
 const IS_MAC = process.platform === 'darwin';
@@ -102,40 +104,215 @@ ipcMain.handle('store-set', (event, key, data) => {
   });
 });
 
-// === Backup-Verschlüsselung (AES-256-GCM mit dem App-Schlüssel) ===
-function encryptBackupPayload(plaintext) {
-  if (!currentEncryptionKey) {
-    throw new Error('Verschlüsselung nicht verfügbar — Backup wurde abgebrochen, um zu verhindern, dass Daten unverschlüsselt geschrieben werden.');
+// === Sicherungen ============================================================
+// Geschrieben und gelesen wird hier, nicht im Renderer: Nur hier liegen
+// Schlüssel, Store und Dateisystem — und eine Sicherung mit Belegen kann
+// gross genug werden, dass sie als Blob durch den Renderer ein
+// Speicherproblem wäre. Format und Begründung stehen in `backupFile.cjs`.
+
+/** Der Wiederherstellungs-Umschlag dieses Rechners, oder `null`. */
+function currentRecoveryEnvelope() {
+  try {
+    return backupKey.readEnvelope(app.getPath('userData'));
+  } catch (_) {
+    return null;
   }
-  const keyBuf = Buffer.from(currentEncryptionKey, 'hex');
-  const iv     = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', keyBuf, iv);
-  const enc    = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
-  const tag    = cipher.getAuthTag();
-  return {
-    version:   1,
-    encrypted: true,
-    algorithm: 'aes-256-gcm',
-    iv:        iv.toString('base64'),
-    authTag:   tag.toString('base64'),
-    data:      enc.toString('base64'),
-  };
 }
 
-ipcMain.handle('backup-encrypt', (_event, plaintext) => encryptBackupPayload(plaintext));
+ipcMain.handle('backup-recovery-status', () => {
+  const envelope = currentRecoveryEnvelope();
+  return {
+    hasEnvelope: Boolean(envelope),
+    // Angelegt ist nicht dasselbe wie angekommen — siehe `verifyCode`.
+    confirmed: Boolean(envelope?.confirmedAt),
+    createdAt: envelope?.createdAt ?? null,
+    keyAvailable: Boolean(currentEncryptionKey),
+  };
+});
 
-ipcMain.handle('backup-decrypt', (_event, payload) => {
-  if (!currentEncryptionKey) throw new Error('Kein Schlüssel verfügbar');
-  if (!payload || !payload.encrypted) throw new Error('Backup ist nicht verschlüsselt');
-  if (payload.algorithm !== 'aes-256-gcm') throw new Error('Unbekanntes Verschlüsselungs-Verfahren');
-  const keyBuf = Buffer.from(currentEncryptionKey, 'hex');
-  const iv     = Buffer.from(payload.iv,      'base64');
-  const tag    = Buffer.from(payload.authTag, 'base64');
-  const enc    = Buffer.from(payload.data,    'base64');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuf, iv);
-  decipher.setAuthTag(tag);
-  const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
-  return dec.toString('utf8');
+ipcMain.handle('backup-recovery-create', (_event, { force = false } = {}) => {
+  const { recoveryCode } = backupKey.createEnvelope(
+    app.getPath('userData'),
+    currentEncryptionKey,
+    { force: Boolean(force) },
+  );
+  return { recoveryCode };
+});
+
+ipcMain.handle('backup-recovery-verify', (_event, code) => {
+  return backupKey.verifyCode(app.getPath('userData'), code);
+});
+
+/**
+ * Sammelt, was in eine Sicherung gehört: den Datenbestand aus dem Store und
+ * die Belege, die dazu in den Metadaten stehen.
+ */
+function collectBackupSources() {
+  if (!store) throw new Error('Datenspeicher noch nicht bereit.');
+  const data = store.get('kavoma_time');
+  if (!data) throw new Error('Keine Daten zum Sichern vorhanden.');
+  const attachments = Array.isArray(data.attachments) ? data.attachments : [];
+  return { stateJson: JSON.stringify(data), attachments };
+}
+
+/**
+ * Schreibt eine Sicherung. `includeAttachments` ist die eine Stellschraube:
+ * Ohne Belege ist die Datei klein, aber sie sichert dann eben nicht alles.
+ */
+async function writeBackupTo(file, { includeAttachments = true } = {}) {
+  const { stateJson, attachments } = collectBackupSources();
+  return backupFile.writeBackup({
+    file,
+    keyHex: currentEncryptionKey,
+    stateJson,
+    recoveryEnvelope: currentRecoveryEnvelope(),
+    appVersion: app.getVersion(),
+    attachments: includeAttachments ? attachments : [],
+    readAttachment: async (id) => readAttachmentPlain(id),
+  });
+}
+
+function timestampedName(prefix) {
+  const p = (n) => String(n).padStart(2, '0');
+  const d = new Date();
+  return `${prefix}-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    + `_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.kvbak`;
+}
+
+ipcMain.handle('backup-export', async (_event, { mode = 'dialog', prefix = 'kavoma-time-backup', includeAttachments = true } = {}) => {
+  try {
+    let file;
+    if (mode === 'auto') {
+      // Ohne Dialog — für die Sicherheitskopie vor dem Erstabgleich, wo eine
+      // Rückfrage nur im Weg stünde.
+      file = path.join(app.getPath('downloads'), timestampedName(prefix));
+    } else {
+      const res = await dialog.showSaveDialog({
+        title: 'Sicherung speichern',
+        defaultPath: path.join(app.getPath('downloads'), timestampedName(prefix)),
+        filters: [{ name: 'Kavoma-Sicherung', extensions: ['kvbak'] }],
+      });
+      if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+      file = res.filePath;
+    }
+    const result = await writeBackupTo(file, { includeAttachments });
+    return { ok: true, ...result, hasRecovery: Boolean(currentRecoveryEnvelope()) };
+  } catch (e) {
+    console.error('Sicherung fehlgeschlagen:', e);
+    return { ok: false, error: e.message };
+  }
+});
+
+// Zwischen „Datei geöffnet" und „Wiederherstellung bestätigt" liegt eine
+// Rückfrage. Solange sie offen ist, wird nichts angefasst — die Belege werden
+// erst nach der Bestätigung ausgepackt, sonst blieben nach einem Abbruch
+// verwaiste Dateien liegen.
+let pendingRestore = null;
+
+ipcMain.handle('backup-import-pick', async () => {
+  const res = await dialog.showOpenDialog({
+    title: 'Sicherung einspielen',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Sicherung oder Export', extensions: ['kvbak', 'json'] },
+    ],
+  });
+  if (res.canceled || !res.filePaths?.[0]) return { canceled: true };
+  const file = res.filePaths[0];
+
+  try {
+    if (!backupFile.isContainer(file)) {
+      // Format 1 oder ein Klartext-Export.
+      const legacy = backupFile.readLegacy(file);
+      if (legacy.kind === 'encrypted-v1') {
+        if (!currentEncryptionKey) {
+          throw new Error('Für diese Sicherung wird der Schlüssel dieses Rechners gebraucht, und der ist nicht verfügbar.');
+        }
+        const stateJson = backupFile.openLegacyEncrypted(legacy.payload, currentEncryptionKey);
+        pendingRestore = null;
+        return {
+          canceled: false, version: 1, file: path.basename(file),
+          attachmentCount: 0, needsCode: false, state: stateJson,
+        };
+      }
+      pendingRestore = null;
+      return {
+        canceled: false, version: 0, file: path.basename(file),
+        attachmentCount: 0, needsCode: false, state: JSON.stringify(legacy.payload),
+      };
+    }
+
+    const header = backupFile.readHeader(file);
+    // Erst der Schlüssel dieses Rechners. Auf dem eigenen Gerät wird nie nach
+    // dem Code gefragt.
+    if (currentEncryptionKey) {
+      try {
+        const state = backupFile.openState(file, header, currentEncryptionKey);
+        pendingRestore = { file, header, keyHex: currentEncryptionKey };
+        return {
+          canceled: false, version: 2, file: path.basename(file),
+          createdAt: header.createdAt ?? null, appVersion: header.appVersion ?? null,
+          attachmentCount: header.attachments?.length ?? 0,
+          skippedAttachments: header.skippedAttachments ?? [],
+          needsCode: false, state,
+        };
+      } catch (_) {
+        // Fremde Sicherung — weiter zum Code.
+      }
+    }
+    pendingRestore = { file, header, keyHex: null };
+    return {
+      canceled: false, version: 2, file: path.basename(file),
+      createdAt: header.createdAt ?? null, appVersion: header.appVersion ?? null,
+      attachmentCount: header.attachments?.length ?? 0,
+      skippedAttachments: header.skippedAttachments ?? [],
+      needsCode: true,
+      hasRecovery: Boolean(header.recovery),
+      state: null,
+    };
+  } catch (e) {
+    pendingRestore = null;
+    return { canceled: false, error: e.message };
+  }
+});
+
+/** Zweiter Anlauf mit dem Wiederherstellungscode. */
+ipcMain.handle('backup-import-unlock', (_event, code) => {
+  if (!pendingRestore) return { ok: false, error: 'Keine Sicherung geöffnet.' };
+  try {
+    const keyHex = backupKey.openEnvelope(pendingRestore.header.recovery, code);
+    const state = backupFile.openState(pendingRestore.file, pendingRestore.header, keyHex);
+    pendingRestore.keyHex = keyHex;
+    return { ok: true, state };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+/**
+ * Packt die Belege aus — erst jetzt, nach der Bestätigung. Sie werden mit dem
+ * Schlüssel **dieses** Geräts neu geschrieben, damit sie danach normal
+ * weiterbenutzbar sind.
+ */
+ipcMain.handle('backup-restore-attachments', async () => {
+  if (!pendingRestore?.keyHex) return { restored: 0, failed: [] };
+  if (!currentEncryptionKey) {
+    return { restored: 0, failed: [{ id: '*', grund: 'Verschlüsselung auf diesem Rechner nicht verfügbar.' }] };
+  }
+  try {
+    const result = await backupFile.extractAttachments(
+      pendingRestore.file, pendingRestore.header, pendingRestore.keyHex,
+      async (id, plaintext) => { writeAttachmentPlain(id, plaintext); },
+    );
+    return result;
+  } finally {
+    pendingRestore = null;
+  }
+});
+
+ipcMain.handle('backup-import-cancel', () => {
+  pendingRestore = null;
+  return true;
 });
 
 ipcMain.handle('get-encryption-status', () => {
@@ -330,6 +507,11 @@ const AUTO_BACKUP_DEFAULTS = {
   directory: null,
   keep: 10,
   lastRunAt: 0,
+  // Belege gehören in die Sicherung — eine Sicherung ohne sie lässt die
+  // aufbewahrungspflichtigen Rechnungen zurück. Abschaltbar bleibt es
+  // trotzdem: Wer als Ziel einen kleinen Cloud-Ordner gewählt hat, soll
+  // entscheiden dürfen, statt eine volle Platte vorzufinden.
+  includeAttachments: true,
 };
 
 let autoBackupTimer = null;
@@ -342,6 +524,7 @@ function getAutoBackupConfig() {
   const cfg = { ...AUTO_BACKUP_DEFAULTS, ...stored };
   cfg.intervalHours = Math.min(24 * 7, Math.max(1, Number(cfg.intervalHours) || 24));
   cfg.keep = Math.min(100, Math.max(1, Number(cfg.keep) || 10));
+  cfg.includeAttachments = cfg.includeAttachments !== false;
   cfg.enabled = Boolean(cfg.enabled) && Boolean(cfg.directory);
   return cfg;
 }
@@ -377,24 +560,19 @@ async function rotateAutoBackups(directory, keep) {
 async function runAutoBackup() {
   const cfg = getAutoBackupConfig();
   if (!cfg.directory) throw new Error('Kein Zielordner gewählt.');
-  if (!store) throw new Error('Datenspeicher noch nicht bereit.');
-
-  const data = store.get('kavoma_time');
-  if (!data) throw new Error('Keine Daten zum Sichern vorhanden.');
-
-  // Wirft, wenn kein Schlüssel da ist — bewusst kein Klartext-Fallback
-  const payload = encryptBackupPayload(JSON.stringify(data));
 
   await fsp.mkdir(cfg.directory, { recursive: true });
   const now = new Date();
   const file = path.join(cfg.directory, backupFileName(now));
-  await fsp.writeFile(file, JSON.stringify({ kavoma: 'backup', ...payload }, null, 2), 'utf8');
+
+  // Wirft, wenn kein Schlüssel da ist — bewusst kein Klartext-Fallback.
+  const result = await writeBackupTo(file, { includeAttachments: cfg.includeAttachments });
 
   const removed = await rotateAutoBackups(cfg.directory, cfg.keep);
   saveAutoBackupConfig({ lastRunAt: now.getTime() });
   autoBackupLastError = null;
   autoBackupLastFile = file;
-  return { file, removed };
+  return { file, removed, attachmentCount: result.attachmentCount, bytes: result.bytes };
 }
 
 async function maybeRunAutoBackup() {
@@ -526,6 +704,66 @@ ipcMain.handle('install-downloaded-update', () => {
   return true;
 });
 
+// === Steuerliche Exporte in einen Ordner ===
+// Der Z3-Export besteht aus mehreren Dateien, die zusammengehören — der
+// Renderer kann keinen Ordner schreiben. Was hineinkommt, entscheidet er
+// trotzdem: Hier wird nur abgelegt, damit die Aufbereitung testbar bleibt.
+//
+// Geschrieben wird in einen **Unterordner** mit sprechendem Namen. Ein Export,
+// der fünf Dateien lose in „Dokumente" streut, ist beim nächsten Mal nicht
+// mehr auseinanderzuhalten — und die `index.xml` verweist relativ auf ihre
+// Nachbarn, gehört also ohnehin mit ihnen zusammen.
+ipcMain.handle('export-write-folder', async (_event, { ordnerName, dateien, titel } = {}) => {
+  try {
+    if (!Array.isArray(dateien) || dateien.length === 0) {
+      return { ok: false, error: 'Es gibt nichts zu schreiben.' };
+    }
+    const res = await dialog.showOpenDialog({
+      title: titel || 'Zielordner wählen',
+      properties: ['openDirectory', 'createDirectory'],
+      defaultPath: app.getPath('documents'),
+    });
+    if (res.canceled || !res.filePaths?.[0]) return { ok: false, canceled: true };
+
+    // Der Name kommt aus dem Renderer — er darf nicht aus dem Zielordner
+    // herausführen.
+    const sicher = String(ordnerName || 'export').replace(/[^0-9A-Za-z_-]/g, '-');
+    const ziel = path.join(res.filePaths[0], sicher);
+    fs.mkdirSync(ziel, { recursive: true });
+
+    const geschrieben = [];
+    for (const d of dateien) {
+      const name = path.basename(String(d.name));
+      fs.writeFileSync(path.join(ziel, name), Buffer.from(d.bytes));
+      geschrieben.push(name);
+    }
+    return { ok: true, directory: ziel, files: geschrieben };
+  } catch (e) {
+    console.error('Export in Ordner fehlgeschlagen:', e);
+    return { ok: false, error: e.message };
+  }
+});
+
+// Eine einzelne Datei mit Speichern-Dialog — für den DATEV-Stapel, der genau
+// aus einer besteht. Über den Browser-Download ginge es auch, aber der landet
+// wortlos in „Downloads"; wer eine Datei zur Kanzlei schickt, will wissen,
+// wohin sie geht.
+ipcMain.handle('export-write-file', async (_event, { dateiname, bytes, titel, filter } = {}) => {
+  try {
+    const res = await dialog.showSaveDialog({
+      title: titel || 'Export speichern',
+      defaultPath: path.join(app.getPath('documents'), path.basename(String(dateiname || 'export.csv'))),
+      filters: filter ? [filter] : undefined,
+    });
+    if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+    fs.writeFileSync(res.filePath, Buffer.from(bytes));
+    return { ok: true, file: res.filePath };
+  } catch (e) {
+    console.error('Export fehlgeschlagen:', e);
+    return { ok: false, error: e.message };
+  }
+});
+
 // === Recht auf Löschung (DSGVO Art. 17) ===
 // Entfernt alle gespeicherten Daten (electron-store, Schlüsseldatei, sonstige
 // App-Dateien in userData) und startet die App neu, damit sie wie nach einer
@@ -539,7 +777,13 @@ ipcMain.handle('wipe-all-data', async () => {
     // `kavoma-sync.key` gehört dazu: Bleibt der Datenschlüssel liegen, könnte
     // ein späteres Gerät mit derselben Anmeldung die Cloud-Daten wieder
     // entschlüsseln — nach einem „alles löschen" wäre das eine böse Überraschung.
-    const filesToRemove = ['kavoma.key', 'kavoma-time-data.json', 'kavoma-sync.key'];
+    // Der Wiederherstellungs-Umschlag gehört dazu: Er verschliesst genau den
+    // Schlüssel, der hier gerade gelöscht wird. Bliebe er liegen, wäre er ein
+    // Umschlag um nichts — und die alten Sicherungen, die er öffnen könnte,
+    // sind nach einem „alles löschen" ohnehin nicht mehr gewollt.
+    const filesToRemove = [
+      'kavoma.key', 'kavoma-time-data.json', 'kavoma-sync.key', backupKey.RECOVERY_FILE,
+    ];
     for (const name of filesToRemove) {
       const p = path.join(userDataDir, name);
       try { if (fs.existsSync(p)) fs.rmSync(p, { force: true }); } catch (_) { /* skip */ }

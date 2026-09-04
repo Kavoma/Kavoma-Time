@@ -23,6 +23,7 @@ export const SYNCED_COLLECTIONS: readonly CollectionSpec[] = [
   { entity: 'customer',         stateKey: 'customers',         label: 'Kunde',              nameKey: 'name' },
   { entity: 'project',          stateKey: 'projects',          label: 'Projekt',            nameKey: 'name' },
   { entity: 'invoice',          stateKey: 'invoices',          label: 'Rechnung',           nameKey: 'number' },
+  { entity: 'quote',            stateKey: 'quotes',            label: 'Angebot',            nameKey: 'number' },
   { entity: 'invoiceTemplate',  stateKey: 'invoiceTemplates',  label: 'Rechnungsvorlage',   nameKey: 'name' },
   { entity: 'recurringInvoice', stateKey: 'recurringInvoices', label: 'Wiederkehrende Rechnung' },
   { entity: 'attachment',       stateKey: 'attachments',       label: 'Beleg',              nameKey: 'filename' },
@@ -47,7 +48,11 @@ export const SYNCED_SETTINGS: readonly SettingSpec[] = [
   { kind: 'object', path: 'issuer',             label: 'Absenderdaten' },
   { kind: 'value',  path: 'weeklyTargetHours',  label: 'Wochen-Sollstunden' },
   { kind: 'value',  path: 'invoicePrefix',      label: 'Rechnungs-Präfix' },
+  { kind: 'value',  path: 'quotePrefix',        label: 'Angebots-Präfix' },
   { kind: 'value',  path: 'eInvoiceEnabled',    label: 'E-Rechnung' },
+  // Kontenrahmen und Kontonummern gehören zur Buchhaltung, nicht zum Gerät:
+  // Ein zweiter Rechner soll denselben Stapel erzeugen wie der erste.
+  { kind: 'object', path: 'datev',               label: 'DATEV-Einstellungen' },
   { kind: 'value',  path: 'appearance',         label: 'Erscheinungsbild' },
   { kind: 'value',  path: 'accent',             label: 'Akzentfarbe' },
 ] as const;

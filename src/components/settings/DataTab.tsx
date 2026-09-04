@@ -1,12 +1,13 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import { Database, Download, Upload, Trash2, ShieldCheck, Clock, FolderOpen } from 'lucide-react';
+import { useEffect, useId, useState } from 'react';
+import { Database, Download, Upload, Trash2, ShieldCheck, Clock, FolderOpen, KeyRound, Loader2 } from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
-import type { AutoBackupConfig } from '../../types';
+import type { AutoBackupConfig, BackupImportResult } from '../../types';
 import { SettingsCard } from './SettingsCard';
 import { InfoTooltip } from './InfoTooltip';
 import { Checkbox } from '../Checkbox';
 import { NumberInput } from '../NumberInput';
 import { SyncCard } from './SyncCard';
+import { BackupRecoveryCard } from './BackupRecoveryCard';
 
 interface DataTabProps {
   /** Wird aufgerufen, wenn ein Backup eingespielt werden soll (öffnet ConfirmRestoreModal im Parent). */
@@ -17,8 +18,15 @@ interface DataTabProps {
 
 export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
   const { state } = useAppState();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const intervalId = useId();
+
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  /** Eine geöffnete, aber noch verschlossene Sicherung von einem anderen Rechner. */
+  const [fremdeSicherung, setFremdeSicherung] = useState<BackupImportResult | null>(null);
+  const [codeEingabe, setCodeEingabe] = useState('');
+  const [codeFehler, setCodeFehler] = useState<string | null>(null);
+  const [entsperrt, setEntsperrt] = useState(false);
 
   // Auto-Backup-Konfiguration lebt im Main-Prozess, nicht im AppState
   const [autoBackup, setAutoBackup] = useState<AutoBackupConfig | null>(null);
@@ -61,44 +69,52 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
   if (!state) return null;
 
   /**
-   * Verschlüsseltes Backup. Schlägt bewusst hart fehl, statt auf Klartext
-   * zurückzufallen — ein unerwartet unverschlüsseltes Backup wäre ein
-   * stiller Datenschutzverstoß. Wer eine Klartext-Datei braucht, nimmt den
-   * ausdrücklichen portablen Export darunter.
+   * Verschlüsselte Sicherung. Geschrieben wird im Main-Prozess — dort liegen
+   * Schlüssel und Belege, und eine Sicherung mit Belegen ist zu gross, um sie
+   * durch den Renderer zu schieben.
+   *
+   * Schlägt bewusst hart fehl, statt auf Klartext zurückzufallen: Eine
+   * unerwartet unverschlüsselte Sicherung wäre ein stiller Datenschutzverstoß.
+   * Wer eine Klartext-Datei braucht, nimmt den ausdrücklichen portablen Export
+   * darunter.
    */
   const exportData = async () => {
-    if (!window.api?.encryptBackup) {
+    if (!window.api?.backupExport) {
       window.alert(
-        'Verschlüsselte Backups sind hier nicht verfügbar (App läuft ohne Electron-Schicht).\n\n' +
+        'Verschlüsselte Sicherungen sind hier nicht verfügbar (App läuft ohne Electron-Schicht).\n\n' +
         'Nutze stattdessen den portablen JSON-Export — der schreibt bewusst unverschlüsselt.',
       );
       return;
     }
-
-    let output: string;
+    setIsExporting(true);
+    setExportMessage(null);
     try {
-      const payload = await window.api.encryptBackup(JSON.stringify(state));
-      if (!payload?.encrypted) {
-        throw new Error('Die Verschlüsselung lieferte kein verschlüsseltes Ergebnis zurück.');
+      const res = await window.api.backupExport({ mode: 'dialog' });
+      if (res.canceled) return;
+      if (!res.ok) {
+        setExportMessage({
+          ok: false,
+          text: `Die Sicherung wurde ABGEBROCHEN: ${res.error ?? 'Unbekannter Fehler'}. `
+            + 'Es wurde keine Datei geschrieben — deine Daten landen nicht im Klartext auf der Platte.',
+        });
+        return;
       }
-      output = JSON.stringify({ kavoma: 'backup', ...payload }, null, 2);
-    } catch (err) {
-      console.error('Backup-Verschlüsselung fehlgeschlagen:', err);
-      window.alert(
-        'Das Backup wurde ABGEBROCHEN, weil die Verschlüsselung fehlgeschlagen ist.\n\n' +
-        'Es wurde keine Datei geschrieben — deine Daten landen nicht im Klartext auf der Platte.\n\n' +
-        'Prüfe die Verschlüsselungs-Warnung oben in der App.',
-      );
-      return;
+      // Was fehlt, muss dabeistehen. Eine Sicherung, die man für vollständig
+      // hält, ist schlimmer als eine, von der man weiß, was ihr fehlt.
+      const teile = [`${res.attachmentCount ?? 0} Belege gesichert`];
+      if (!res.hasRecovery) {
+        teile.push('OHNE Wiederherstellungscode — diese Datei öffnet nur dieser Rechner');
+      }
+      if (res.skippedAttachments?.length) {
+        teile.push(`${res.skippedAttachments.length} Belege liegen nicht auf diesem Gerät und fehlen`);
+      }
+      setExportMessage({
+        ok: res.hasRecovery !== false && !res.skippedAttachments?.length,
+        text: `Sicherung geschrieben: ${res.file} — ${teile.join('; ')}.`,
+      });
+    } finally {
+      setIsExporting(false);
     }
-
-    const blob = new Blob([output], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `kavoma-time-backup-${new Date().toISOString().split('T')[0]}.kvbak`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const exportPortableJson = () => {
@@ -123,42 +139,87 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
     URL.revokeObjectURL(url);
   };
 
-  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const raw = event.target?.result as string;
-        const parsed = JSON.parse(raw);
+  /** Gemeinsamer Abschluss: JSON prüfen und die Rückfrage im Parent öffnen. */
+  const uebergeben = (stateJson: string) => {
+    const data = JSON.parse(stateJson);
+    if (!data || !Array.isArray(data.customers) || !Array.isArray(data.entries)) {
+      throw new Error('Die Datei enthält keinen gültigen Datenbestand.');
+    }
+    onRequestRestore(data);
+  };
 
-        let data: any;
-        if (parsed?.encrypted && parsed?.data && window.api?.decryptBackup) {
-          const decrypted = await window.api.decryptBackup(parsed);
-          data = JSON.parse(decrypted);
-        } else if (parsed?.kavoma === 'portable-export' && parsed?.data) {
-          data = parsed.data;
-        } else {
-          data = parsed;
-        }
+  /**
+   * Sicherung einspielen. Der Dateidialog liegt im Main-Prozess, weil die Datei
+   * dort auch gelesen wird — der Renderer bekommt nur den Datenbestand.
+   *
+   * Auf dem eigenen Rechner öffnet der lokale Schlüssel die Datei und es wird
+   * nie nach einem Code gefragt. Erst wenn er nicht passt — die Sicherung kommt
+   * von woanders, oder der Schlüsselbund ist weg — kommt der
+   * Wiederherstellungscode ins Spiel.
+   */
+  const importData = async () => {
+    if (!window.api?.backupImportPick) {
+      window.alert('Sicherungen einspielen geht nur in der Desktop-App.');
+      return;
+    }
+    setCodeFehler(null);
+    const res = await window.api.backupImportPick();
+    if (res.canceled) return;
 
-        if (!data || !Array.isArray(data.customers) || !Array.isArray(data.entries)) {
-          throw new Error('Ungültiges Format');
-        }
+    if (res.error) {
+      window.alert(`Die Datei konnte nicht gelesen werden.\n\n${res.error}`);
+      return;
+    }
 
-        onRequestRestore(data);
-      } catch (err) {
-        console.error(err);
-        alert(
-          'Fehler beim Importieren.\n\n' +
-          '• Verschlüsselte Backups (.kvbak) lassen sich nur in der Installation öffnen, in der sie erstellt wurden.\n' +
-          '  Nach „Alle Daten löschen" wurde der Schlüssel ersetzt — alte .kvbak-Dateien sind dann nicht mehr entschlüsselbar.\n' +
-          '• Klartext-Exporte (.json) sollten sich immer einspielen lassen. Falls hier ein Fehler kommt, ist die Datei evtl. defekt oder hat ein anderes Format.',
+    if (res.needsCode) {
+      if (!res.hasRecovery) {
+        window.alert(
+          'Diese Sicherung lässt sich hier nicht öffnen.\n\n' +
+          'Sie wurde auf einem anderen Rechner geschrieben und trägt keinen ' +
+          'Wiederherstellungscode bei sich — das ist der Mangel, den neuere ' +
+          'Sicherungen nicht mehr haben. Öffnen kann sie nur der Rechner, auf ' +
+          'dem sie entstanden ist.',
         );
+        await window.api.backupImportCancel();
+        return;
       }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
+      setCodeEingabe('');
+      setFremdeSicherung(res);
+      return;
+    }
+
+    try {
+      uebergeben(res.state!);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'Die Datei hat ein unbekanntes Format.');
+      await window.api.backupImportCancel();
+    }
+  };
+
+  /** Zweiter Anlauf für eine fremde Sicherung. */
+  const mitCodeOeffnen = async () => {
+    setEntsperrt(true);
+    setCodeFehler(null);
+    try {
+      const res = await window.api!.backupImportUnlock(codeEingabe);
+      if (!res.ok || !res.state) {
+        setCodeFehler(res.error ?? 'Der Code wurde nicht angenommen.');
+        return;
+      }
+      uebergeben(res.state);
+      setFremdeSicherung(null);
+    } catch (e) {
+      setCodeFehler(e instanceof Error ? e.message : 'Die Sicherung ließ sich nicht öffnen.');
+    } finally {
+      setEntsperrt(false);
+    }
+  };
+
+  const importAbbrechen = async () => {
+    setFremdeSicherung(null);
+    setCodeEingabe('');
+    setCodeFehler(null);
+    await window.api?.backupImportCancel();
   };
 
   return (
@@ -166,39 +227,53 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
       {/* Backup */}
       <SyncCard />
 
+      <BackupRecoveryCard />
+
       <SettingsCard
         icon={Database}
-        title="Backup"
+        title="Sicherung"
         headerAside={(
-          <InfoTooltip ariaLabel="Hinweise zum Backup">
+          <InfoTooltip ariaLabel="Hinweise zur Sicherung">
             <div className="font-bold mb-1">Was wird gesichert?</div>
-            Die komplette Datenbank (Kunden, Projekte, Zeiten, Rechnungen, Vorlagen, Einstellungen) wird als
-            verschlüsselte <span className="font-mono">.kvbak</span>-Datei exportiert.
-            Sie kann jederzeit wieder eingespielt werden, aber nur auf derselben Installation, weil der
-            Verschlüsselungsschlüssel lokal gewrappt ist (Windows DPAPI).
+            Die komplette Datenbank (Kunden, Projekte, Zeiten, Rechnungen, Vorlagen,
+            Einstellungen) <span className="font-bold text-ink">und die PDF-Belege</span> —
+            Eingangsrechnungen und Verträge — als eine verschlüsselte
+            <span className="font-mono"> .kvbak</span>-Datei.
+            <div className="mt-2">
+              Mit einem Wiederherstellungscode lässt sie sich auf jedem Rechner
+              einspielen. Ohne ihn nur auf diesem, weil der Schlüssel dann am
+              Schlüsselbund dieses Geräts hängt.
+            </div>
           </InfoTooltip>
         )}
       >
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={exportData}
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface"
-          >
-            <Download size={14} /> Backup exportieren
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface"
-          >
-            <Upload size={14} /> Backup einspielen
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={importData}
-            accept=".json,.kvbak"
-            className="hidden"
-          />
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={exportData}
+              disabled={isExporting}
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface disabled:opacity-40"
+            >
+              {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              {isExporting ? 'Sichere …' : 'Sicherung exportieren'}
+            </button>
+            <button
+              onClick={importData}
+              className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-divider bg-paper py-3 text-xs font-bold text-ink transition-colors hover:border-ink hover:bg-surface"
+            >
+              <Upload size={14} /> Sicherung einspielen
+            </button>
+          </div>
+
+          {exportMessage && (
+            <div className={`rounded-md border px-3 py-2 text-[11px] break-all ${
+              exportMessage.ok
+                ? 'border-success-line/40 bg-success-soft text-success'
+                : 'border-warning-line bg-warning-soft text-warning'
+            }`}>
+              {exportMessage.text}
+            </div>
+          )}
         </div>
       </SettingsCard>
 
@@ -211,6 +286,9 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
             <div className="font-bold mb-1">Wie funktioniert das?</div>
             Die App legt im gewählten Ordner regelmäßig ein verschlüsseltes
             <span className="font-mono"> .kvbak</span> ab und behält die neuesten davon.
+            Belege sind voreingestellt dabei — das macht die Dateien deutlich grösser,
+            aber ohne sie sichert die Automatik die aufbewahrungspflichtigen Rechnungen
+            nicht mit.
             Der Zeitpunkt wird beim Start und danach alle fünf Minuten geprüft — die App muss
             also laufen (Tray genügt). Ohne verfügbare Verschlüsselung wird abgebrochen,
             nie im Klartext geschrieben.
@@ -276,6 +354,21 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
                 />
               </div>
             </div>
+
+            <Checkbox
+              checked={autoBackup?.includeAttachments !== false}
+              onChange={(val) => void patchAutoBackup({ includeAttachments: val })}
+              className="w-full rounded-md border border-divider bg-paper px-3 py-2.5 hover:border-ink/60"
+              label={
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-ink">PDF-Belege mitsichern</div>
+                  <div className="text-[11px] text-muted">
+                    Eingangsrechnungen und Verträge. Ohne sie ist die Sicherung klein,
+                    sichert aber nur die Datenbank.
+                  </div>
+                </div>
+              }
+            />
 
             <div className="flex items-center gap-2">
               <div className="min-w-0 flex-1 rounded-md border border-divider bg-paper px-3 py-2 text-[11px]">
@@ -348,7 +441,9 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
         <p className="text-[12px] leading-relaxed text-muted">
           Entfernt sämtliche in dieser App gespeicherten Daten (Zeiteinträge, Kunden, Projekte, Rechnungen)
           sowie den lokalen Verschlüsselungsschlüssel. Anschließend startet die App neu wie nach einer Neuinstallation.
-          Erstelle vorher ggf. ein Backup über „Backup exportieren".
+          Erstelle vorher ggf. eine Sicherung über „Sicherung exportieren" — und lege
+          dir den Wiederherstellungscode zurecht: Der hier gelöschte Schlüssel ist
+          danach fort, und alte Sicherungen öffnet dann nur noch der Code.
         </p>
         <button
           onClick={onRequestWipe}
@@ -357,6 +452,78 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
           <Trash2 size={14} /> Alle Daten löschen
         </button>
       </SettingsCard>
+      {/*
+        Fremde Sicherung: Der Schlüssel dieses Rechners passt nicht. Das ist der
+        Fall, für den es den Wiederherstellungscode gibt — neuer Rechner,
+        Systemneuinstallation, verlorener Schlüsselbund.
+      */}
+      {fremdeSicherung && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 kv-scrim" onClick={entsperrt ? undefined : importAbbrechen} />
+          <div className="relative z-10 mx-4 w-full max-w-md kv-overlay text-ink">
+            <header className="flex items-center gap-2 border-b border-divider px-5 py-4">
+              <KeyRound size={16} className="text-accent" />
+              <h2 className="text-sm font-bold uppercase tracking-[0.2em]">
+                Sicherung entsperren
+              </h2>
+            </header>
+
+            <div className="space-y-4 px-5 py-5">
+              <p className="text-xs leading-relaxed text-muted">
+                Diese Sicherung stammt nicht von diesem Rechner. Gib den
+                Wiederherstellungscode ein, der beim Anlegen angezeigt wurde.
+                Groß- und Kleinschreibung sowie Bindestriche sind egal.
+              </p>
+
+              <div className="kv-raised px-3 py-2 text-[11px] text-muted">
+                <div className="font-mono text-ink">{fremdeSicherung.file}</div>
+                {fremdeSicherung.createdAt && (
+                  <div className="mt-0.5">
+                    Geschrieben am {new Date(fremdeSicherung.createdAt).toLocaleString('de-DE')}
+                    {fremdeSicherung.appVersion && ` mit Version ${fremdeSicherung.appVersion}`}
+                  </div>
+                )}
+                <div>
+                  {fremdeSicherung.attachmentCount
+                    ? `${fremdeSicherung.attachmentCount} Belege enthalten`
+                    : 'Keine Belege enthalten'}
+                </div>
+              </div>
+
+              <input
+                className="kv-input font-mono"
+                type="text"
+                autoFocus
+                placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+                value={codeEingabe}
+                onChange={(e) => { setCodeEingabe(e.target.value); setCodeFehler(null); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && codeEingabe.trim()) void mitCodeOeffnen(); }}
+              />
+
+              {codeFehler && (
+                <p className="rounded-md border border-danger-line bg-danger-soft px-3 py-2 text-xs text-danger">
+                  {codeFehler}
+                </p>
+              )}
+            </div>
+
+            <footer className="flex justify-end gap-2 border-t border-divider px-5 py-4">
+              <button type="button" className="kv-btn kv-btn-quiet" onClick={importAbbrechen} disabled={entsperrt}>
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                className="kv-btn kv-btn-primary"
+                onClick={() => void mitCodeOeffnen()}
+                disabled={entsperrt || !codeEingabe.trim()}
+              >
+                {entsperrt ? <Loader2 size={13} className="animate-spin" /> : <KeyRound size={13} />}
+                Entsperren
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

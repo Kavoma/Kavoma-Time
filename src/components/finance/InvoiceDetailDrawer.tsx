@@ -1,18 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Download, ClipboardList, FileCode2, Ban, Trash2, AlertTriangle,
-  Edit2, Repeat, Check, ChevronRight, Building2, FolderKanban, FileWarning,
+  Edit2, Repeat, ChevronRight, Building2, FolderKanban, FileWarning,
 } from 'lucide-react';
-import type { Invoice } from '../../types';
+import type { Invoice, Payment } from '../../types';
+import { PaymentsSection } from './PaymentsSection';
+import { ZAHLUNGSSTAND_LABEL, gesamtforderung, zahlungsstand } from '../../utils/payments';
 import { useAppState } from '../../state/AppStateContext';
-import { renderInvoicePreviewDataUrl } from '../../utils/invoicePdf';
+import { renderInvoicePreviewDataUrl } from '../../utils/pdfLazy';
 
 interface Props {
   open: boolean;
   invoice: Invoice | null;
   onClose: () => void;
   onTogglePaid: (id: string) => void;
+  onAddPayment: (id: string, daten: {
+    amount: number; paidAt: number; method?: Payment['method']; note?: string;
+  }) => void;
+  onRemovePayment: (id: string, zahlungId: string) => void;
   onDownloadPdf: (id: string) => void;
   onDownloadReport: (id: string) => void;
   onDownloadXml: (id: string) => void;
@@ -45,7 +51,7 @@ function isOverdue(inv: Invoice): boolean {
 
 export function InvoiceDetailDrawer({
   open, invoice, onClose,
-  onTogglePaid, onDownloadPdf, onDownloadReport, onDownloadXml,
+  onTogglePaid, onAddPayment, onRemovePayment, onDownloadPdf, onDownloadReport, onDownloadXml,
   onDownloadDunning, onRemoveReminder, onAddReminder, onCancelInvoice, onDelete, onEditDraft,
   onNavigateCustomer, onNavigateProject,
 }: Props) {
@@ -77,19 +83,29 @@ export function InvoiceDetailDrawer({
     ? state.projects.find((p) => p.id === invoice.projectId)
     : undefined;
 
-  // Live-PDF nur rendern, wenn der PDF-Tab angefordert wurde
-  const pdfUrl = useMemo(() => {
-    if (!pdfRequested || !invoice || !customer || !state) return null;
-    try {
-      const entries = invoice.entryIds.length > 0
-        ? state.entries.filter((e) => invoice.entryIds.includes(e.id))
-        : undefined;
-      const raw = renderInvoicePreviewDataUrl(invoice, state.issuer, customer, entries);
-      return `${raw}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
-    } catch (e) {
-      console.error('PDF-Vorschau fehlgeschlagen:', e);
-      return null;
+  // Live-PDF nur rendern, wenn der PDF-Tab angefordert wurde. Der Renderer
+  // wird dabei erst nachgeladen (siehe `pdfLazy`), das Ergebnis kommt also
+  // asynchron — `aktuell` verwirft die Antwort einer Rechnung, von der man
+  // inzwischen weggeklickt hat.
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pdfRequested || !invoice || !customer || !state) {
+      setPdfUrl(null);
+      return;
     }
+    let aktuell = true;
+    const entries = invoice.entryIds.length > 0
+      ? state.entries.filter((e) => invoice.entryIds.includes(e.id))
+      : undefined;
+    renderInvoicePreviewDataUrl(invoice, state.issuer, customer, entries)
+      .then((raw) => {
+        if (aktuell) setPdfUrl(`${raw}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`);
+      })
+      .catch((e) => {
+        console.error('PDF-Vorschau fehlgeschlagen:', e);
+        if (aktuell) setPdfUrl(null);
+      });
+    return () => { aktuell = false; };
   }, [pdfRequested, invoice, customer, state]);
 
   if (!invoice) return null;
@@ -100,13 +116,18 @@ export function InvoiceDetailDrawer({
   const overdue = !isDraft && !isCancelled && !isStorno && isOverdue(invoice);
   const hasReminders = invoice.reminders.length > 0;
   const totalFees = invoice.reminders.reduce((s, r) => s + r.fee, 0);
-  const displayTotal = invoice.total + totalFees;
+  const displayTotal = gesamtforderung(invoice);
 
   const statusChip = (() => {
     if (isDraft) return { label: 'Entwurf', cls: 'bg-warning-soft text-warning border-warning-line' };
     if (isCancelled) return { label: 'Storniert', cls: 'bg-neutral-soft text-muted border-neutral-line' };
     if (isStorno) return { label: 'Storno-Rechnung', cls: 'bg-neutral-soft text-muted border-neutral-line' };
-    if (invoice.paid) return { label: 'Bezahlt', cls: 'bg-success-soft text-success border-success-line' };
+    const stand = zahlungsstand(invoice);
+    if (stand === 'bezahlt') return { label: 'Bezahlt', cls: 'bg-success-soft text-success border-success-line' };
+    if (stand === 'ueberzahlt') return { label: 'Überzahlt', cls: 'bg-info-soft text-info border-info-line' };
+    // Teilzahlung sticht die Überfälligkeit: Dass etwas kam, ist die wichtigere
+    // Auskunft als dass der Rest zu spät ist.
+    if (stand === 'teilweise') return { label: ZAHLUNGSSTAND_LABEL.teilweise, cls: 'bg-warning-soft text-warning border-warning-line' };
     if (overdue) return { label: 'Überfällig', cls: 'bg-danger-soft text-danger border-danger-line' };
     return { label: 'Offen', cls: 'bg-warning-soft text-warning border-warning-line' };
   })();
@@ -193,30 +214,14 @@ export function InvoiceDetailDrawer({
             <div className="min-h-0 flex-1 overflow-y-auto">
               {tab === 'overview' ? (
                 <div className="flex flex-col gap-5 p-5">
-                  {/* Status-Toggle (nur aktive Rechnungen) */}
+                  {/* Zahlungseingänge (nur aktive Rechnungen) */}
                   {!isDraft && !isCancelled && !isStorno && (
-                    <button
-                      type="button"
-                      onClick={() => onTogglePaid(invoice.id)}
-                      className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
-                        invoice.paid
-                          ? 'border-success-line bg-success-soft'
-                          : 'border-divider bg-paper hover:border-ink/40'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-full ${invoice.paid ? 'bg-success-soft text-success' : 'bg-neutral-soft text-muted'}`}>
-                          <Check size={14} strokeWidth={3} />
-                        </div>
-                        <div className="text-left">
-                          <div className="text-[12px] font-bold text-ink">{invoice.paid ? 'Bezahlt' : 'Als bezahlt markieren'}</div>
-                          <div className="text-[10px] text-muted">
-                            {invoice.paid && invoice.paidAt ? `am ${fmtDate(invoice.paidAt)}` : 'Klick wechselt den Zahlungsstatus'}
-                          </div>
-                        </div>
-                      </div>
-                      <ChevronRight size={14} className="text-muted" />
-                    </button>
+                    <PaymentsSection
+                      invoice={invoice}
+                      onTogglePaid={onTogglePaid}
+                      onAddPayment={onAddPayment}
+                      onRemovePayment={onRemovePayment}
+                    />
                   )}
 
                   {/* Beträge */}
