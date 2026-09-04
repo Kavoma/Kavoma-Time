@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, FileText, FileCode2, AlertTriangle, Loader2, Sparkles } from 'lucide-react';
 import { Attachment, VendorInvoice, VendorInvoiceCategory } from '../../types';
 import { uploadDocument, formatFileSize, detectMime } from '../../utils/attachments';
-import { findEInvoiceInFile, type EInvoiceFound } from '../../utils/eInvoicePdf';
+import { findEInvoiceInFile, type EInvoiceFound } from '../../utils/pdfLazy';
 import { DatePicker } from '../DatePicker';
 import { EInvoiceView } from './EInvoiceView';
 import { newNumericId } from '../../sync/ids';

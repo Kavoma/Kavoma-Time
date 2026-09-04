@@ -8,7 +8,7 @@ import {
   QUOTE_PREFIX_VORGABE, QUOTE_STATE_LABEL, angebotZuRechnungsentwurf,
   istAbrechenbar, kennzahlen, neuesAngebot, quoteState, type QuoteState,
 } from '../../utils/quotes';
-import { downloadQuotePdf } from '../../utils/quotePdf';
+import { downloadQuotePdf } from '../../utils/pdfLazy';
 import { QuoteEditModal } from './QuoteEditModal';
 import { ConfirmDeleteModal } from '../ConfirmDeleteModal';
 import type { FinanceTab } from '../../views/FinanceView';
@@ -119,7 +119,7 @@ export function QuotesTab({ onGoToInvoices }: Props = {}) {
   const pdf = (q: Quote) => {
     const kunde = kundeVon(q.customerId);
     if (!kunde) return;
-    downloadQuotePdf(q, state.issuer, kunde);
+    void downloadQuotePdf(q, state.issuer, kunde);
   };
 
   return (

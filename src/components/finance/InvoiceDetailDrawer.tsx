@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Download, ClipboardList, FileCode2, Ban, Trash2, AlertTriangle,
@@ -8,7 +8,7 @@ import type { Invoice, Payment } from '../../types';
 import { PaymentsSection } from './PaymentsSection';
 import { ZAHLUNGSSTAND_LABEL, gesamtforderung, zahlungsstand } from '../../utils/payments';
 import { useAppState } from '../../state/AppStateContext';
-import { renderInvoicePreviewDataUrl } from '../../utils/invoicePdf';
+import { renderInvoicePreviewDataUrl } from '../../utils/pdfLazy';
 
 interface Props {
   open: boolean;
@@ -83,19 +83,29 @@ export function InvoiceDetailDrawer({
     ? state.projects.find((p) => p.id === invoice.projectId)
     : undefined;
 
-  // Live-PDF nur rendern, wenn der PDF-Tab angefordert wurde
-  const pdfUrl = useMemo(() => {
-    if (!pdfRequested || !invoice || !customer || !state) return null;
-    try {
-      const entries = invoice.entryIds.length > 0
-        ? state.entries.filter((e) => invoice.entryIds.includes(e.id))
-        : undefined;
-      const raw = renderInvoicePreviewDataUrl(invoice, state.issuer, customer, entries);
-      return `${raw}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
-    } catch (e) {
-      console.error('PDF-Vorschau fehlgeschlagen:', e);
-      return null;
+  // Live-PDF nur rendern, wenn der PDF-Tab angefordert wurde. Der Renderer
+  // wird dabei erst nachgeladen (siehe `pdfLazy`), das Ergebnis kommt also
+  // asynchron — `aktuell` verwirft die Antwort einer Rechnung, von der man
+  // inzwischen weggeklickt hat.
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pdfRequested || !invoice || !customer || !state) {
+      setPdfUrl(null);
+      return;
     }
+    let aktuell = true;
+    const entries = invoice.entryIds.length > 0
+      ? state.entries.filter((e) => invoice.entryIds.includes(e.id))
+      : undefined;
+    renderInvoicePreviewDataUrl(invoice, state.issuer, customer, entries)
+      .then((raw) => {
+        if (aktuell) setPdfUrl(`${raw}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`);
+      })
+      .catch((e) => {
+        console.error('PDF-Vorschau fehlgeschlagen:', e);
+        if (aktuell) setPdfUrl(null);
+      });
+    return () => { aktuell = false; };
   }, [pdfRequested, invoice, customer, state]);
 
   if (!invoice) return null;

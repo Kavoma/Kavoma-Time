@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useAppState } from '../../state/AppStateContext';
 import {
   computeExpenseCategories, computeFinanceForecast, computePnL, computeVatBreakdown,
@@ -7,9 +7,23 @@ import {
 } from '../../utils/financeAnalytics';
 import { AnalyticsRange, AnalyticsRangePicker, resolveRange } from './analytics/AnalyticsRangePicker';
 import { ProfitLossHero } from './analytics/ProfitLossHero';
-import { TrendChart } from './analytics/TrendChart';
 import { VatBreakdown } from './analytics/VatBreakdown';
-import { ExpensesByCategory } from './analytics/ExpensesByCategory';
+
+// Die beiden einzigen Stellen ausserhalb der Statistik, die `recharts` ziehen.
+// Blieben sie fest verdrahtet, läge die Bibliothek trotz der nachgeladenen
+// Statistik-Ansicht wieder im Startbündel — die Auswertung hängt über
+// `FinanceView` daran.
+const TrendChart = lazy(() =>
+  import('./analytics/TrendChart').then((m) => ({ default: m.TrendChart })),
+);
+const ExpensesByCategory = lazy(() =>
+  import('./analytics/ExpensesByCategory').then((m) => ({ default: m.ExpensesByCategory })),
+);
+
+/** Platzhalter in Diagrammhöhe, damit beim Nachladen nichts springt. */
+function DiagrammLaedt() {
+  return <div className="kv-card flex h-72 items-center justify-center kv-label">Diagramm wird geladen…</div>;
+}
 
 function isoFromTs(ts: number) {
   const d = new Date(ts);
@@ -90,7 +104,9 @@ export function AnalyticsTab() {
         forecastYear={currentYear}
       />
 
-      <TrendChart entries={pnlEntries} />
+      <Suspense fallback={<DiagrammLaedt />}>
+        <TrendChart entries={pnlEntries} />
+      </Suspense>
 
       <VatBreakdown
         year={vatYear}
@@ -98,7 +114,9 @@ export function AnalyticsTab() {
         quarters={vatQuarters}
       />
 
-      <ExpensesByCategory data={categoryExpenses} />
+      <Suspense fallback={<DiagrammLaedt />}>
+        <ExpensesByCategory data={categoryExpenses} />
+      </Suspense>
     </div>
   );
 }

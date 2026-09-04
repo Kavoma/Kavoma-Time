@@ -12,8 +12,9 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { ContextMenu } from '../components/ContextMenu';
 import { CancelInvoiceModal } from '../components/CancelInvoiceModal';
 import { DunningModal } from '../components/DunningModal';
-import { downloadInvoicePdf, downloadServiceReportPdf, downloadEInvoiceXml } from '../utils/invoicePdf';
-import { downloadDunningPdf } from '../utils/dunningPdf';
+import {
+  downloadInvoicePdf, downloadServiceReportPdf, downloadEInvoiceXml, downloadDunningPdf,
+} from '../utils/pdfLazy';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { createCancellationInvoice } from '../utils/analytics';
 import { Tooltip } from '../components/Tooltip';
@@ -342,13 +343,13 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
   const downloadReport = (id: string) => {
     const inv = state.invoices.find(i => i.id === id);
     const customer = inv && state.customers.find(c => c.id === inv.customerId);
-    if (inv && customer) downloadServiceReportPdf(inv, state.issuer, customer, state.entries);
+    if (inv && customer) void downloadServiceReportPdf(inv, state.issuer, customer, state.entries);
   };
 
   const downloadXml = (id: string) => {
     const inv = state.invoices.find(i => i.id === id);
     const customer = inv && state.customers.find(c => c.id === inv.customerId);
-    if (inv && customer) downloadEInvoiceXml(inv, state.issuer, customer);
+    if (inv && customer) void downloadEInvoiceXml(inv, state.issuer, customer);
   };
 
   const remove = (id: string) => {
@@ -889,7 +890,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
           if (hasReminders) {
             items.push({ label: 'Mahnung (PDF)', icon: <Download size={13} />, onClick: () => {
               const customer = state.customers.find(c => c.id === inv?.customerId);
-              if (inv && state.issuer && customer) downloadDunningPdf(inv, state.issuer, customer);
+              if (inv && state.issuer && customer) void downloadDunningPdf(inv, state.issuer, customer);
             } });
             items.push({ label: 'Mahnung entfernen', icon: <Trash2 size={13} />, danger: true, onClick: () => removeReminder(menu.invoiceId) });
           }
@@ -947,7 +948,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         onDownloadDunning={(id) => {
           const inv = state.invoices.find(i => i.id === id);
           const customer = inv && state.customers.find(c => c.id === inv.customerId);
-          if (inv && customer) downloadDunningPdf(inv, state.issuer, customer);
+          if (inv && customer) void downloadDunningPdf(inv, state.issuer, customer);
         }}
         onRemoveReminder={(id) => removeReminder(id)}
         onAddReminder={(id) => { setDrawerInvoiceId(null); setDunningId(id); }}

@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Settings, Clock, BarChart3, Users, FolderKanban, Wallet, Database, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TrackerView } from './views/TrackerView';
 import { CustomersView } from './views/CustomersView';
 import { ProjectsView } from './views/ProjectsView';
 import { SettingsView } from './views/SettingsView';
-import { StatisticsView } from './views/StatisticsView';
 import { FinanceView, type FinanceNavIntent } from './views/FinanceView';
 import { useAppState } from './state/AppStateContext';
 import { Tooltip } from './components/Tooltip';
@@ -20,6 +19,13 @@ import { applyPause, runTimerCommand } from './utils/timerActions';
 import { getLiveDurationSeconds } from './utils/trackerTimer';
 import type { DetectedPause } from './types';
 import { ApproveLinkModal, type LinkAnfrage } from './components/sync/ApproveLinkModal';
+
+// Die Statistik ist die einzige Ansicht, die `recharts` braucht — rund 427 kB
+// samt d3. Wer nur die Uhr anwirft, soll das nicht bei jedem Start mitparsen
+// müssen; deshalb als einzige Ansicht nachgeladen statt fest verdrahtet.
+const StatisticsView = lazy(() =>
+  import('./views/StatisticsView').then((m) => ({ default: m.StatisticsView })),
+);
 
 /** Ab dieser Laufzeit wird nachgefragt, ob das Stoppen vergessen wurde. */
 const LONG_RUN_THRESHOLD_SECONDS = 12 * 3600;
@@ -394,7 +400,11 @@ export function App() {
                     onIntentConsumed={() => setNavIntent(null)}
                   />
                 )}
-                {activeView === 'statistics' && <StatisticsView />}
+                {activeView === 'statistics' && (
+                  <Suspense fallback={<AnsichtLaedt />}>
+                    <StatisticsView />
+                  </Suspense>
+                )}
                 {activeView === 'finance' && (
                   <FinanceView
                     intent={navIntent?.view === 'finance' ? navIntent.finance ?? null : null}
@@ -448,6 +458,20 @@ export function App() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * Platzhalter, solange eine nachgeladene Ansicht unterwegs ist.
+ *
+ * Bewusst ruhig und ohne Spinner: Der Chunk liegt auf der Platte neben dem
+ * Programm, das dauert Millisekunden. Ein Ladekringel würde nur flackern.
+ */
+function AnsichtLaedt() {
+  return (
+    <div className="flex h-64 items-center justify-center kv-label">
+      Ansicht wird geladen…
     </div>
   );
 }

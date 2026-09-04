@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, FileCode2, Loader2, AlertTriangle, Trash2 } from 'lucide-react';
 import type { Attachment } from '../../types';
 import { loadAttachmentBytes } from '../../utils/attachments';
-import { findEInvoice, type EInvoiceFound } from '../../utils/eInvoicePdf';
+import { findEInvoice, type EInvoiceFound } from '../../utils/pdfLazy';
 import { EInvoiceView } from './EInvoiceView';
 
 interface Props {
