@@ -17,21 +17,6 @@ importers:
       electron-updater:
         specifier: ^6.8.9
         version: 6.8.9(supports-color@8.1.1)
-      jspdf:
-        specifier: ^4.2.1
-        version: 4.2.1
-      jspdf-autotable:
-        specifier: ^5.0.8
-        version: 5.0.8(jspdf@4.2.1)
-      pdf-lib:
-        specifier: ^1.17.1
-        version: 1.17.1
-      react-colorful:
-        specifier: ^5.8.1
-        version: 5.8.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      recharts:
-        specifier: ^3.10.1
-        version: 3.10.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react-is@19.2.6)(react@19.2.8)(redux@5.0.1)
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1
@@ -81,15 +66,30 @@ importers:
       happy-dom:
         specifier: ^20.13.2
         version: 20.13.2
+      jspdf:
+        specifier: ^4.2.1
+        version: 4.2.1
+      jspdf-autotable:
+        specifier: ^5.0.8
+        version: 5.0.8(jspdf@4.2.1)
       lucide-react:
         specifier: ^1.16.0
         version: 1.16.0(react@19.2.8)
+      pdf-lib:
+        specifier: ^1.17.1
+        version: 1.17.1
       react:
         specifier: ^19.2.8
         version: 19.2.8
+      react-colorful:
+        specifier: ^5.8.1
+        version: 5.8.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
+      recharts:
+        specifier: ^3.10.1
+        version: 3.10.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react-is@19.2.6)(react@19.2.8)(redux@5.0.1)
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
