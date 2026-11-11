@@ -5,7 +5,11 @@ import { createBlankItem, recalcItemTotal } from '../utils/templates';
 interface Props {
   items: InvoiceItem[];
   onChange: (next: InvoiceItem[]) => void;
-  onPickTimeEntries: () => void;
+  /**
+   * Erfasste Zeiten übernehmen. Fehlt der Rückruf, entfällt der Knopf — beim
+   * Angebot gibt es noch keine geleistete Zeit, die man übernehmen könnte.
+   */
+  onPickTimeEntries?: () => void;
 }
 
 const KIND_META: Record<InvoiceItemKind, { label: string; Icon: typeof Clock; className: string; chipClass: string }> = {
@@ -54,7 +58,7 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
 
   const addItem = (kind: InvoiceItemKind) => {
     if (kind === 'time') {
-      onPickTimeEntries();
+      onPickTimeEntries?.();
       return;
     }
     onChange([...items, createBlankItem(kind)]);
@@ -89,13 +93,15 @@ export function InvoiceItemsTable({ items, onChange, onPickTimeEntries }: Props)
           Positionen ({items.length})
         </label>
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => addItem('time')}
-            className="kv-btn kv-btn-outline"
-          >
-            <Clock size={12} /> + Zeit
-          </button>
+          {onPickTimeEntries && (
+            <button
+              type="button"
+              onClick={() => addItem('time')}
+              className="kv-btn kv-btn-outline"
+            >
+              <Clock size={12} /> + Zeit
+            </button>
+          )}
           <button
             type="button"
             onClick={() => addItem('flat')}

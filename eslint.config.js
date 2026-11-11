@@ -5,7 +5,10 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', 'release'] },
+  // `src/utils/fonts` enthaelt generierte Base64-Module von je einem halben
+  // Megabyte. Sie zu pruefen kostet Zeit und findet nichts — es ist eine
+  // einzige Zeichenkette.
+  { ignores: ['dist', 'release', 'src/utils/fonts'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

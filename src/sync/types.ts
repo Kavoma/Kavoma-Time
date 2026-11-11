@@ -12,6 +12,7 @@ export type EntityKind =
   | 'customer'
   | 'project'
   | 'invoice'
+  | 'quote'
   | 'invoiceTemplate'
   | 'recurringInvoice'
   | 'attachment'

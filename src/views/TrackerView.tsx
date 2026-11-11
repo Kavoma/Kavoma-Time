@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, Trash2, Copy, Plus, ChevronRight, ChevronDown, Search, X, ListChecks, Square } from 'lucide-react';
+import { Pencil, Trash2, Copy, Plus, ChevronRight, ChevronDown, Search, X, ListChecks, ListPlus, Square, Euro } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
 import { CustomAutocomplete } from '../components/CustomAutocomplete';
 import { Checkbox } from '../components/Checkbox';
@@ -8,6 +8,7 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { DeleteModal } from '../components/DeleteModal';
 import { EditModal } from '../components/EditModal';
 import { NewEntryModal } from '../components/NewEntryModal';
+import { BulkEntryModal } from '../components/BulkEntryModal';
 import { useAppState } from '../state/AppStateContext';
 import { TimeEntry } from '../types';
 import { pauseTimer, startTimer, stopTimer } from '../utils/timerActions';
@@ -15,6 +16,7 @@ import { getLiveDurationSeconds } from '../utils/trackerTimer';
 import { collectDescriptionSuggestions } from '../utils/descriptionSuggestions';
 import { UndoToast } from '../components/UndoToast';
 import { SwipeRow } from '../components/SwipeRow';
+import { istAbrechenbar, mitAbrechenbarkeit } from '../utils/billable';
 import { newNumericId } from '../sync/ids';
 import { NO_PROJECT_ID, NO_PROJECT_LABEL, NO_PROJECT_OPTION, projectLabel } from '../utils/projects';
 
@@ -34,6 +36,7 @@ export function TrackerView() {
   const [deleteModalEntryId, setDeleteModalEntryId] = useState<number | null>(null);
   const [editModalEntryId, setEditModalEntryId] = useState<number | null>(null);
   const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [bulkEntryOpen, setBulkEntryOpen] = useState(false);
   const [entryView, setEntryView] = useState<'date' | 'project'>('date');
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
@@ -162,6 +165,22 @@ export function TrackerView() {
     });
   };
 
+  /**
+   * Abrechenbar oder intern umschalten.
+   *
+   * Beim Zurückschalten wird das Feld entfernt statt auf `true` gesetzt —
+   * siehe `mitAbrechenbarkeit`. Sonst unterschieden sich zwei Geräte dauerhaft
+   * in einem Wert, der dasselbe bedeutet.
+   */
+  const toggleBillable = (id: number) => {
+    setState(s => s ? {
+      ...s,
+      entries: s.entries.map(e =>
+        e.id === id ? mitAbrechenbarkeit(e, !istAbrechenbar(e)) : e,
+      ),
+    } : null);
+  };
+
   const handleDeleteEntry = (id: number) => {
     const removed = (state?.entries ?? []).filter(e => e.id === id);
     if (removed.length > 0) rememberDeleted(removed);
@@ -228,6 +247,11 @@ export function TrackerView() {
   const handleAddManualEntry = (entry: TimeEntry) => {
     setState(s => s ? { ...s, entries: [entry, ...s.entries] } : null);
     setNewEntryOpen(false);
+  };
+
+  const handleAddBulkEntries = (neu: TimeEntry[]) => {
+    setState(s => s ? { ...s, entries: [...neu, ...s.entries] } : null);
+    setBulkEntryOpen(false);
   };
 
   const handleEditEntry = (updatedEntry: TimeEntry) => {
@@ -451,9 +475,33 @@ export function TrackerView() {
                 </span>
               )}
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="truncate text-xs font-bold text-ink">{entry.description || '(ohne Beschreibung)'}</div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate text-xs font-bold text-ink">{entry.description || '(ohne Beschreibung)'}</span>
+                  {!istAbrechenbar(entry) && (
+                    <span className="shrink-0 rounded-full bg-neutral-soft px-1.5 text-[9px] font-bold uppercase tracking-wider text-muted">
+                      intern
+                    </span>
+                  )}
+                </div>
                 <div className="truncate text-[11px] text-muted">{customer?.name} · {projectLabel(projects, entry.projectId)}</div>
               </div>
+              {/* Umschalten direkt in der Zeile: Ob eine Zeit berechnet wird,
+                  weiss man beim Erfassen — dafür soll niemand einen Dialog
+                  öffnen müssen. */}
+              <button
+                type="button"
+                className="kv-icon-btn shrink-0"
+                aria-pressed={istAbrechenbar(entry)}
+                aria-label={istAbrechenbar(entry)
+                  ? 'Als interne Zeit kennzeichnen'
+                  : 'Als abrechenbar kennzeichnen'}
+                title={istAbrechenbar(entry) ? 'Abrechenbar' : 'Interne Zeit — kommt auf keine Rechnung'}
+                onClick={(e) => { e.stopPropagation(); toggleBillable(entry.id); }}
+              >
+                {istAbrechenbar(entry)
+                  ? <Euro size={13} className="text-success" />
+                  : <Euro size={13} className="text-muted opacity-40" />}
+              </button>
               <div className="flex flex-col items-end gap-0.5">
                 <div className="text-[11px] text-muted tabular-nums">
                   {d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })} · {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} — {entry.endedAt ? new Date(entry.endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'läuft'}
@@ -505,6 +553,13 @@ export function TrackerView() {
                   className="kv-btn kv-btn-quiet"
                 >
                   <Plus size={12} /> Nachtragen
+                </button>
+                <button
+                  onClick={() => setBulkEntryOpen(true)}
+                  className="kv-btn kv-btn-quiet"
+                  title="Viele Einträge auf einmal nachtragen"
+                >
+                  <ListPlus size={12} /> Mehrere
                 </button>
               </div>
             </div>
@@ -716,6 +771,14 @@ export function TrackerView() {
         onSave={handleAddManualEntry}
         onCancel={() => setNewEntryOpen(false)}
         recentDescriptions={allDescriptions}
+      />
+
+      <BulkEntryModal
+        open={bulkEntryOpen}
+        customers={state.customers.filter(c => c.status !== 'archived')}
+        projects={state.projects}
+        onSave={handleAddBulkEntries}
+        onCancel={() => setBulkEntryOpen(false)}
       />
     </>
   );

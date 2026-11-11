@@ -35,6 +35,11 @@ function amount(n: number): string {
   return (Number.isFinite(n) ? n : 0).toFixed(2);
 }
 
+/** Einzelpreise (BT-146) mit bis zu vier Nachkommastellen, mindestens zwei. */
+function priceAmount(n: number): string {
+  return (Number.isFinite(n) ? n : 0).toFixed(4).replace(/(\.\d\d\d*?)0+$/, '$1');
+}
+
 /** Mengen dürfen mehr Nachkommastellen haben (z. B. 1,75 h). */
 function quantity(n: number): string {
   return (Number.isFinite(n) ? n : 0).toFixed(4).replace(/0+$/, '').replace(/\.$/, '.00');
@@ -150,7 +155,7 @@ function lineItem(item: InvoiceItem, index: number, tax: TaxInfo): string {
     `<ram:AssociatedDocumentLineDocument><ram:LineID>${index + 1}</ram:LineID></ram:AssociatedDocumentLineDocument>`,
     `<ram:SpecifiedTradeProduct><ram:Name>${esc(item.description || 'Leistung')}</ram:Name></ram:SpecifiedTradeProduct>`,
     '<ram:SpecifiedLineTradeAgreement>',
-    `<ram:NetPriceProductTradePrice><ram:ChargeAmount>${amount(item.unitPrice)}</ram:ChargeAmount></ram:NetPriceProductTradePrice>`,
+    `<ram:NetPriceProductTradePrice><ram:ChargeAmount>${priceAmount(item.unitPrice)}</ram:ChargeAmount></ram:NetPriceProductTradePrice>`,
     '</ram:SpecifiedLineTradeAgreement>',
     '<ram:SpecifiedLineTradeDelivery>',
     `<ram:BilledQuantity unitCode="${unitCode(item.unit)}">${quantity(item.quantity)}</ram:BilledQuantity>`,

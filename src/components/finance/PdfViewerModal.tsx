@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Download, Trash2, AlertTriangle, ZoomIn, ZoomOut, Maximize2, Printer, ExternalLink, ShieldCheck } from 'lucide-react';
-import { loadPdfBlob, formatFileSize } from '../../utils/attachments';
+import { loadAttachmentBlob, formatFileSize } from '../../utils/attachments';
 import { Attachment } from '../../types';
 import { InfoTooltip } from '../settings/InfoTooltip';
 
@@ -58,7 +58,7 @@ export function PdfViewerModal({ open, attachment, title, onClose, onDelete }: P
       .then((da) => { if (!cancelled) setLokalVorhanden(da); })
       .catch(() => { if (!cancelled) setLokalVorhanden(true); });
 
-    loadPdfBlob(attachment.id)
+    loadAttachmentBlob(attachment.id, attachment.mimeType)
       .then((blob) => {
         if (cancelled) return;
         const url = URL.createObjectURL(blob);

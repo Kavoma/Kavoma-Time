@@ -53,9 +53,40 @@ async function sha256Hex(buf: ArrayBuffer): Promise<string> {
     .join('');
 }
 
-export async function uploadPdf(file: File): Promise<Attachment> {
-  if (file.type !== 'application/pdf') {
-    throw new Error('Nur PDF-Dateien sind erlaubt.');
+export type AttachmentMime = 'application/pdf' | 'application/xml';
+
+/**
+ * Was der Browser als Typ meldet, ist unzuverlässig: Für `.xml` kommt je nach
+ * System `text/xml`, `application/xml` — oder gar nichts. Die Endung ist hier
+ * die verlässlichere Quelle.
+ */
+export function detectMime(file: File): AttachmentMime | null {
+  const typ = (file.type || '').toLowerCase();
+  const name = file.name.toLowerCase();
+  if (typ === 'application/pdf' || name.endsWith('.pdf')) return 'application/pdf';
+  if (typ === 'text/xml' || typ === 'application/xml' || name.endsWith('.xml')) return 'application/xml';
+  return null;
+}
+
+/**
+ * Legt eine Datei verschlüsselt ab.
+ *
+ * `erlaubt` grenzt ein, was hier hineindarf. Eingangsrechnungen nehmen auch
+ * XML an — eine XRechnung kommt als reine XML-Datei ohne PDF, und wer die
+ * abweist, kann die Empfangspflicht seit 2025 nicht erfüllen. Verträge bleiben
+ * bei PDF; ein Vertrag als XML ergibt keinen Sinn.
+ */
+export async function uploadDocument(
+  file: File,
+  erlaubt: readonly AttachmentMime[] = ['application/pdf'],
+): Promise<Attachment> {
+  const mimeType = detectMime(file);
+  if (!mimeType || !erlaubt.includes(mimeType)) {
+    throw new Error(
+      erlaubt.length > 1
+        ? 'Nur PDF- oder XML-Dateien sind erlaubt.'
+        : 'Nur PDF-Dateien sind erlaubt.',
+    );
   }
   if (file.size > MAX_FILE_SIZE) {
     throw new Error(`Datei ist zu groß (max. ${MAX_FILE_SIZE / 1024 / 1024} MB).`);
@@ -71,23 +102,35 @@ export async function uploadPdf(file: File): Promise<Attachment> {
   return {
     id,
     filename: file.name,
-    mimeType: 'application/pdf',
+    mimeType,
     sizeBytes: result.sizeBytes,
     sha256,
     uploadedAt: Date.now(),
   };
 }
 
-export async function loadPdfBlob(attachmentId: string): Promise<Blob> {
+/** Die rohen Bytes eines Anhangs. */
+export async function loadAttachmentBytes(attachmentId: string): Promise<Uint8Array<ArrayBuffer>> {
   if (!window.api?.attachmentRead) {
     throw new Error('Anhänge können nur in der Desktop-App geladen werden.');
   }
   const base64 = await window.api.attachmentRead(attachmentId);
-  const bytes = base64ToUint8Array(base64);
-  return new Blob([bytes], { type: 'application/pdf' });
+  return base64ToUint8Array(base64);
 }
 
-export async function deletePdf(attachmentId: string): Promise<void> {
+/**
+ * Anhang als Blob. Der Typ kommt aus den Metadaten — alte Datensätze kennen
+ * nur PDF, und genau das waren sie auch.
+ */
+export async function loadAttachmentBlob(
+  attachmentId: string,
+  mimeType: AttachmentMime = 'application/pdf',
+): Promise<Blob> {
+  const bytes = await loadAttachmentBytes(attachmentId);
+  return new Blob([bytes], { type: mimeType });
+}
+
+export async function deleteAttachment(attachmentId: string): Promise<void> {
   if (!window.api?.attachmentDelete) {
     throw new Error('attachmentDelete-API nicht verfügbar (kein Electron-Kontext).');
   }

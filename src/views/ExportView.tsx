@@ -1,15 +1,20 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Download, Plus, FileText, Trash2, Check, Files, Search, FileCode2, ClipboardList, FileSpreadsheet, Ban, AlertTriangle, Repeat, Edit2, Wand2, Eye } from 'lucide-react';
 import { useAppState } from '../state/AppStateContext';
-import { Invoice, DunningReminder, InvoiceTemplate, RecurringInvoice } from '../types';
+import { Invoice, DunningReminder, InvoiceTemplate, RecurringInvoice, Payment } from '../types';
+import {
+  ZAHLUNGSSTAND_LABEL, alleZahlungenEntfernt, gesamtforderung, gezahlt, komplettBezahlt,
+  mitZahlung, neueZahlung, offen, ohneZahlung, zahlungsstand,
+} from '../utils/payments';
 import { InvoiceCreateModal } from '../components/InvoiceCreateModal';
 import { InvoiceDetailDrawer } from '../components/finance/InvoiceDetailDrawer';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { ContextMenu } from '../components/ContextMenu';
 import { CancelInvoiceModal } from '../components/CancelInvoiceModal';
 import { DunningModal } from '../components/DunningModal';
-import { downloadInvoicePdf, downloadServiceReportPdf, downloadEInvoiceXml } from '../utils/invoicePdf';
-import { downloadDunningPdf } from '../utils/dunningPdf';
+import {
+  downloadInvoicePdf, downloadServiceReportPdf, downloadEInvoiceXml, downloadDunningPdf,
+} from '../utils/pdfLazy';
 import { AnimatedNumber } from '../components/AnimatedNumber';
 import { createCancellationInvoice } from '../utils/analytics';
 import { Tooltip } from '../components/Tooltip';
@@ -114,7 +119,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
 
     if (toExport.length === 0) return;
 
-    const headers = ['Nummer', 'Datum', 'Debitor-Nr.', 'Kunde', 'Leistungsdatum', 'Netto', 'USt-Satz', 'USt', 'Gesamt', 'Status'];
+    const headers = ['Nummer', 'Datum', 'Debitor-Nr.', 'Kunde', 'Leistungsdatum', 'Netto', 'USt-Satz', 'USt', 'Gesamt', 'Gezahlt', 'Offen', 'Status'];
     const rows = toExport.map(inv => {
       const customer = state.customers.find(c => c.id === inv.customerId);
       return [
@@ -127,7 +132,9 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         `${inv.vatRate} %`.replace('.', ','),
         inv.vatAmount.toFixed(2).replace('.', ','),
         inv.total.toFixed(2).replace('.', ','),
-        inv.paid ? 'Bezahlt' : 'Offen'
+        gezahlt(inv).toFixed(2).replace('.', ','),
+        offen(inv).toFixed(2).replace('.', ','),
+        ZAHLUNGSSTAND_LABEL[zahlungsstand(inv)],
       ];
     });
 
@@ -301,23 +308,27 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
     setSelectedIds([]);
   };
 
+  /** Eine Rechnung durch die Zahlungsfunktionen schicken. */
+  const aendereRechnung = (id: string, f: (inv: Invoice) => Invoice) => {
+    setState(s => s ? { ...s, invoices: s.invoices.map(inv => inv.id === id ? f(inv) : inv) } : null);
+  };
+
+  /**
+   * Der schnelle Weg aus der Liste: alles offene auf einmal, oder alles zurück.
+   * Das ist, was der frühere Ja/Nein-Schalter tat — er bleibt erhalten, weil
+   * die vollständige Zahlung am selben Tag der Normalfall ist und niemand
+   * dafür ein Formular ausfüllen will.
+   */
   const togglePaid = (id: string) => {
-    setState(s => s ? {
-      ...s,
-      invoices: s.invoices.map(inv => {
-        if (inv.id !== id) return inv;
-        if (inv.paid) {
-          // Schlüssel wirklich entfernen, nicht auf `undefined` setzen: Beim
-          // Übertragen fällt ein `undefined` aus dem JSON heraus, im lokalen
-          // Zustand bleibt es stehen. Die beiden Fassungen sähen dann
-          // dauerhaft verschieden aus und erzeugten bei jedem Abgleich eine
-          // Änderung, die keine ist.
-          const { paidAt: _entfernt, ...ohneZahldatum } = inv;
-          return { ...ohneZahldatum, paid: false };
-        }
-        return { ...inv, paid: true, paidAt: Date.now() };
-      }),
-    } : null);
+    aendereRechnung(id, inv => inv.paid ? alleZahlungenEntfernt(inv) : komplettBezahlt(inv));
+  };
+
+  const erfasseZahlung = (id: string, daten: { amount: number; paidAt: number; method?: Payment['method']; note?: string }) => {
+    aendereRechnung(id, inv => mitZahlung(inv, neueZahlung(daten)));
+  };
+
+  const loescheZahlung = (id: string, zahlungId: string) => {
+    aendereRechnung(id, inv => ohneZahlung(inv, zahlungId));
   };
 
   const redownload = (id: string) => {
@@ -332,13 +343,13 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
   const downloadReport = (id: string) => {
     const inv = state.invoices.find(i => i.id === id);
     const customer = inv && state.customers.find(c => c.id === inv.customerId);
-    if (inv && customer) downloadServiceReportPdf(inv, state.issuer, customer, state.entries);
+    if (inv && customer) void downloadServiceReportPdf(inv, state.issuer, customer, state.entries);
   };
 
   const downloadXml = (id: string) => {
     const inv = state.invoices.find(i => i.id === id);
     const customer = inv && state.customers.find(c => c.id === inv.customerId);
-    if (inv && customer) downloadEInvoiceXml(inv, state.issuer, customer);
+    if (inv && customer) void downloadEInvoiceXml(inv, state.issuer, customer);
   };
 
   const remove = (id: string) => {
@@ -416,10 +427,11 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
   const activeInvoices = filteredInvoices.filter(i => i.status !== 'cancelled' && i.status !== 'draft' && !i.cancelsInvoiceId);
 
   // Berechnung der Gesamtsumme inkl. Mahngebühren pro Rechnung
-  const getFullTotal = (inv: Invoice) => inv.total + inv.reminders.reduce((s, r) => s + r.fee, 0);
-
-  const paidRevenue  = activeInvoices.filter(i => i.paid).reduce((s, i) => s + getFullTotal(i), 0);
-  const openRevenue  = activeInvoices.filter(i => !i.paid).reduce((s, i) => s + getFullTotal(i), 0);
+  // Seit es Teilzahlungen gibt, ist „bezahlt" keine Eigenschaft der Rechnung
+  // mehr, sondern eine Summe: Was geflossen ist, und was noch aussteht. Eine
+  // halb bezahlte Rechnung zählte vorher voll ins Offene.
+  const paidRevenue  = activeInvoices.reduce((s, i) => s + gezahlt(i), 0);
+  const openRevenue  = activeInvoices.reduce((s, i) => s + Math.max(offen(i), 0), 0);
   const totalRevenue = paidRevenue + openRevenue;
 
   // Zähler für Header-Cards (basieren auf allen Rechnungen, nicht gefiltert)
@@ -709,7 +721,8 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
             const overdue = isOverdue(inv);
             const isSelected = selectedIds.includes(String(inv.id));
             const totalFees = inv.reminders.reduce((sum, r) => sum + r.fee, 0);
-            const displayTotal = inv.total + totalFees;
+            const displayTotal = gesamtforderung(inv);
+            const restOffen = offen(inv);
             const isDraft = inv.status === 'draft';
 
             return (
@@ -779,15 +792,25 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                         className={`flex h-6 w-fit items-center gap-1.5 rounded-full px-2.5 transition-colors ${
                           inv.paid
                             ? 'bg-success-soft text-success hover:bg-success-solid hover:text-paper'
-                            : overdue
-                              ? 'bg-danger-soft text-danger hover:bg-danger-solid hover:text-paper'
-                              : 'bg-divider text-muted hover:bg-ink hover:text-paper'
+                            : zahlungsstand(inv) === 'teilweise'
+                              ? 'bg-warning-soft text-warning hover:bg-warning-solid hover:text-paper'
+                              : overdue
+                                ? 'bg-danger-soft text-danger hover:bg-danger-solid hover:text-paper'
+                                : 'bg-divider text-muted hover:bg-ink hover:text-paper'
                         }`}
-                        title="Klick wechselt den Zahlungsstatus"
+                        title={
+                          zahlungsstand(inv) === 'teilweise'
+                            ? `Noch offen: ${offen(inv).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} — Klick begleicht den Rest`
+                            : 'Klick wechselt den Zahlungsstatus'
+                        }
                       >
                         <Check size={10} strokeWidth={3} />
                         <span className="text-[9px] font-black uppercase tracking-wider">
-                          {inv.paid ? 'Bezahlt' : overdue ? 'Überfällig' : 'Offen'}
+                          {inv.paid
+                            ? 'Bezahlt'
+                            : zahlungsstand(inv) === 'teilweise'
+                              ? 'Teilzahlung'
+                              : overdue ? 'Überfällig' : 'Offen'}
                         </span>
                       </button>
                     ) : (
@@ -802,6 +825,11 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
                     {totalFees > 0 && (
                       <div className="text-[10px] font-bold text-danger">
                         + {fmtEuro(totalFees)} Gebühr
+                      </div>
+                    )}
+                    {zahlungsstand(inv) === 'teilweise' && (
+                      <div className="text-[10px] font-bold text-warning">
+                        noch {fmtEuro(restOffen)} offen
                       </div>
                     )}
                     <div className="mt-1 text-[10px] text-muted">
@@ -862,7 +890,7 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
           if (hasReminders) {
             items.push({ label: 'Mahnung (PDF)', icon: <Download size={13} />, onClick: () => {
               const customer = state.customers.find(c => c.id === inv?.customerId);
-              if (inv && state.issuer && customer) downloadDunningPdf(inv, state.issuer, customer);
+              if (inv && state.issuer && customer) void downloadDunningPdf(inv, state.issuer, customer);
             } });
             items.push({ label: 'Mahnung entfernen', icon: <Trash2 size={13} />, danger: true, onClick: () => removeReminder(menu.invoiceId) });
           }
@@ -912,13 +940,15 @@ export function ExportView({ navigateTo, initialInvoiceId, onInitialInvoiceConsu
         invoice={state.invoices.find(i => i.id === drawerInvoiceId) ?? null}
         onClose={() => setDrawerInvoiceId(null)}
         onTogglePaid={(id) => togglePaid(id)}
+        onAddPayment={erfasseZahlung}
+        onRemovePayment={loescheZahlung}
         onDownloadPdf={(id) => redownload(id)}
         onDownloadReport={(id) => downloadReport(id)}
         onDownloadXml={(id) => downloadXml(id)}
         onDownloadDunning={(id) => {
           const inv = state.invoices.find(i => i.id === id);
           const customer = inv && state.customers.find(c => c.id === inv.customerId);
-          if (inv && customer) downloadDunningPdf(inv, state.issuer, customer);
+          if (inv && customer) void downloadDunningPdf(inv, state.issuer, customer);
         }}
         onRemoveReminder={(id) => removeReminder(id)}
         onAddReminder={(id) => { setDrawerInvoiceId(null); setDunningId(id); }}

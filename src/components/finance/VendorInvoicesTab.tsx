@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Plus, FileText, FileSpreadsheet,
+  Plus, FileText, FileSpreadsheet, FileCode2,
 } from 'lucide-react';
 import { useAppState } from '../../state/AppStateContext';
 import { SearchField } from '../SearchField';
@@ -8,7 +8,8 @@ import { FilterButton, FilterSection, FilterChoice } from '../FilterButton';
 import { Attachment, VendorInvoice, VendorInvoiceCategory } from '../../types';
 import { VendorInvoiceUploadModal } from './VendorInvoiceUploadModal';
 import { PdfViewerModal } from './PdfViewerModal';
-import { deletePdf, formatFileSize } from '../../utils/attachments';
+import { EInvoiceModal } from './EInvoiceModal';
+import { deleteAttachment, formatFileSize } from '../../utils/attachments';
 
 const CATEGORY_LABELS: Record<VendorInvoiceCategory, string> = {
   hardware: 'Hardware',
@@ -38,6 +39,8 @@ export function VendorInvoicesTab() {
   const { state, setState } = useAppState();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [viewerId, setViewerId] = useState<number | null>(null);
+  /** Getrennt vom Datei-Betrachter: die strukturierte Sicht auf das XML. */
+  const [eRechnungId, setERechnungId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | VendorInvoiceCategory>('all');
 
@@ -68,6 +71,22 @@ export function VendorInvoicesTab() {
   const viewer = viewerId !== null ? vendorInvoices.find((v) => v.id === viewerId) : null;
   const viewerAttachment = viewer ? attachments.find((a) => a.id === viewer.attachmentId) ?? null : null;
 
+  const eRechnung = eRechnungId !== null ? vendorInvoices.find((v) => v.id === eRechnungId) : null;
+  const eRechnungAttachment = eRechnung
+    ? attachments.find((a) => a.id === eRechnung.attachmentId) ?? null
+    : null;
+
+  /**
+   * Eine reine XML-Rechnung hat kein PDF, das sich anzeigen ließe — für sie ist
+   * die strukturierte Ansicht die einzige lesbare. Beim Klick auf die Zeile
+   * muss deshalb sie aufgehen, nicht der PDF-Betrachter.
+   */
+  const oeffneBeleg = (v: VendorInvoice) => {
+    const att = attachments.find((a) => a.id === v.attachmentId);
+    if (att?.mimeType === 'application/xml') setERechnungId(v.id);
+    else setViewerId(v.id);
+  };
+
   const handleSave = (vendor: VendorInvoice, attachment: Attachment) => {
     setState((s) => {
       if (!s) return s;
@@ -83,7 +102,7 @@ export function VendorInvoicesTab() {
     const target = vendorInvoices.find((v) => v.id === id);
     if (!target) return;
     try {
-      await deletePdf(target.attachmentId);
+      await deleteAttachment(target.attachmentId);
       setState((s) => {
         if (!s) return s;
         return {
@@ -202,8 +221,9 @@ export function VendorInvoicesTab() {
           </div>
           <div className="text-sm font-bold">Noch keine Eingangsrechnungen</div>
           <p className="mx-auto mt-1 max-w-md text-[12px] text-muted">
-            Lade dein erstes PDF hoch — z. B. einen Hardware-Kauf für einen Mitarbeiter
-            oder eine Software-Lizenz. Die Datei wird AES-256 verschlüsselt abgelegt.
+            Lade deinen ersten Beleg hoch — als PDF oder als E-Rechnung
+            (ZUGFeRD, Factur-X, XRechnung). E-Rechnungen werden gelesen und füllen
+            die Felder selbst aus. Die Datei wird AES-256 verschlüsselt abgelegt.
           </p>
         </div>
       ) : (
@@ -225,11 +245,11 @@ export function VendorInvoicesTab() {
                 return (
                   <tr
                     key={v.id}
-                    onClick={() => setViewerId(v.id)}
+                    onClick={() => oeffneBeleg(v)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        setViewerId(v.id);
+                        oeffneBeleg(v);
                       }
                     }}
                     tabIndex={0}
@@ -239,7 +259,20 @@ export function VendorInvoicesTab() {
                   >
                     <td className="px-4 py-3 tabular-nums text-muted">{formatDate(v.invoiceDate)}</td>
                     <td className="px-4 py-3">
-                      <div className="font-bold">{v.vendorName}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold">{v.vendorName}</span>
+                        {v.eInvoice && (
+                          <button
+                            type="button"
+                            // Sonst öffnet die Zeile darunter zusätzlich die Datei.
+                            onClick={(e) => { e.stopPropagation(); setERechnungId(v.id); }}
+                            className="kv-badge cursor-pointer hover:text-ink"
+                            title={`E-Rechnung ansehen (${v.eInvoice.profileLabel ?? v.eInvoice.syntax.toUpperCase()})`}
+                          >
+                            <FileCode2 size={10} /> E-Rechnung
+                          </button>
+                        )}
+                      </div>
                       {v.invoiceNumber && (
                         <div className="text-[11px] text-muted">Nr. {v.invoiceNumber}</div>
                       )}
@@ -254,7 +287,7 @@ export function VendorInvoicesTab() {
                       {v.vatAmount !== undefined ? EUR.format(v.vatAmount) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right text-[11px] text-muted">
-                      {att ? formatFileSize(att.sizeBytes) : '—'}
+                      {att ? `${att.mimeType === 'application/xml' ? 'XML · ' : ''}${formatFileSize(att.sizeBytes)}` : '—'}
                     </td>
                   </tr>
                 );
@@ -276,6 +309,14 @@ export function VendorInvoicesTab() {
         title={viewer ? `${viewer.vendorName}${viewer.invoiceNumber ? ' · ' + viewer.invoiceNumber : ''}` : undefined}
         onClose={() => setViewerId(null)}
         onDelete={viewer ? () => handleDelete(viewer.id) : undefined}
+      />
+
+      <EInvoiceModal
+        open={eRechnung !== null && eRechnungAttachment !== null}
+        attachment={eRechnungAttachment}
+        title={eRechnung ? `${eRechnung.vendorName}${eRechnung.invoiceNumber ? ' · ' + eRechnung.invoiceNumber : ''}` : undefined}
+        onClose={() => setERechnungId(null)}
+        onDelete={eRechnung ? () => handleDelete(eRechnung.id) : undefined}
       />
     </>
   );

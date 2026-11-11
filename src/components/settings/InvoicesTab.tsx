@@ -217,6 +217,26 @@ export function InvoicesTab({ onOpenTemplateModal }: InvoicesTabProps) {
               <span className="text-sm text-muted">%</span>
             </div>
           )}
+          {!localIssuer.smallBusiness && (
+            <div className="col-span-2">
+              <Checkbox
+                checked={Boolean(localIssuer.pricesIncludeVat)}
+                onChange={val => updateIssuer('pricesIncludeVat', val)}
+                className="w-full rounded-md border border-divider bg-paper px-3 py-2.5 hover:border-ink/60"
+                label={
+                  <div className="flex-1">
+                    <div className="text-[13px] font-bold text-ink">Preise enthalten die USt (brutto)</div>
+                    <div className="text-[11px] text-muted">
+                      {localIssuer.pricesIncludeVat
+                        ? `Aus 200 € Pauschale werden 200 € Rechnungsbetrag (darin ${localIssuer.vatRate} % USt). Gilt für Stundensätze und Pauschalen.`
+                        : `Aus 200 € Pauschale werden ${(200 * (1 + localIssuer.vatRate / 100)).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })} (zzgl. ${localIssuer.vatRate} % USt).`}
+                      {' '}Pro Kunde abweichend einstellbar.
+                    </div>
+                  </div>
+                }
+              />
+            </div>
+          )}
         </div>
       </SettingsCard>
 

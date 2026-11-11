@@ -1,37 +1,30 @@
 // ============================================================
 // Verschlüsselte Sicherung als Datei
 // ============================================================
-
-import type { AppState } from '../types';
-
-function zeitstempel(d = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
-}
+//
+// Geschrieben wird im Main-Prozess. Der Renderer sagt nur, dass eine Sicherung
+// entstehen soll — er sieht weder Schlüssel noch Belege. Vorher lief das über
+// einen Blob und `a.click()`; das ging, solange eine Sicherung nur der
+// Datenbestand war. Seit die Belege mitkommen, kann sie Gigabyte gross werden,
+// und ein Blob dieser Grösse ist ein Speicherproblem ohne Gegenwert.
 
 /**
- * Schreibt eine `.kvbak`-Sicherung des übergebenen Zustands.
+ * Schreibt eine `.kvbak`-Sicherung ohne Rückfrage in den Download-Ordner.
+ *
+ * Für Stellen, an denen ein Dateidialog nur im Weg stünde — etwa die
+ * Sicherheitskopie unmittelbar vor dem Erstabgleich.
  *
  * Wirft, wenn die Verschlüsselung nicht verfügbar ist — bewusst kein
  * Klartext-Notausgang. Wer eine Sicherung anfordert, will keine, die jeder
  * lesen kann.
  */
-export async function writeEncryptedBackup(state: AppState, prefix = 'kavoma-time-backup'): Promise<string> {
-  if (!window.api?.encryptBackup) {
+export async function writeEncryptedBackup(prefix = 'kavoma-time-backup'): Promise<string> {
+  if (!window.api?.backupExport) {
     throw new Error('Verschlüsselte Sicherungen sind ohne Electron-Schicht nicht verfügbar.');
   }
-  const payload = await window.api.encryptBackup(JSON.stringify(state));
-  if (!payload?.encrypted) {
-    throw new Error('Die Verschlüsselung lieferte kein verschlüsseltes Ergebnis zurück.');
+  const ergebnis = await window.api.backupExport({ mode: 'auto', prefix });
+  if (!ergebnis.ok || !ergebnis.file) {
+    throw new Error(ergebnis.error ?? 'Die Sicherung konnte nicht geschrieben werden.');
   }
-
-  const dateiname = `${prefix}-${zeitstempel()}.kvbak`;
-  const blob = new Blob([JSON.stringify({ kavoma: 'backup', ...payload }, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = dateiname;
-  a.click();
-  URL.revokeObjectURL(url);
-  return dateiname;
+  return ergebnis.file;
 }

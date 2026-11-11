@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Clock } from 'lucide-react';
 import type { TimeEntry, Customer, Project, InvoiceItem } from '../types';
 import { NO_PROJECT_LABEL } from '../utils/projects';
+import { istAbrechenbar } from '../utils/billable';
 
 interface Props {
   open: boolean;
@@ -64,6 +65,9 @@ export function TimeEntryPicker({
             (projectId === 0 || e.projectId === projectId) &&
             e.startedAt >= fromTs &&
             e.startedAt <= toTs &&
+            // Interne Zeit gehört nicht auf eine Kundenrechnung. Sie hier
+            // anzubieten hiesse, den Fehler nur einen Klick später zu machen.
+            istAbrechenbar(e) &&
             !excluded.has(e.id),
         )
         .sort((a, b) => a.startedAt - b.startedAt),

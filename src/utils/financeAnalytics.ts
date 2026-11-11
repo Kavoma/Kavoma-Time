@@ -1,5 +1,6 @@
 import { AppState, VendorInvoice, VendorInvoiceCategory } from '../types';
 import { forecastYear } from './analytics';
+import { ustAnteil } from './payments';
 
 // === Typen ====================================================
 export type Granularity = 'day' | 'month' | 'quarter';
@@ -196,10 +197,19 @@ export function computePnL(
 
   for (const inv of state.invoices) {
     if (!isRevenueInvoice(inv)) continue;
-    if (mode === 'cash' && !inv.paid) continue;
-    const refTs = mode === 'cash' && inv.paidAt ? inv.paidAt : inv.createdAt;
-    const slot = findBucket(refTs);
-    if (slot) slot.revenue += inv.total;
+    if (mode !== 'cash') {
+      // Soll-Versteuerung: der Umsatz zählt, wenn die Rechnung geschrieben wird.
+      const slot = findBucket(inv.createdAt);
+      if (slot) slot.revenue += inv.total;
+      continue;
+    }
+    // Ist-Versteuerung: jede Zahlung zählt mit **ihrem eigenen** Datum. Vorher
+    // fiel eine Rechnung ganz in den Monat der letzten Zahlung — eine Anzahlung
+    // im März und der Rest im Juni landeten beide im Juni.
+    for (const p of inv.payments ?? []) {
+      const slot = findBucket(p.paidAt);
+      if (slot) slot.revenue += p.amount;
+    }
   }
 
   for (const v of state.vendorInvoices) {
@@ -229,7 +239,24 @@ export function totalsFromPnL(entries: PnLEntry[]): PnLTotals {
 }
 
 // === Vorsteuer-Quartalsübersicht ===============================
-export function computeVatBreakdown(state: AppState, year: number): VatQuarter[] {
+/**
+ * Die Umsatzsteuer je Quartal.
+ *
+ * `mode` entscheidet, **wann** die Steuer entsteht: Bei Soll-Versteuerung mit
+ * der Rechnung, bei Ist-Versteuerung mit dem Geldeingang. Seit es
+ * Zahlungseingänge gibt, lässt sich der Ist-Fall auch bei Teilzahlungen richtig
+ * rechnen — anteilig, mit dem Datum der jeweiligen Zahlung. Vorher gab es dafür
+ * schlicht keine Daten.
+ *
+ * Die Vorsteuer bleibt am Belegdatum: Für sie führt Kavoma Time keine
+ * Zahlungsdaten, und ein erfundenes Zahldatum wäre schlechter als das
+ * Belegdatum, das wenigstens stimmt.
+ */
+export function computeVatBreakdown(
+  state: AppState,
+  year: number,
+  mode: AccountingMode = 'accrual',
+): VatQuarter[] {
   const result: VatQuarter[] = ([1, 2, 3, 4] as const).map((q) => ({
     year,
     quarter: q,
@@ -247,6 +274,13 @@ export function computeVatBreakdown(state: AppState, year: number): VatQuarter[]
 
   for (const inv of state.invoices) {
     if (!isRevenueInvoice(inv)) continue;
+    if (mode === 'cash') {
+      for (const p of inv.payments ?? []) {
+        const q = quarterForTs(p.paidAt);
+        if (q) result[q - 1].collected += ustAnteil(inv, p);
+      }
+      continue;
+    }
     const q = quarterForTs(inv.createdAt);
     if (!q) continue;
     result[q - 1].collected += inv.vatAmount;

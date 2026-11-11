@@ -1,19 +1,24 @@
 import { useEffect, useState } from 'react';
-import { Receipt, FileSignature, FileText, LineChart } from 'lucide-react';
+import { Receipt, FileSignature, FileText, LineChart, Landmark, FilePen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ExportView } from './ExportView';
 import { VendorInvoicesTab } from '../components/finance/VendorInvoicesTab';
 import { ContractsTab } from '../components/finance/ContractsTab';
 import { AnalyticsTab } from '../components/finance/AnalyticsTab';
+import { TaxExportTab } from '../components/finance/TaxExportTab';
+import { QuotesTab } from '../components/finance/QuotesTab';
 import type { NavIntent, ViewKey } from '../App';
 
-export type FinanceTab = 'invoices' | 'vendor' | 'contracts' | 'analytics';
+export type FinanceTab = 'quotes' | 'invoices' | 'vendor' | 'contracts' | 'analytics' | 'taxexport';
 
 const TABS: { id: FinanceTab; label: string; icon: typeof Receipt }[] = [
+  // Angebote stehen vor den Rechnungen, weil sie im Ablauf davorstehen.
+  { id: 'quotes', label: 'Angebote', icon: FilePen },
   { id: 'invoices', label: 'Rechnungen', icon: Receipt },
   { id: 'vendor', label: 'Eingangsrechnungen', icon: FileText },
   { id: 'contracts', label: 'Verträge', icon: FileSignature },
   { id: 'analytics', label: 'Auswertung', icon: LineChart },
+  { id: 'taxexport', label: 'Steuer-Export', icon: Landmark },
 ];
 
 export interface FinanceNavIntent {
@@ -103,6 +108,18 @@ export function FinanceView({ intent, navigateTo, onIntentConsumed }: Props = {}
             />
           )}
           {tab === 'analytics' && <AnalyticsTab />}
+          {tab === 'quotes' && (
+            <QuotesTab
+              onGoToInvoices={(ziel, invoiceId) => {
+                // Nach der Umwandlung landet man direkt beim Entwurf — sonst
+                // müsste man ihn in der Liste suchen und wüsste nicht sicher,
+                // ob überhaupt etwas passiert ist.
+                setTab(ziel);
+                setPendingInvoiceId(invoiceId);
+              }}
+            />
+          )}
+          {tab === 'taxexport' && <TaxExportTab />}
         </motion.div>
       </AnimatePresence>
     </>

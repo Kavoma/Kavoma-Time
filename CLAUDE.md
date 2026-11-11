@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Projekt
 
-**Kavoma Time** — Single-User Desktop-App (Electron + React 19 + Vite + TypeScript + Tailwind v4) für Zeiterfassung, Projekt-/Kundenverwaltung, Rechnungsstellung mit Mahnwesen, Finanzen (Eingangsrechnungen + Verträge mit verschlüsselten PDF-Anhängen, Auswertung) und optionaler, Ende-zu-Ende verschlüsselter Geräte-Synchronisierung. **Einen DATEV-Export gibt es nicht** — es existieren ein CSV-Export der Eingangsrechnungen, die verschlüsselte `.kvbak`-Sicherung und ein Klartext-JSON-Export. Debitorennummern werden DATEV-tauglich vergeben, das ist aber Vorbereitung und keine Schnittstelle. UI ist durchgängig **Deutsch**; Code-Kommentare ebenfalls Deutsch. DSGVO-konform (lokale Speicherung, Wipe, Verschlüsselung).
+**Kavoma Time** — Single-User Desktop-App (Electron + React 19 + Vite + TypeScript + Tailwind v4) für Zeiterfassung, Projekt-/Kundenverwaltung, Angebote, Rechnungsstellung mit Mahnwesen und Zahlungseingängen, Finanzen (Eingangsrechnungen + Verträge mit verschlüsselten PDF-Anhängen, Auswertung) und optionaler, Ende-zu-Ende verschlüsselter Geräte-Synchronisierung. E-Rechnungen werden **geschrieben** (ZUGFeRD im Rechnungs-PDF) **und gelesen** (CII/UBL, eingebettet oder als reine XRechnung). Für die Übergabe an Dritte gibt es einen **DATEV-Buchungsstapel** (EXTF 700) und einen **Z3-Ordner** nach dem Beschreibungsstandard der Finanzverwaltung, dazu einen CSV-Export der Eingangsrechnungen, die verschlüsselte `.kvbak`-Sicherung und einen Klartext-JSON-Export. UI ist durchgängig **Deutsch**; Code-Kommentare ebenfalls Deutsch. DSGVO-konform (lokale Speicherung, Wipe, Verschlüsselung).
 
 Package-Manager: **pnpm** (Workspace via `pnpm-workspace.yaml`, Lockfile `pnpm-lock.yaml`).
 
@@ -70,9 +70,18 @@ lädt seine ~250 MB Binary genau im `postinstall` herunter — fehlt der Eintrag
 bleibt `node_modules/…/electron/dist` leer und nichts startet. Der frühere
 `pnpm`-Block in der `package.json` wird von pnpm 11 nicht mehr gelesen.
 
-Tests gibt es **nur für die Synchronisierung** (`pnpm test`, vitest): Merge,
-Krypto, Nummernvergabe, Motor. Der Rest der App ist ungetestet — das ist eine
-bewusste Grenze, keine Lücke, die nebenbei geschlossen werden sollte.
+Getestet wird (`pnpm test`, vitest), was **nicht falsch sein darf**: die
+Synchronisierung (Merge, Krypto, Nummernvergabe, Motor), die Sicherungen
+(Umschlag, Dateiformat, Rechnerwechsel) und der E-Rechnungs-Leser (CII, UBL,
+XML aus dem PDF, Rundlauf gegen den eigenen Schreiber). Der Rest der App ist
+ungetestet — das ist eine bewusste Grenze, keine Lücke, die nebenbei
+geschlossen werden sollte. Ein Standard, den andere Programme lesen müssen,
+gehört aber auf die geprüfte Seite.
+
+Die E-Rechnungs-Tests brauchen einen DOM und laufen unter `happy-dom`
+(`// @vitest-environment happy-dom` als erste Zeile). Vor der Aufnahme wurde
+geprüft, dass die Bibliothek Namensräume, `localName` und das Fehlerdokument
+bei kaputtem XML korrekt behandelt — genau darauf stützt sich der Leser.
 
 `pnpm typecheck` läuft `tsc --noEmit`. Achtung: Ohne `"ignoreDeprecations": "6.0"`
 in der `tsconfig.json` bricht TypeScript 6 mit TS5107 ab, **bevor** es eine
@@ -89,7 +98,7 @@ null Fehler. Neue Warnungen sind ein Signal, keine Normalität.
 
 ### Zwei-Prozess-Modell (Electron)
 
-- **`electron/main.cjs`** ist der Main-Prozess und der zentrale Punkt für: `electron-store` (verschlüsselt), AES-256-GCM Backup-Ver-/Entschlüsselung, verschlüsselte PDF-Anhänge (`userData/attachments/<id>.pdf.enc`, Format `IV(12)|AuthTag(16)|Ciphertext`), Tray, Global-Shortcut, AFK-Auto-Pause (via `powerMonitor.getSystemIdleTime`), Auto-Updater (`electron-updater` gegen GitHub Releases), Timer-Overlay-Fenster (Snap-to-Corner), Single-Instance-Lock, JumpList.
+- **`electron/main.cjs`** ist der Main-Prozess und der zentrale Punkt für: `electron-store` (verschlüsselt), die Sicherungen (Datei-Ein-/Ausgabe und Dialoge, siehe „Sicherungen" unten), verschlüsselte PDF-Anhänge (`userData/attachments/<id>.pdf.enc`, Format `IV(12)|AuthTag(16)|Ciphertext`), Tray, Global-Shortcut, AFK-Auto-Pause (via `powerMonitor.getSystemIdleTime`), Auto-Updater (`electron-updater` gegen GitHub Releases), Timer-Overlay-Fenster (Snap-to-Corner), Single-Instance-Lock, JumpList.
 - **`electron/preload.cjs`** läuft im **Sandbox** — seit Electron 20 die
   Voreinstellung, solange `nodeIntegration` aus ist (die `webPreferences` der App
   setzen `sandbox` nicht, also gilt der Default). Dort kennt `require` nur
@@ -212,8 +221,10 @@ ein, die dieser Aufbau vermeidet.
   auf beiden Bildschirmen, ließe sie sich blind abnicken.
   `unlock()` mit dem Wiederherstellungscode bleibt der Weg, wenn kein zweites
   Gerät zur Hand ist; bestehende Passphrase-Umschläge funktionieren weiter.
-- **Krypto und Transport liegen im Main-Prozess** (`electron/sync/`), der
-  Datenschlüssel verlässt ihn nie. Zusammengeführt wird im Renderer — als reine,
+- **Krypto und Transport liegen im Main-Prozess.** Der Transport steht in
+  `electron/sync/`, die Krypto in `electron/crypto.cjs` — eine Ebene höher,
+  weil die Sicherungen dasselbe Verfahren benutzen. Der Datenschlüssel
+  verlässt den Main-Prozess nie. Zusammengeführt wird im Renderer — als reine,
   testbare Funktion.
 - **Rechnungsnummern** entstehen erst beim Finalisieren, nie beim Anlegen eines
   Entwurfs. Ist Sync an und der Server nicht erreichbar, wird die Vergabe
@@ -234,13 +245,293 @@ ein, die dieser Aufbau vermeidet.
   Untergrenze auf; ohne die Migration kennt die Datenbank den Aufruf nicht und
   das Finalisieren schlägt fehl.
 - **Tests:** `pnpm test` (vitest). Getestet wird ausschließlich `src/sync/*` und
-  `electron/sync/*` — der Teil, der nicht falsch sein darf.
+  `electron/sync/*`, `electron/crypto*`, `electron/backupKey*`,
+  `electron/backupFile*` sowie die Formate, die Fremdsoftware liest
+  (`eInvoiceRead`, `eInvoicePdf`, `datevExport`, `z3Export`) sowie `payments`
+  und `quotes` — der Teil, der nicht falsch sein darf.
 - **Serverstandort** steht in `electron/sync/config.cjs` und wird von dort in die
   Datenschutzerklärung durchgereicht. Beides muss zusammenpassen.
 
+### Sicherungen
+
+Eine `.kvbak` muss den Rechner überleben, auf dem sie entstand — Buchungsbelege
+sind nach § 147 AO acht Jahre aufzubewahren, ein Rechnerwechsel in dieser
+Spanne ist der Normalfall. Bis September 2026 konnte sie das nicht: Der
+Schlüssel aus `kavoma.key` war der einzige Weg hinein, und `safeStorage` bindet
+ihn an diesen Schlüsselbund. Ausserdem enthielt sie **keine Belege**.
+
+**Zwei Module, eine Datei:**
+
+- **`electron/backupKey.cjs`** legt einen **zweiten Umschlag** um denselben
+  Schlüssel, verschlossen mit einem Wiederherstellungscode. Verfahren und
+  Parameter kommen aus `electron/crypto.cjs`. Der Bestand wird dabei **nicht**
+  neu verschlüsselt — der Schlüssel bleibt derselbe, er bekommt nur einen
+  zweiten Zugang.
+- **`electron/backupFile.cjs`** schreibt das Format 2: Magie `KVBAK2`, uint32
+  Kopflänge, Kopf als JSON, danach die einzeln verschlüsselten Einträge. Der
+  Kopf trägt den Umschlag mit — deshalb genügt **Code plus Datei**, ohne dass
+  ein Rechner überlebt haben muss.
+
+**Regeln, die nicht verhandelbar sind:**
+
+- **Datei-Ein- und -Ausgabe liegt im Main-Prozess**, nie im Renderer. Eine
+  Sicherung mit Belegen wird Gigabyte gross; als Blob durch den Renderer wäre
+  sie ein Speicherproblem. Der Rumpf entsteht in einer Beidatei und wird
+  gestreamt angehängt.
+- **Zwischen den Belegen wird die Ereignisschleife freigegeben**
+  (`durchatmen()`). Geschrieben wird mit `writeSync`; ohne den Zwischenschritt
+  stünde der Main-Prozess und mit ihm Fenster, Tray-Uhr und Timer.
+- **Was fehlt, wird gesagt.** Belege, die nicht auf dem Gerät liegen, werden
+  übersprungen **und gemeldet** — im Rückgabewert und im Kopf der Datei
+  (`skippedAttachments`). Eine Sicherung, die man für vollständig hält, ist
+  schlimmer als eine, von der man weiß, was ihr fehlt.
+- **Belege werden erst nach der Bestätigung ausgepackt.** `backup-import-pick`
+  öffnet und liest nur; `backup-restore-attachments` schreibt. Sonst blieben
+  nach einem Abbruch verwaiste Belege liegen.
+- **Angelegt ist nicht angekommen.** `confirmedAt` im Umschlag wird erst
+  gesetzt, wenn der Code einmal richtig abgetippt wurde. Bis dahin warnt der
+  `BackupRecoveryBanner` weiter — wegklickbar nur bis zum nächsten Start, denn
+  der Schaden tritt erst ein, wenn es zu spät ist, die Warnung nachzuholen.
+- **Auf dem eigenen Rechner wird nie nach dem Code gefragt.** Erst wenn der
+  lokale Schlüssel die Datei nicht öffnet, kommt er ins Spiel.
+- **Format 1 bleibt lesbar** (`readLegacy`), lässt sich aber nicht nachrüsten:
+  Alte Sicherungen tragen weder Umschlag noch Belege und bleiben an ihren
+  Ursprungsrechner gebunden.
+
+Ein neuer Umschlag (`force: true`) macht den alten Code ungültig — **für neue
+Dateien**. Bereits geschriebene Sicherungen tragen ihren eigenen Umschlag bei
+sich und brauchen weiterhin den alten Code. Das muss die Oberfläche sagen, sonst
+wirft jemand den Zettel weg, der seine Belege öffnet.
+
 ### Finanzen-Modul & Anhänge
 
-`FinanceView` ist ein Tab-Container; die echten Tabs liegen unter `src/components/finance/`. PDFs (Eingangsrechnungen / Verträge) werden **nie** in den State serialisiert — nur `Attachment`-Metadaten (`id`, `sha256`, `sizeBytes`) liegen im Store, der Inhalt wird über `attachmentWrite/Read/Delete` IPC verschlüsselt auf Platte gehalten (`userData/attachments/`). `wipe-all-data` löscht dieses Verzeichnis mit.
+`FinanceView` ist ein Tab-Container; die echten Tabs liegen unter
+`src/components/finance/`. Belege (Eingangsrechnungen / Verträge) werden **nie**
+in den State serialisiert — nur `Attachment`-Metadaten (`id`, `sha256`,
+`sizeBytes`, `mimeType`) liegen im Store, der Inhalt wird über
+`attachmentWrite/Read/Delete` IPC verschlüsselt auf Platte gehalten
+(`userData/attachments/`). `wipe-all-data` löscht dieses Verzeichnis mit.
+
+**Anhänge sind nicht mehr nur PDF.** Eingangsrechnungen nehmen auch
+`application/xml` an, weil eine XRechnung ohne PDF ankommt; Verträge bleiben bei
+PDF. Das steuert das zweite Argument von `uploadDocument`. Die Dateiendung auf
+der Platte bleibt `.pdf.enc` — sie ist ein Name, kein Typ; der Typ steht in den
+Metadaten. Wer `loadAttachmentBlob` aufruft, muss `mimeType` mitgeben, sonst
+bekommt der Browser XML als PDF vorgesetzt.
+
+### E-Rechnungen — beide Richtungen
+
+Geschrieben wird ZUGFeRD/Factur-X (`eInvoiceXml.ts` → `zugferdPdf.ts`), gelesen
+wird seit September 2026 auch. Die Empfangspflicht gilt seit dem 1. Januar 2025
+für **jedes** Unternehmen, auch für Kleinunternehmer, die vom Versand befreit
+sind.
+
+- **`src/utils/eInvoiceRead.ts`** liest **CII und UBL**. Das ist keine
+  Bequemlichkeit: Eine XRechnung darf in beiden Syntaxen kommen, und im
+  Behördenverkehr ist UBL die verbreitetere. Wer nur CII liest, erfüllt die
+  halbe Pflicht.
+- **Gesucht wird über `localName`, nie über Präfixe.** Namensräume sind
+  festgelegt, Präfixe frei wählbar. Wer auf `ram:Name` prüft, scheitert am
+  ersten Absender mit anderer Vorliebe.
+- **Kein XML-Parser als Abhängigkeit.** Der `DOMParser` des Renderers löst keine
+  externen Entitäten auf — beim Lesen fremder Dateien ist das genau die
+  Eigenschaft, die man will (XXE). Eine Bibliothek gäbe sie wieder auf.
+- **Datumsangaben werden aus Kalenderfeldern gebaut**, nie über
+  `new Date('2026-09-02')`. Das liest ISO-Strings als UTC und verschiebt den
+  Beleg westlich von Greenwich um einen Tag.
+- **Beträge stehen im XML immer englisch.** `parseFloat` ist hier richtig —
+  aber nur hier. Das Formular daneben parst deutsch.
+- **`src/utils/eInvoicePdf.ts`** holt das XML aus einem ZUGFeRD-PDF. Gesucht
+  wird im Namensbaum `/Names /EmbeddedFiles` **und** in `/AF`, weil Erzeuger mal
+  das eine, mal das andere füllen. Dateinamen kommen als `PDFHexString`
+  (UTF-16BE mit BOM) — `toString()` liefert dort die Hex-Ziffern, nicht den
+  Namen; es muss `decodeText()` sein. Genau das hat der Test gefunden.
+- **Erst der Standardname, dann der Notweg.** Ein PDF darf mehrere Anhänge
+  tragen — Lieferschein, Stundennachweis, AGB. Der erstbeste wäre der falsche.
+- **Warnungen sind keine Konformitätsprüfung.** `collectWarnings` rechnet die
+  Summenprobe nach und meldet Fremdwährungen und Gutschriften. Die
+  vollständigen EN-16931-Regeln stecken in den Schematron-Dateien der KoSIT und
+  sind ein eigenes Vorhaben; hier lieber eine Warnung zu wenig als eine falsche.
+- **Fehlende Felder bleiben `undefined`.** Die schlanken Profile (MINIMUM,
+  BASIC WL) haben absichtlich keine Positionen. `EInvoiceView` zeigt dafür
+  „—" — der Unterschied zwischen „0,00 €" und „nicht angegeben" entscheidet,
+  ob man einer Zahl trauen kann.
+- **Getestet**, entgegen der sonstigen Grenze: `eInvoiceRead`, `eInvoicePdf` und
+  `EInvoiceView`. Ein Standardleser gehört in dieselbe Kategorie wie die
+  Sync-Schicht — er darf nicht falsch sein. Der Rundlauf gegen den eigenen
+  Schreiber ist dabei der wichtigste Test: Sind Schreiber und Leser sich über
+  dieselbe Rechnung nicht einig, fällt das sonst erst beim Empfänger auf.
+  Die Tests brauchen einen DOM und laufen deshalb unter `happy-dom`
+  (`// @vitest-environment happy-dom`).
+
+### Steuerliche Exporte — DATEV und Z3
+
+Zwei Formate mit zwei Empfängern: Der **DATEV-Buchungsstapel** geht an die
+Steuerkanzlei und wird dort gebucht, der **Z3-Ordner** an den Betriebsprüfer und
+wird dort ausgewertet. Sie stehen in einem gemeinsamen Reiter (`TaxExportTab`),
+teilen sich aber nur die Jahresauswahl und den Zeichensatz — DATEV will
+Buchungssätze, Z3 will Tabellen. Deshalb **zwei Module, kein gemeinsames**.
+
+- **`src/utils/datevExport.ts`** schreibt EXTF, Fassung 700, Datenkategorie 21.
+  **Die Form ist der schwierige Teil, nicht der Buchungssatz.** Die Datei hat
+  **125 Spalten in fester Reihenfolge** — eine ausgelassene verschiebt alles
+  danach und macht aus dem Belegdatum einen Buchungstext. Deshalb steht die
+  Spaltenliste vollständig in `BUCHUNGSSTAPEL_SPALTEN`, auch wo nichts gefüllt
+  wird, und der Test zählt sie nach.
+- **Windows-1252, nicht UTF-8.** `toWindows1252()` bildet von Hand ab, weil der
+  Browser nur UTF-8 kann. Ohne das käme „Bürostühle" in der Kanzlei als
+  „BÃ¼rostÃ¼hle" an — und zwar erst dort. Dieselbe Funktion benutzen die
+  Z3-CSVs; die XML-Dateien gehen als UTF-8 hinaus, weil sie ihre Kodierung
+  selbst deklarieren.
+- **Zahlen werden nicht eingerahmt, Text schon.** DATEV liest ein
+  eingerahmtes `1190,00` als Text und weist den Satz ab.
+- **Brutto über Automatikkonten, BU-Schlüssel leer.** Konto und BU-Schlüssel
+  zusammen wären zwei Steuerangaben zu einem Satz.
+- **Keine Zahlungsbuchungen.** Bankkonto und Zahlbetrag fehlen; die Kanzlei
+  bucht aus dem Kontoauszug. Kommt B5 (Zahlungseingänge), ist das der Moment,
+  es nachzurüsten.
+- **Kontonummern sind Vorgaben, keine Wahrheit** und vollständig einstellbar
+  (`KONTEN_VORGABEN` für SKR 03 und 04, im State unter `datev`). Vorbelegt ist
+  nur, was belegbar ist; der Rest steht auf dem Sammelkonto „sonstige
+  betriebliche Aufwendungen". Wer hier rät, baut einen Fehler, der plausibel
+  aussieht.
+- **`src/utils/z3Export.ts`** schreibt den Ordner: fünf CSV-Tabellen, eine
+  `index.xml` und die DTD. **Die CSVs haben keine Kopfzeile** — die Spaltennamen
+  stehen in der `index.xml`, das ist ihr Zweck; eine unangekündigte Überschrift
+  läse der Prüfer als ersten Datensatz. Der Test hält deshalb die Spaltenzahl
+  der Beschreibung gegen die der Daten.
+- **Die DTD ist ein Nachbau**, beschränkt auf die erzeugten Elemente. Sie liegt
+  bei, weil ein `SYSTEM`-Verweis ins Leere manche Prüfprogramme scheitern lässt.
+  `xmllint --valid index.xml` bestätigt die Gültigkeit gegen sie.
+- **Datumsangaben aus Kalenderfeldern**, nie über `toISOString()` — ein Beleg
+  vom 1. Januar 00:30 rutschte damit ins Vorjahr und fehlte in der geprüften
+  Periode.
+- **Geschrieben wird im Main-Prozess** (`export-write-file`,
+  `export-write-folder`). Der Renderer entscheidet, was hineinkommt; damit
+  bleibt die Aufbereitung eine reine, testbare Funktion. Der Ordnername wird im
+  Main gesäubert — er darf nicht aus dem Zielordner herausführen.
+
+### Zahlungseingänge
+
+Eine Rechnung trägt einzelne `Payment`-Einträge statt eines Ja/Nein-Schalters.
+
+- **`paid` und `paidAt` bleiben, sind aber abgeleitet — nie von Hand setzen.**
+  Rund zwanzig Stellen lesen sie (Liste, Filter, Auswertung, Mahnwesen,
+  Z3-Export); sie alle umzustellen wären zwanzig Gelegenheiten gewesen, eine zu
+  übersehen. Gepflegt werden sie ausschliesslich von `src/utils/payments.ts`.
+  Wer Zahlungen ändert, benutzt `mitZahlung` / `ohneZahlung` /
+  `komplettBezahlt` / `alleZahlungenEntfernt` und fasst `payments` nicht direkt
+  an — sonst laufen Schalter und Wahrheit auseinander.
+- **`paidAt` ist die letzte Zahlung, nicht die erste** — ausgeglichen war die
+  Rechnung erst damit. Wird eine Zahlung zurückgenommen, verschwindet der
+  Schlüssel wieder (`delete`, nicht `undefined` — sonst meldet der Sync-Diff
+  ewig eine Änderung, die keine ist).
+- **Mahngebühren zählen zur Forderung** (`gesamtforderung`). Wer sie ausliesse,
+  hielte eine Rechnung für beglichen, bei der die Gebühr noch offen ist.
+- **Ein halber Cent Toleranz.** Beträge werden auf zwei Stellen geführt;
+  alles darunter kann nur Fließkomma-Rauschen sein und darf keine Mahnung
+  auslösen.
+- **`source: 'switch'`** kennzeichnet Zahlungen, die aus dem alten Schalter
+  **erschlossen** wurden. Der Unterschied zu einer erfassten Zahlung steht im
+  Z3-Export in einer eigenen Spalte — eine Prüfung darf beides nicht
+  verwechseln. `migriereZahlungsschalter` ist idempotent; sie läuft bei jedem
+  Start.
+- **Zahlungen werden beim Abgleich vereinigt, nicht ersetzt** (`mergePayments`
+  in `src/sync/merge.ts`) — dieselbe Überlegung wie bei den Mahnstufen, nur
+  teurer: Eine auf dem anderen Gerät erfasste Zahlung ist Geld, das eingegangen
+  ist. Danach werden `paid`/`paidAt` neu abgeleitet, **aber nur, wenn
+  mindestens eine Seite eine `payments`-Liste führt**. Eine Op von einem noch
+  nicht aktualisierten Gerät trägt `paid: true` ohne Liste; abzuleiten machte
+  die Rechnung dort stillschweigend wieder unbezahlt.
+- **Die Ist-Versteuerung rechnet je Zahlung** (`ustAnteil`, anteilig zum
+  Rechnungsbetrag ohne Mahngebühren — eine Mahngebühr ist Schadensersatz und
+  nicht steuerbar). Die **Vorsteuer** bleibt am Belegdatum: Für Eingangsrechnungen
+  führt Kavoma Time keine Zahlungsdaten.
+
+### Angebote
+
+Eigener Reiter vor den Rechnungen. `src/utils/quotes.ts` hält die Logik,
+`quotePdf.ts` das Dokument.
+
+- **Ein Angebot ist kein Buchungsbeleg.** Keine Lückenlosigkeit der Nummern,
+  keine Unveränderbarkeit, kein Storno — es darf geändert und gelöscht werden.
+  Wer hier die Regeln der Rechnung nachbaut, macht die Sache ohne Grund
+  schwerer.
+- **Nummern werden lokal vergeben, auch mit eingeschalteter Synchronisierung.**
+  Die Vergabe zu verweigern, weil ein Server nicht erreichbar ist, ist bei einer
+  Rechnung richtig und hier absurd. **Kein Zähler:** `nextQuoteNumber` liest den
+  tatsächlichen Bestand — dieselbe Überlegung wie bei `invoiceFloor`, nur ohne
+  Server. Zwei gleichzeitig offline erzeugte Angebote können dieselbe Nummer
+  tragen; das ist hingenommen und sichtbar.
+- **„Abgelaufen" wird gerechnet, nicht gespeichert** (`quoteState`). Als
+  Zustand müsste ihn jemand umsetzen, und um Mitternacht ist niemand da. Nur ein
+  **versendetes** Angebot läuft ab; ein abgelaufenes bleibt abrechenbar, weil
+  Kunden oft erst nach der Frist zusagen.
+- **Die Umwandlung erzeugt einen Rechnungs*entwurf*** ohne Nummer. Die entsteht
+  erst beim Finalisieren, bei Sync serverseitig — hier eine zu vergeben hiesse,
+  genau den Weg zu umgehen, der Dubletten verhindert. Positionen werden
+  **kopiert**, nicht geteilt, sonst änderte eine spätere Bearbeitung rückwirkend
+  das Angebot beim Kunden. `quoteId` und `invoiceId` machen die Spur in beide
+  Richtungen lesbar.
+- **Die Erfolgsquote zählt nur Entschiedenes.** Sonst sänke sie mit jedem neuen
+  Angebot. Abgelaufene zählen als abgelehnt.
+- **`src/utils/pdfLetterhead.ts`** trägt den gemeinsamen Briefbogen von
+  Rechnung, Mahnung und Angebot (DIN 5008). Zwei Briefköpfe wären zwei Stellen
+  für eine geänderte Adresse — und eine würde vergessen.
+- **Kein ZUGFeRD im Angebot.** Das eingebettete XML beschreibt eine Rechnung.
+
+### PDF/A-3B und die eingebettete Schrift
+
+Das Rechnungs-PDF mit ZUGFeRD-XML ist seit September 2026 ein **PDF/A-3B**.
+Vier Dinge gehören dazu; fehlt eines, weist ein Prüfprogramm die Datei ab.
+
+- **`src/utils/pdfFonts.ts`** meldet **Liberation Sans** an jedem frischen
+  Dokument an (`registriereSchrift`) — muss **vor** der ersten Textausgabe
+  laufen, jsPDF hält die Dateiablage pro Dokument. Gewählt wurde sie, weil sie
+  metrisch zu Arial passt: Das gegen Helvetica gebaute Layout bleibt
+  unverändert. Der Familienname ist bewusst **nicht** `helvetica` — sonst
+  griffe `setFont('helvetica')` je nach Reihenfolge auf die eingebaute
+  Standardschrift.
+- **Die Schrift liegt als Base64-Modul** unter `src/utils/fonts/` (generiert,
+  nicht von Hand bearbeiten; vom Lint ausgenommen). Grund: Der Renderer läuft
+  in der gebauten App unter `file://`, ein `fetch()` auf eine relative URL ist
+  dort gesperrt. Kostet rund 1,1 MB Bundle und lässt eine Rechnung von 9 KB auf
+  143 KB wachsen.
+- **jsPDF schreibt die Standardschriften ungefragt mit**, auch ungenutzt, und
+  seine Schriftverwaltung liegt in einer Closure — vorher leeren geht nicht.
+  `entferneNichtEingebetteteSchriften` in `zugferdPdf.ts` räumt sie hinterher
+  aus Seiten-Resources **und** Objektbestand, aber nur wenn sie weder
+  eingebettet noch im Inhaltsstrom benutzt sind. Eine benutzte bleibt stehen,
+  damit der Fehler auffällt.
+- **`jspdf-autotable` setzt für seine Zellen eigenständig Helvetica.** Jeder
+  `autoTable`-Aufruf braucht deshalb `styles: { font: PDF_FONT }`. Wer eine
+  neue Tabelle einbaut und das vergisst, macht das PDF still ungültig.
+- **`src/utils/srgbProfile.ts`** baut die Ausgabebedingung aus den Normwerten
+  (IEC 61966-2-1) statt eine fremde Profildatei mitzuliefern. Die
+  Primärvalenzen sind die **an D50 angepassten** — mit den D65-Werten lädt das
+  Profil und ist trotzdem falsch.
+- **Die Datei-ID wird abgeleitet, nicht gewürfelt.** pdf-lib schreibt sonst
+  eine zufällige, und dieselbe Rechnung sähe bei jedem Erzeugen anders aus.
+- **Nicht gegen veraPDF geprüft** — das braucht Java. Getestet ist stattdessen
+  das erzeugte PDF (`pdfaConformance.test.ts`) an den Punkten, an denen es
+  realistisch scheitert.
+- **Nur die E-Rechnung ist PDF/A.** Angebot und Mahnung erheben den Anspruch
+  nicht und laufen nicht durch `attachFacturX`. Sie benutzen dieselbe
+  eingebettete Schrift, aber ohne Ausgabebedingung und Kennung.
+
+### Abrechenbare Zeit
+
+`TimeEntry.billable` trennt bezahlte Arbeit von Akquise, Buchhaltung und
+Fortbildung. Gefragt wird über `istAbrechenbar()` in `src/utils/billable.ts`.
+
+- **Fehlt das Feld, ist die Zeit abrechenbar.** Nur ein ausdrückliches `false`
+  schliesst aus. Deshalb wird beim Laden **nichts nachgetragen**: Ein
+  `billable: true` an jedem Altbestand wäre für den Diff eine Änderung an jedem
+  einzelnen Eintrag und ergäbe beim ersten Start nach dem Update einen Schwall
+  von Ops. Aus demselben Grund **entfernt** `mitAbrechenbarkeit` das Feld beim
+  Zurückschalten, statt `true` stehenzulassen.
+- **`TimeEntryPicker` bietet interne Zeit gar nicht erst an.** Sie dort
+  stehenzulassen hiesse, den Fehler einen Klick später zu machen.
 
 ### PDF-Generierung
 
@@ -314,6 +605,8 @@ Enthält:
 
 - `kavoma-time-data.json` — verschlüsselter electron-store
 - `kavoma.key` — AES-Schlüssel, gewrappt über `safeStorage` (Windows DPAPI / macOS Schlüsselbund)
+- `kavoma-backup-recovery.json` — derselbe Schlüssel ein zweites Mal, verschlossen
+  mit dem Wiederherstellungscode. Der Code selbst steht nirgends
 - `attachments/<uuid>.pdf.enc` — verschlüsselte PDF-Belege
 
 Der Keychain-Eintrag hinter `safeStorage` hängt unter macOS an der Code-Signatur-

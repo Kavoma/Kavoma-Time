@@ -20,7 +20,8 @@ function state(now: number): AppState {
       items: [{ description: 'Wartung', quantity: 1, unit: 'Pauschal', unitPrice: 100, total: 100, kind: 'flat' }],
       serviceType: 'Dienstleistung', notes: '', dueDays: 14, createdAt: 0,
     }],
-    recurringInvoices: [{
+    quotes: [],
+  recurringInvoices: [{
       id: 'r1', templateId: 't1', customerId: 1, cadence: 'monthly',
       dayOfPeriod: 1, nextDueAt: now - TAG, active: true,
     }],

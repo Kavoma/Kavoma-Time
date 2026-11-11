@@ -2,7 +2,7 @@ import { useState, useRef, type DragEvent, type ChangeEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, FileSignature, AlertTriangle, XCircle } from 'lucide-react';
 import { Attachment, Contract, Customer } from '../../types';
-import { uploadPdf, formatFileSize } from '../../utils/attachments';
+import { uploadDocument, formatFileSize } from '../../utils/attachments';
 import { DatePicker } from '../DatePicker';
 import { newNumericId } from '../../sync/ids';
 
@@ -86,7 +86,7 @@ export function ContractUploadModal({ open, customers, onClose, onSave }: Props)
         return;
       }
       const validUntilTs = validUntil ? new Date(validUntil).getTime() : NaN;
-      const attachment = await uploadPdf(file);
+      const attachment = await uploadDocument(file);
       const contract: Contract = {
         id: newNumericId(),
         customerId,

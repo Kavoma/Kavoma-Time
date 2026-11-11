@@ -16,6 +16,9 @@ import { CustomSelect } from '../CustomSelect';
 import { Tooltip } from '../Tooltip';
 import { KpiBox, DrawerSection, DrawerField, DrawerInput } from '../shared/DrawerParts';
 import { collectTags, tagColors } from '../../utils/tagColor';
+import { OutstandingCard } from '../shared/OutstandingCard';
+import { computeOutstanding } from '../../utils/outstanding';
+import { effectiveVatRate } from '../../utils/pricing';
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
   active: 'Aktiv',
@@ -162,6 +165,12 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
       .slice(0, 5);
   }, [project, state]);
 
+  // Was für dieses Projekt noch hereinkommen sollte — Stunden und offene Rechnungen.
+  const outstanding = useMemo(
+    () => (project && state ? computeOutstanding(state, { customerId: project.customerId, projectId: project.id }) : null),
+    [project, state],
+  );
+
   const projectInvoices = useMemo(() => {
     if (!project || !state) return [];
     return state.invoices
@@ -239,6 +248,8 @@ export function ProjectDetailDrawer({ open, project, customers, onSave, onDelete
           tone={kpis.budgetUsage >= 100 ? 'warn' : kpis.budgetUsage >= 80 ? 'warn' : 'default'}
         />
       </div>
+
+      {outstanding && <OutstandingCard amounts={outstanding} vatRate={effectiveVatRate(state?.issuer)} />}
 
       {/* Status / Priorität / Tags */}
       <div className="flex flex-wrap items-center gap-2">
