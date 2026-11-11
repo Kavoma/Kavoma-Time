@@ -6,6 +6,7 @@ import { CustomSelect } from './CustomSelect';
 import { CustomAutocomplete } from './CustomAutocomplete';
 import { CustomInput } from './CustomInput';
 import { DatePicker } from './DatePicker';
+import { TimeInput } from './TimeInput';
 import { newNumericId } from '../sync/ids';
 import { NO_PROJECT_ID, NO_PROJECT_OPTION } from '../utils/projects';
 
@@ -143,22 +144,10 @@ export function NewEntryModal({ open, customers, projects, defaultCustomerId, de
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col">
-                  <label className="mb-2 kv-label">Von (Start)</label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="h-11 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none focus:border-accent font-bold"
-                  />
+                  <TimeInput label="Von (Start)" value={startTime} onChange={setStartTime} />
                 </div>
                 <div className="flex flex-col">
-                  <label className="mb-2 kv-label">Bis (Ende)</label>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="h-11 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none focus:border-accent font-bold"
-                  />
+                  <TimeInput label="Bis (Ende)" value={endTime} onChange={setEndTime} />
                 </div>
               </div>
 

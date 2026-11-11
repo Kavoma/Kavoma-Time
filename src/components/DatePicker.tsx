@@ -8,6 +8,8 @@ interface DatePickerProps {
   onChange: (date: string) => void;
   label?: string;
   className?: string;
+  /** 'sm' für Tabellenzeilen (z. B. Mehrfach-Eintrag), 'md' für Formulare. */
+  size?: 'sm' | 'md';
 }
 
 const MONTHS = [
@@ -23,7 +25,7 @@ const POPUP_HEIGHT_ESTIMATE = 320;
 const POPUP_GAP = 8;
 const VIEWPORT_PAD = 8;
 
-export function DatePicker({ value, onChange, label, className = '' }: DatePickerProps) {
+export function DatePicker({ value, onChange, label, className = '', size = 'md' }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -173,12 +175,14 @@ export function DatePicker({ value, onChange, label, className = '' }: DatePicke
           ref={triggerRef}
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="flex h-11 w-full items-center justify-between rounded-md border border-divider bg-paper px-3 text-sm font-bold text-ink outline-none transition-colors focus:border-accent"
+          className={`flex w-full items-center justify-between rounded-md border border-divider bg-paper text-ink outline-none transition-colors focus:border-accent ${
+            size === 'sm' ? 'h-9 px-2 text-[12px]' : 'h-11 px-3 text-sm font-bold'
+          }`}
         >
           <span className="tabular-nums">
             {selectedDate ? selectedDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Datum wählen'}
           </span>
-          <CalendarIcon size={14} className="text-muted" />
+          <CalendarIcon size={size === 'sm' ? 12 : 14} className="text-muted" />
         </button>
 
         {/* Popup via Portal an document.body — entkoppelt vom Clipping-Kontext (Section overflow-hidden, Scroll-Container etc.) */}

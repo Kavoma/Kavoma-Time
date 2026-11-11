@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Banknote, Check, Info, Plus, Trash2, X } from 'lucide-react';
+import { DatePicker } from '../DatePicker';
 import type { Invoice, Payment } from '../../types';
 import {
   ZAHLUNGSSTAND_LABEL, gesamtforderung, gezahlt, offen, zahlungsstand,
@@ -201,13 +202,10 @@ export function PaymentsSection({ invoice, onTogglePaid, onAddPayment, onRemoveP
                 onKeyDown={(e) => { if (e.key === 'Enter') speichern(); }}
               />
             </label>
-            <label className="block">
+            <div className="block">
               <span className="kv-label">Eingegangen am</span>
-              <input
-                type="date" className="kv-input mt-1 w-full"
-                value={am} onChange={(e) => setAm(e.target.value)}
-              />
-            </label>
+              <DatePicker size="sm" className="mt-1" value={am} onChange={setAm} />
+            </div>
             <label className="block">
               <span className="kv-label">Weg</span>
               <select

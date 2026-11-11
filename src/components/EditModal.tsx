@@ -6,6 +6,7 @@ import { CustomSelect } from './CustomSelect';
 import { CustomAutocomplete } from './CustomAutocomplete';
 import { CustomInput } from './CustomInput';
 import { DatePicker } from './DatePicker';
+import { TimeInput } from './TimeInput';
 import { NO_PROJECT_ID, NO_PROJECT_OPTION } from '../utils/projects';
 
 interface EditModalProps {
@@ -135,23 +136,10 @@ export function EditModal({ entry, customers, projects, onSave, onCancel, recent
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col">
-                  <label className="mb-2 kv-label">Von (Start)</label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="h-11 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none focus:border-accent font-bold"
-                  />
+                  <TimeInput label="Von (Start)" value={startTime} onChange={setStartTime} />
                 </div>
                 <div className="flex flex-col">
-                  <label className="mb-2 kv-label">Bis (Ende)</label>
-                  <input
-                    type="time"
-                    value={endTime}
-                    disabled={!entry.endedAt}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className={`h-11 rounded-md border border-divider bg-paper px-3 text-sm tabular-nums text-ink outline-none focus:border-accent font-bold ${!entry.endedAt ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  />
+                  <TimeInput label="Bis (Ende)" value={endTime} onChange={setEndTime} disabled={!entry.endedAt} />
                 </div>
               </div>
 
