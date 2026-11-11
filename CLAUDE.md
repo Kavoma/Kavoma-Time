@@ -91,8 +91,21 @@ einem absichtlichen Typfehler anlegen und sehen, dass er gemeldet wird. Genau so
 fiel auf, dass die früher hier genannten „drei vorbestehenden Fehler" in
 `attachments.ts` und `invoicePdf.ts` längst behoben waren.
 
-`pnpm lint` meldet 100 vorbestehende Warnungen (`any`, `exhaustive-deps`) und
-null Fehler. Neue Warnungen sind ein Signal, keine Normalität.
+`pnpm lint` meldet **94 vorbestehende Warnungen** (`any`, `exhaustive-deps`) und
+**null Fehler**. Neue Warnungen sind ein Signal, keine Normalität. Fehler sind
+es erst recht: `--report-unused-disable-directives` stuft eine überflüssig
+gewordene `eslint-disable`-Zeile zum Fehler hoch, und das ist gewollt — sie
+verdeckt sonst still die nächste echte Warnung an derselben Stelle.
+
+Stand der Messlatten (Sept. 2026, Version 1.2.1) — wer sie verschiebt, sollte
+die Zahl hier mitziehen, sonst taugt sie als Signal nichts:
+
+| | |
+|---|---|
+| `pnpm test` | 19 Dateien, 335 Tests, alle grün |
+| `pnpm typecheck` | 0 Fehler |
+| `pnpm lint` | 0 Fehler, 94 Warnungen |
+| Startchunk `pnpm build` | ~849 kB (gzip ~235 kB) |
 
 ## Architektur — die Teile, die mehrere Dateien zusammen ergeben
 
@@ -537,6 +550,76 @@ Fortbildung. Gefragt wird über `istAbrechenbar()` in `src/utils/billable.ts`.
 
 `jspdf` + `jspdf-autotable` in `src/utils/invoicePdf.ts` und `dunningPdf.ts`. Rechnungen und Mahnungen werden client-seitig im Renderer erzeugt — der Issuer (Firmenstammdaten) kommt aus dem AppState.
 
+**Eingebunden werden diese Module nie direkt, sondern über
+`src/utils/pdfLazy.ts`** — siehe den nächsten Abschnitt.
+
+### Bundle und Auslieferung
+
+Zwei Regeln, beide mit demselben Grund: Was nur der Renderer braucht, soll
+weder beim Start geparst noch ein zweites Mal ausgeliefert werden. Beide sind
+leicht zu übertreten, ohne dass etwas kaputtgeht — es wird bloss still wieder
+schwer.
+
+**1. In `dependencies` steht nur, was der Main-Prozess zur Laufzeit per
+`require()` lädt.** Das sind genau drei Pakete: `@supabase/supabase-js`
+(Transport der Synchronisierung), `electron-store` und `electron-updater`.
+Alles andere gehört zu den `devDependencies`, auch wenn es im fertigen
+Programm läuft — Vite bündelt es nach `dist/`.
+
+Der Grund ist electron-builder: Es kopiert den Baum aus `dependencies`
+vollständig in die `app.asar`. Bis September 2026 standen dort auch `jspdf`,
+`pdf-lib`, `recharts`, `jspdf-autotable` und `react-colorful`. Sie lagen damit
+zweimal im Programm — einmal gebündelt, einmal als Rohquelltext, den nie
+jemand lädt:
+
+    app.asar     96,5 MB  ->  14,0 MB
+    node_modules 86,1 MB  ->   9,3 MB
+    DMG arm64   127,3 MB  -> 116,1 MB
+
+Wer ein neues Renderer-Paket aufnimmt und es aus Gewohnheit unter
+`dependencies` einträgt, macht das rückgängig, ohne dass ein Test anschlägt.
+Zur Kontrolle taugt der Kopf der gepackten Datei:
+
+```bash
+node -e 'const fs=require("fs"),f=process.argv[1],b=Buffer.alloc(16);const d=fs.openSync(f,"r");fs.readSync(d,b,0,16,0);const h=Buffer.alloc(b.readUInt32LE(12));fs.readSync(d,h,0,h.length,16);const j=JSON.parse(h.toString());console.log(Object.keys(j.files.node_modules.files).length,"Pakete im asar")' "release/mac-arm64/Kavoma Time.app/Contents/Resources/app.asar"
+```
+
+Erwartet werden ~39 Pakete. Dreistellig heisst: Ein Renderer-Paket ist wieder
+in `dependencies` gerutscht.
+
+**2. Schwere Bibliotheken werden dynamisch geladen, nie statisch importiert.**
+`jspdf` samt der eingebetteten Liberation Sans (1.529 kB), `pdf-lib` (420 kB)
+und `recharts` (427 kB) wiegen zusammen mehr als das Startbündel selbst.
+Gebraucht wird keines davon beim Start: PDF-Werkzeuge erst, wenn jemand ein
+Dokument erzeugt oder liest, `recharts` nur in Statistik und Auswertung.
+
+- **PDF: ausschliesslich über `src/utils/pdfLazy.ts`.** Die Fassade lädt
+  `invoicePdf`, `dunningPdf`, `quotePdf` und `eInvoicePdf` per `import()` nach
+  und zieht ihre Signaturen mit `Parameters<…>` aus den echten Modulen, damit
+  nichts doppelt gepflegt wird. Wer eine neue PDF-Funktion braucht, ergänzt
+  dort einen Sechszeiler — ein direkter Import aus `invoicePdf` zieht `jspdf`
+  und die eingebetteten Schriften zurück ins Startbündel.
+- **Diagramme: `React.lazy`.** `recharts` hängt an zwei Orten — an
+  `StatisticsView` (in `App.tsx`) und über `FinanceView` an `AnalyticsTab`
+  (`TrendChart`, `ExpensesByCategory`). **Nur eines von beiden nachzuladen
+  bringt nichts**, die Bibliothek läge über den anderen Weg weiter im
+  Startbündel. Eine neue Diagramm-Ansicht muss denselben Weg gehen.
+- **Tests importieren die Module weiterhin direkt.** Dort ist die Aufteilung
+  ohne Wert und der Umweg nur Rauschen.
+
+**Der Preis: Alles hinter `pdfLazy` ist asynchron**, auch was es im Modul
+dahinter nicht ist. An zwei Stellen kann deshalb eine ältere Antwort nach
+einer jüngeren eintreffen, und beide brauchen einen Wächter:
+`InvoicePreviewPane` zählt die Läufe mit (beim Tippen im Rechnungsformular ist
+das der Normalfall), `InvoiceDetailDrawer` verwirft im `useEffect`-Aufräumer
+die Antwort einer weggeklickten Rechnung. Wer eine dritte Vorschau baut,
+braucht denselben Wächter.
+
+**Was nicht half:** `build.target: 'esnext'` in der `vite.config.ts` — gemessen
+auf Byte identisch zum voreingestellten `baseline-widely-available`. Rolldown
+stuft in diesem Quelltext nichts herunter, was ins Gewicht fällt. Die
+naheliegende Idee ist also schon geprüft und verworfen.
+
 ## Konventionen
 
 - **Sprache**: Identifier englisch (`startTimer`, `entries`), User-Facing-Strings + Kommentare deutsch. Niemals `ä/ö/ü/ß` durch ASCII-Ersatz ausschreiben.
@@ -615,6 +698,50 @@ ad-hoc auf `com.kavoma.time` — ohne das trüge das Bundle nur die geerbte
 Electron-Signatur und der AES-Schlüssel wäre nach jedem Rebuild ein anderer.
 
 Wenn `safeStorage.isEncryptionAvailable()` false ist, zeigt die App beim Start eine bewusst friktionierte zweistufige Warn-Dialog-Kette und einen permanenten `EncryptionBanner`. Backup-/Anhang-Operationen werfen dann hart, statt Klartext zu schreiben — das ist gewollt und sollte nicht aufgeweicht werden.
+
+## Offene Punkte (Stand 4. September 2026)
+
+Abhängigkeiten, die bewusst **nicht** mitgezogen wurden, mit dem Grund. Wer
+einen davon angeht, sollte den Eintrag hier abräumen — und wer `pnpm outdated`
+liest, findet hier die Antwort, warum vier Pakete zurückliegen.
+
+- **`concurrently` 9.2.1 → 10.0.5.** Der einzige offene Sicherheitspunkt: 9.x
+  schleppt einen kritischen Fund in `shell-quote` mit. Nur
+  Entwicklungswerkzeug (`pnpm electron:dev`), landet in keinem Build, macht
+  aber `pnpm audit` laut. 10.x verlangt Node ≥ 22. Der billigste der vier.
+- **Electron 42 → 44.** Bringt Chromium 152 und die Startzeit-Verbesserungen
+  aus 43 (V8-Bytecode-Cache, Node-Snapshots) — für eine Desktop-App die
+  lohnendste Aktualisierung überhaupt. Breaking Changes, die dieses Projekt
+  betreffen: macOS 12 fällt weg (`minimumSystemVersion` steht **bereits auf
+  `13.0`** — siehe unten), Windows x86 und Linux ARM32 werden nicht mehr
+  gebaut (hier ohnehin nur x64), und der Renderer kommt nicht mehr an das
+  `clipboard`-Modul. Letzteres ist hier unkritisch: `BackupRecoveryCard` und
+  `SyncSetupModal` benutzen bereits `navigator.clipboard`.
+- **`minimumSystemVersion` steht auf `13.0`, Electron 42 läuft aber noch auf
+  macOS 11 und 12.** Der Wert nimmt Electron 44 vorweg. Solange der Sprung
+  nicht gemacht ist, sperrt er Nutzer ohne technischen Grund aus — wer vorher
+  ein Zwischenrelease baut, sollte ihn für dieses auf `11.0` zurückdrehen.
+- **TypeScript 6 → 7 geht noch nicht.** Der Go-native Compiler ist rund
+  zehnmal schneller, aber `typescript-eslint` verlangt `typescript >=4.8.4
+  <6.1.0`; ein Upgrade bricht `pnpm lint` beim Installieren. Grund ist die
+  fehlende programmatische Compiler-API, die erst mit 7.1 kommt. Wer die
+  Geschwindigkeit vorher will, nimmt den geteilten Aufbau: `typescript` auf
+  6.x lassen und `@typescript/native-preview` daneben nur für den Typecheck.
+  **Dann fällt auch `"ignoreDeprecations": "6.0"` weg** und
+  `"moduleResolution": "Node"` muss auf `"bundler"` — in 7.0 sind beide harte
+  Fehler.
+- **`framer-motion` 12 → 13** ist gefahrlos: Die einzige Breaking Change
+  betrifft `@emotion/is-prop-valid` bei styled-components und Emotion, beides
+  hier nicht im Einsatz. Nebenbei ist das Paket in `motion` umbenannt, der
+  Import hiesse dann `motion/react` — 42 Dateien, reine Fleissarbeit ohne
+  Gegenwert.
+- **`lucide-react` 1.16 → 1.39 lohnt nicht.** Gemessene 27 kB im Bundle; die
+  Ersparnis von Lucide 1.0 lag im npm-Paket, nicht im gebündelten Ergebnis.
+
+Zwei Dinge, die geprüft und **erledigt** sind — damit sie niemand erneut
+untersucht: `build.target: 'esnext'` bringt null Byte (siehe „Bundle und
+Auslieferung"), und die früher hier vermuteten Typfehler in `attachments.ts`
+und `invoicePdf.ts` gibt es nicht mehr.
 
 ## Branding & Docs
 
