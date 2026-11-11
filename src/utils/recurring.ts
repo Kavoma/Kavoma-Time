@@ -17,6 +17,7 @@ import type {
 } from '../types';
 import { computeTotals } from './templates';
 import { DRAFT_NUMBER } from '../sync/numbers';
+import { itemsToNet, pricesIncludeVat } from './pricing';
 
 const MAX_SAFE_DAY = 28;
 
@@ -57,10 +58,14 @@ export function generateDraftFromRecurring(params: {
   customer: Customer;
   vatRate: number;
   now: number;
+  /** Vorlagenpreise sind brutto gemeint — dann wird hier auf netto umgerechnet. */
+  grossPricing?: boolean;
 }): Invoice {
-  const { recurring, template, customer, vatRate, now } = params;
+  const { recurring, template, customer, vatRate, now, grossPricing = false } = params;
 
-  const items = template.items.map((it) => ({ ...it }));
+  const items = grossPricing
+    ? itemsToNet(template.items, vatRate)
+    : template.items.map((it) => ({ ...it }));
   const { subtotal, vatAmount, total } = computeTotals(items, vatRate);
 
   const dueAt = now + template.dueDays * 86_400_000;
@@ -91,6 +96,7 @@ export function generateDraftFromRecurring(params: {
     status: 'draft',
     reminders: [],
     recurringId: recurring.id,
+    grossPricing: grossPricing || undefined,
   };
 }
 
@@ -139,6 +145,7 @@ export function evaluateRecurringInvoices(now: number, state: AppState): Recurri
         customer,
         vatRate,
         now: dueAt,
+        grossPricing: pricesIncludeVat(issuer, customer),
       });
       newInvoices.push(draft);
       r.lastGeneratedAt = dueAt;

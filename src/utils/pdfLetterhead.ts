@@ -15,6 +15,14 @@ export const RAND = 20;
 export const fmtEuro = (n: number) =>
   n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 
+/**
+ * Einzelpreise dürfen bis zu vier Nachkommastellen tragen — bei brutto
+ * eingegebenen Preisen wird aus 50 € brutto 42,0168 € netto. Mit zwei Stellen
+ * ginge Menge × Einzelpreis auf der Rechnung nicht mehr auf.
+ */
+export const fmtPrice = (n: number) =>
+  n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' €';
+
 export const fmtDate = (ts: number) =>
   new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
 

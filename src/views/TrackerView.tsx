@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pencil, Trash2, Copy, Plus, ChevronRight, ChevronDown, Search, X, ListChecks, Square, Euro } from 'lucide-react';
+import { Pencil, Trash2, Copy, Plus, ChevronRight, ChevronDown, Search, X, ListChecks, ListPlus, Square, Euro } from 'lucide-react';
 import { CustomSelect } from '../components/CustomSelect';
 import { CustomAutocomplete } from '../components/CustomAutocomplete';
 import { Checkbox } from '../components/Checkbox';
@@ -8,6 +8,7 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { DeleteModal } from '../components/DeleteModal';
 import { EditModal } from '../components/EditModal';
 import { NewEntryModal } from '../components/NewEntryModal';
+import { BulkEntryModal } from '../components/BulkEntryModal';
 import { useAppState } from '../state/AppStateContext';
 import { TimeEntry } from '../types';
 import { pauseTimer, startTimer, stopTimer } from '../utils/timerActions';
@@ -35,6 +36,7 @@ export function TrackerView() {
   const [deleteModalEntryId, setDeleteModalEntryId] = useState<number | null>(null);
   const [editModalEntryId, setEditModalEntryId] = useState<number | null>(null);
   const [newEntryOpen, setNewEntryOpen] = useState(false);
+  const [bulkEntryOpen, setBulkEntryOpen] = useState(false);
   const [entryView, setEntryView] = useState<'date' | 'project'>('date');
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
@@ -245,6 +247,11 @@ export function TrackerView() {
   const handleAddManualEntry = (entry: TimeEntry) => {
     setState(s => s ? { ...s, entries: [entry, ...s.entries] } : null);
     setNewEntryOpen(false);
+  };
+
+  const handleAddBulkEntries = (neu: TimeEntry[]) => {
+    setState(s => s ? { ...s, entries: [...neu, ...s.entries] } : null);
+    setBulkEntryOpen(false);
   };
 
   const handleEditEntry = (updatedEntry: TimeEntry) => {
@@ -547,6 +554,13 @@ export function TrackerView() {
                 >
                   <Plus size={12} /> Nachtragen
                 </button>
+                <button
+                  onClick={() => setBulkEntryOpen(true)}
+                  className="kv-btn kv-btn-quiet"
+                  title="Viele Einträge auf einmal nachtragen"
+                >
+                  <ListPlus size={12} /> Mehrere
+                </button>
               </div>
             </div>
 
@@ -757,6 +771,14 @@ export function TrackerView() {
         onSave={handleAddManualEntry}
         onCancel={() => setNewEntryOpen(false)}
         recentDescriptions={allDescriptions}
+      />
+
+      <BulkEntryModal
+        open={bulkEntryOpen}
+        customers={state.customers.filter(c => c.status !== 'archived')}
+        projects={state.projects}
+        onSave={handleAddBulkEntries}
+        onCancel={() => setBulkEntryOpen(false)}
       />
     </>
   );

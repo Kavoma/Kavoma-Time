@@ -14,6 +14,12 @@ import { CurrencyInput } from '../CurrencyInput';
 import { Tooltip } from '../Tooltip';
 import { KpiBox, DrawerSection, DrawerField, DrawerInput } from '../shared/DrawerParts';
 import { collectTags, tagColors } from '../../utils/tagColor';
+import { OutstandingCard } from '../shared/OutstandingCard';
+import { computeOutstanding } from '../../utils/outstanding';
+import { effectiveVatRate } from '../../utils/pricing';
+
+/** '' = Grundeinstellung aus den Rechnungs-Einstellungen übernehmen. */
+type PreisArt = '' | 'brutto' | 'netto';
 
 const PALETTE = [
   '#3b82f6', '#6366f1', '#a855f7', '#ec4899',
@@ -78,6 +84,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
   const [email, setEmail] = useState('');
   const [country, setCountry] = useState('DE');
   const [vatId, setVatId] = useState('');
+  const [preisArt, setPreisArt] = useState<PreisArt>('');
   const [status, setStatus] = useState<CustomerStatus>('active');
   const [tags, setTags] = useState<string[]>([]);
   const [industry, setIndustry] = useState('');
@@ -103,6 +110,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
       setEmail(customer.email ?? '');
       setCountry(customer.country ?? 'DE');
       setVatId(customer.vatId ?? '');
+      setPreisArt(customer.pricesIncludeVat == null ? '' : customer.pricesIncludeVat ? 'brutto' : 'netto');
       setStatus(customer.status ?? 'active');
       setTags(customer.tags ?? []);
       setIndustry(customer.industry ?? '');
@@ -122,6 +130,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
       setEmail('');
       setCountry('DE');
       setVatId('');
+      setPreisArt('');
       setStatus('active');
       setTags([]);
       setIndustry('');
@@ -139,16 +148,16 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
   // KPIs aus AppState ableiten
   const kpis = useMemo(() => {
     if (!customer || !state) {
-      return { hoursSec: 0, revenue: 0, avgRate: 0, openClaims: 0, projectCount: 0 };
+      return { hoursSec: 0, revenue: 0, avgRate: 0, openClaims: 0, outstanding: null, projectCount: 0 };
     }
     const projects = state.projects.filter((p) => p.customerId === customer.id);
     const entries = state.entries.filter((e) => e.customerId === customer.id);
     const hoursSec = entries.reduce((s, e) => s + e.durationSeconds, 0);
     const invoices = state.invoices.filter((i) => i.customerId === customer.id && i.status === 'active');
     const revenue = invoices.reduce((s, i) => s + i.total, 0);
-    const openClaims = invoices.filter((i) => !i.paid).reduce((s, i) => s + i.total, 0);
     const avgRate = hoursSec > 0 ? revenue / (hoursSec / 3600) : 0;
-    return { hoursSec, revenue, avgRate, openClaims, projectCount: projects.length };
+    const outstanding = computeOutstanding(state, { customerId: customer.id });
+    return { hoursSec, revenue, avgRate, openClaims: outstanding.totalGross, outstanding, projectCount: projects.length };
   }, [customer, state]);
 
   const customerProjects = useMemo(() => {
@@ -189,6 +198,7 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
       debtorNumber: debtorNumber.trim() || undefined,
       country: country.trim().toUpperCase() || undefined,
       vatId: vatId.trim().toUpperCase().replace(/\s+/g, '') || undefined,
+      pricesIncludeVat: preisArt === '' ? undefined : preisArt === 'brutto',
       status,
       tags,
       industry: industry.trim() || undefined,
@@ -239,6 +249,10 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
         )}
       </div>
 
+      {kpis.outstanding && (
+        <OutstandingCard amounts={kpis.outstanding} vatRate={effectiveVatRate(state?.issuer)} />
+      )}
+
       {/* Stammdaten kompakt */}
       <DrawerSection title="Stammdaten">
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
@@ -260,13 +274,17 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
             {customerProjects.map((p) => {
               const pEntries = state?.entries.filter((e) => e.projectId === p.id) ?? [];
               const pSec = pEntries.reduce((s, e) => s + e.durationSeconds, 0);
+              const pOffen = state ? computeOutstanding(state, { customerId: customer.id, projectId: p.id }).totalGross : 0;
               return (
                 <li
                   key={p.id}
                   className="flex items-center justify-between rounded-md border border-divider bg-paper/50 px-3 py-2 text-[12px]"
                 >
                   <span className="truncate font-bold text-ink">{p.name}</span>
-                  <span className="shrink-0 text-[11px] text-muted tabular-nums">{fmtHours(pSec)}</span>
+                  <span className="shrink-0 text-[11px] text-muted tabular-nums">
+                    {fmtHours(pSec)}
+                    {pOffen > 0 && <span className="ml-2 font-bold text-warning">{fmtEuro(pOffen)} offen</span>}
+                  </span>
                 </li>
               );
             })}
@@ -380,6 +398,23 @@ export function CustomerDetailDrawer({ open, customer, onSave, onDelete, onClose
           suffix="€/h"
         />
       </div>
+
+      {effectiveVatRate(state?.issuer) > 0 && (
+        <div className="flex flex-col">
+          <label className="mb-2 kv-label">Stundensatz & Pauschalen sind</label>
+          <select
+            value={preisArt}
+            onChange={(e) => { setPreisArt(e.target.value as PreisArt); markDirty(); }}
+            className="h-10 rounded-md border border-divider bg-paper px-3 text-sm text-ink outline-none focus:border-accent"
+          >
+            <option value="">
+              Wie in den Einstellungen ({state?.issuer.pricesIncludeVat ? 'brutto' : 'netto'})
+            </option>
+            <option value="brutto">Brutto — USt ist im Preis enthalten</option>
+            <option value="netto">Netto — USt kommt obendrauf</option>
+          </select>
+        </div>
+      )}
 
       <div className="flex flex-col">
         <label className="mb-2 kv-label">Tags</label>

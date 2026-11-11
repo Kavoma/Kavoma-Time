@@ -149,6 +149,7 @@ export function angebotZuRechnungsentwurf(
     status: 'draft',
     reminders: [],
     quoteId: quote.id,
+    grossPricing: quote.grossPricing,
   };
 
   return {

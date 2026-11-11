@@ -5,6 +5,7 @@ import type { Quote } from '../../types';
 import { useAppState } from '../../state/AppStateContext';
 import { InvoiceItemsTable } from '../InvoiceItemsTable';
 import { summiere } from '../../utils/quotes';
+import { itemsToGross, itemsToNet, pricesIncludeVat } from '../../utils/pricing';
 
 interface Props {
   open: boolean;
@@ -38,25 +39,40 @@ export function QuoteEditModal({ open, quote, onClose, onSave }: Props) {
   const { state } = useAppState();
   const [entwurf, setEntwurf] = useState<Quote | null>(null);
   const [gueltig, setGueltig] = useState('');
+  // Preise brutto eingegeben? Gespeichert wird trotzdem netto (siehe pricing.ts).
+  const [brutto, setBrutto] = useState(false);
 
   useEffect(() => {
     if (open && quote) {
-      setEntwurf({ ...quote, items: quote.items.map((i) => ({ ...i })) });
+      const kunde = state?.customers.find((c) => c.id === quote.customerId);
+      const alsBrutto = quote.grossPricing ?? pricesIncludeVat(state?.issuer, kunde);
+      setBrutto(alsBrutto);
+      setEntwurf({
+        ...quote,
+        items: quote.grossPricing
+          ? itemsToGross(quote.items, quote.vatRate)
+          : quote.items.map((i) => ({ ...i })),
+      });
       setGueltig(alsFeldwert(quote.validUntil));
     }
+  // Nur beim Öffnen übernehmen — spätere State-Änderungen dürfen die Eingabe nicht überschreiben.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, quote]);
 
   if (!open || !entwurf || !state) return null;
 
   const kunden = state.customers.filter((c) => c.status !== 'archived' || c.id === entwurf.customerId);
   const projekte = state.projects.filter((p) => p.customerId === entwurf.customerId);
-  const summen = summiere(entwurf.items, entwurf.vatRate);
+  const nettoItems = brutto ? itemsToNet(entwurf.items, entwurf.vatRate) : entwurf.items;
+  const summen = summiere(nettoItems, entwurf.vatRate);
   const kannSpeichern = entwurf.customerId > 0 && entwurf.items.length > 0;
 
   const speichern = () => {
     if (!kannSpeichern) return;
     onSave({
       ...entwurf,
+      items: nettoItems,
+      grossPricing: brutto || undefined,
       ...summen,
       validUntil: ausFeldwert(gueltig, entwurf.validUntil),
     });
@@ -95,12 +111,16 @@ export function QuoteEditModal({ open, quote, onClose, onSave }: Props) {
                 <select
                   className="kv-input mt-1 w-full"
                   value={entwurf.customerId}
-                  onChange={(e) => setEntwurf({
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    setBrutto(pricesIncludeVat(state.issuer, state.customers.find((c) => c.id === id)));
+                    setEntwurf({
                     ...entwurf,
-                    customerId: Number(e.target.value),
+                    customerId: id,
                     // Ein Projekt eines anderen Kunden wäre nach dem Wechsel falsch.
                     projectId: null,
-                  })}
+                    });
+                  }}
                 >
                   <option value={0}>Bitte wählen …</option>
                   {kunden.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -128,6 +148,32 @@ export function QuoteEditModal({ open, quote, onClose, onSave }: Props) {
                 />
               </label>
             </div>
+
+            {entwurf.vatRate > 0 && (
+              <div className="flex items-center justify-between gap-3 rounded-md border border-divider bg-surface/50 px-3 py-2">
+                <div className="text-[11px] text-muted">
+                  {brutto
+                    ? `Eingegebene Preise enthalten ${entwurf.vatRate} % USt — die Endsumme bleibt genau so.`
+                    : `Eingegebene Preise sind netto — ${entwurf.vatRate} % USt kommen obendrauf.`}
+                </div>
+                <div className="flex shrink-0 overflow-hidden rounded-md border border-divider text-[11px] font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setBrutto(false)}
+                    className={`cursor-pointer px-2.5 py-1 ${!brutto ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
+                  >
+                    Netto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBrutto(true)}
+                    className={`cursor-pointer px-2.5 py-1 ${brutto ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
+                  >
+                    Brutto
+                  </button>
+                </div>
+              </div>
+            )}
 
             <InvoiceItemsTable
               items={entwurf.items}

@@ -15,6 +15,7 @@ import { applyTemplate, computeTotals, inferInvoiceMode, templateFromInvoice } f
 import { collectEInvoiceIssues } from '../utils/eInvoiceXml';
 import { newNumericId } from '../sync/ids';
 import { DRAFT_NUMBER } from '../sync/numbers';
+import { effectiveVatRate, itemsToGross, itemsToNet, pricesIncludeVat } from '../utils/pricing';
 
 interface Props {
   open: boolean;
@@ -114,6 +115,9 @@ export function InvoiceCreateModal({
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
+  // Eingegebene Preise brutto (inkl. USt)? Startwert kommt vom Kunden bzw. der
+  // Grundeinstellung, lässt sich hier pro Rechnung umstellen.
+  const [grossPricing, setGrossPricing] = useState(false);
 
   const customer = customers.find((c) => c.id === customerId);
   const availableProjects = useMemo(
@@ -141,7 +145,10 @@ export function InvoiceCreateModal({
       setProjectId(editingDraft.projectId ?? 0);
       setFrom(isoFromTs(editingDraft.periodFrom));
       setTo(isoFromTs(editingDraft.periodTo));
-      setItems(editingDraft.items.map((it) => ({ ...it })));
+      setGrossPricing(Boolean(editingDraft.grossPricing));
+      setItems(editingDraft.grossPricing
+        ? itemsToGross(editingDraft.items, editingDraft.vatRate)
+        : editingDraft.items.map((it) => ({ ...it })));
       setEntryIds([...editingDraft.entryIds]);
       setServiceType('Dienstleistung');
       setNotes(editingDraft.notes);
@@ -151,6 +158,7 @@ export function InvoiceCreateModal({
       setIncludeReport(editingDraft.entryIds.length > 0);
     } else {
       setCustomerId(customers[0]?.id ?? 0);
+      setGrossPricing(pricesIncludeVat(issuer, customers[0]));
       setProjectId(0);
       setFrom(startOfMonthISO());
       setTo(todayISO());
@@ -172,13 +180,19 @@ export function InvoiceCreateModal({
   // Wenn der Nutzer den Kunden wechselt, Projekt zurücksetzen
   const changeCustomer = (id: number) => {
     setCustomerId(id);
+    setGrossPricing(pricesIncludeVat(issuer, customers.find((c) => c.id === id)));
     setProjectId(0);
     markDirty();
   };
 
   // VAT-Satz aus Issuer
-  const vatRate = issuer.smallBusiness ? 0 : issuer.vatRate;
-  const totals = useMemo(() => computeTotals(items, vatRate), [items, vatRate]);
+  const vatRate = effectiveVatRate(issuer);
+  // Gespeichert wird immer netto — bei Bruttoeingabe wird hier umgerechnet.
+  const netItems = useMemo(
+    () => (grossPricing ? itemsToNet(items, vatRate) : items),
+    [items, vatRate, grossPricing],
+  );
+  const totals = useMemo(() => computeTotals(netItems, vatRate), [netItems, vatRate]);
 
   // Fehlende Pflichtangaben für die E-Rechnung (Absender + gewählter Kunde)
   const eInvoiceIssues = useMemo(
@@ -197,7 +211,7 @@ export function InvoiceCreateModal({
     periodTo: new Date(to + 'T23:59:59').getTime(),
     createdAt: new Date(createdAt + 'T12:00:00').getTime(),
     dueDate: new Date(dueDate + 'T12:00:00').getTime(),
-    items,
+    items: netItems,
     entryIds,
     subtotal: totals.subtotal,
     vatRate,
@@ -209,13 +223,14 @@ export function InvoiceCreateModal({
     status,
     reminders: editingDraft?.reminders ?? [],
     recurringId: editingDraft?.recurringId,
+    grossPricing: grossPricing || undefined,
   });
 
   const previewInvoice = useMemo(() => {
     if (!customer || items.length === 0) return null;
     return buildInvoice('draft');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customer, items, invoiceNumber, vatRate, totals, from, to, createdAt, dueDate, notes, customerId, projectId]);
+  }, [customer, netItems, grossPricing, invoiceNumber, vatRate, totals, from, to, createdAt, dueDate, notes, customerId, projectId]);
 
   // Validierung
   const validate = (): string | null => {
@@ -440,6 +455,31 @@ export function InvoiceCreateModal({
                       className="h-10 rounded-md border border-divider bg-paper px-3 text-sm text-ink outline-none focus:border-accent"
                     />
                   </div>
+                  {vatRate > 0 && (
+                    <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-divider bg-surface/50 px-3 py-2">
+                      <div className="text-[11px] text-muted">
+                        {grossPricing
+                          ? `Eingegebene Preise enthalten ${vatRate} % USt — die Endsumme bleibt genau so.`
+                          : `Eingegebene Preise sind netto — ${vatRate} % USt kommen obendrauf.`}
+                      </div>
+                      <div className="flex shrink-0 overflow-hidden rounded-md border border-divider text-[11px] font-bold">
+                        <button
+                          type="button"
+                          onClick={() => { setGrossPricing(false); markDirty(); }}
+                          className={`cursor-pointer px-2.5 py-1 ${!grossPricing ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
+                        >
+                          Netto
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setGrossPricing(true); markDirty(); }}
+                          className={`cursor-pointer px-2.5 py-1 ${grossPricing ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}
+                        >
+                          Brutto
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <InvoiceItemsTable
                     items={items}
                     onChange={(next) => { setItems(next); markDirty(); }}
@@ -621,7 +661,8 @@ export function InvoiceCreateModal({
             <div className="flex items-center justify-between border-t border-divider bg-paper/30 px-5 py-3">
               <div className="text-[10px] uppercase tracking-widest text-muted">
                 <span className="font-bold">{totals.subtotal.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
-                {vatRate > 0 && <span> · zzgl. {vatRate}% USt.: {totals.vatAmount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>}
+                <span> netto</span>
+                {vatRate > 0 && <span> · {grossPricing ? 'enthält' : 'zzgl.'} {vatRate}% USt.: {totals.vatAmount.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>}
                 <span> · Gesamt: </span>
                 <span className="font-bold text-ink">{totals.total.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
               </div>

@@ -363,6 +363,11 @@ function discardStaleNumberReserve() {
 
 let syncEngine = null;
 
+// Hauptschalter für die Gerätesynchronisation — vorerst aus. Gegenstück im
+// Renderer: `SYNC_ENABLED` in `src/sync/feature.ts`. Ohne Motor vergibt die
+// App alle Nummern lokal und überträgt nichts.
+const SYNC_ENABLED = false;
+
 /** Schickt an alle offenen Fenster — Haupt- und Overlay-Fenster. */
 function broadcastToRenderers(channel, payload) {
   BrowserWindow.getAllWindows().forEach((win) => {
@@ -371,6 +376,7 @@ function broadcastToRenderers(channel, payload) {
 }
 
 function initSyncEngine() {
+  if (!SYNC_ENABLED) return null;
   if (syncEngine || !store) return syncEngine;
   try {
     const { createEngine } = require('./sync/engine.cjs');
@@ -443,7 +449,9 @@ ipcMain.handle('sync-approve-link', withEngine((e, _ev, id, code) => e.approveLi
 ipcMain.handle('sync-reject-link', withEngine((e, _ev, id) => e.rejectLink(id)));
 ipcMain.handle('sync-unlock', withEngine((e, _ev, secret) => e.unlock(secret)));
 ipcMain.handle('sync-start', withEngine((e) => e.start()));
-ipcMain.handle('sync-enqueue', withEngine((e, _ev, ops) => e.enqueue(ops)));
+// Ohne Motor werden die Ops still verworfen — der Renderer erzeugt sie bei
+// jedem Speichern und soll dafür keine Fehlermeldung bekommen.
+ipcMain.handle('sync-enqueue', (_ev, ops) => (syncEngine ? syncEngine.enqueue(ops) : null));
 ipcMain.handle('sync-now', withEngine((e) => e.sync().then(() => e.status())));
 ipcMain.handle('sync-fetch-all', withEngine((e) => e.fetchAll()));
 ipcMain.handle('sync-accept-cursor', withEngine((e, _ev, seq) => { e.acceptCursor(seq); return true; }));

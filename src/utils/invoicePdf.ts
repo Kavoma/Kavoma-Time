@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { Invoice, Issuer, Customer } from '../types';
 import { buildFacturXXml, collectEInvoiceIssues } from './eInvoiceXml';
 import { attachFacturX } from './zugferdPdf';
-import { SEITENBREITE, briefFuss, briefkopf, fmtDate, fmtEuro } from './pdfLetterhead';
+import { SEITENBREITE, briefFuss, briefkopf, fmtDate, fmtEuro, fmtPrice } from './pdfLetterhead';
 import { PDF_FONT, registriereSchrift } from './pdfFonts';
 
 /** Steuert, ob dem PDF das ZUGFeRD-XML beigelegt wird. */
@@ -110,7 +110,7 @@ function renderInvoiceOnDoc(doc: jsPDF, invoice: Invoice, issuer: Issuer, custom
   const rows = invoice.items.map(item => [
     item.description,
     `${item.quantity.toLocaleString('de-DE', { maximumFractionDigits: 2 })} ${item.unit}`,
-    fmtEuro(item.unitPrice),
+    fmtPrice(item.unitPrice),
     fmtEuro(item.total),
   ]);
 

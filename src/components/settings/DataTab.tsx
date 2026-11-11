@@ -7,6 +7,7 @@ import { InfoTooltip } from './InfoTooltip';
 import { Checkbox } from '../Checkbox';
 import { NumberInput } from '../NumberInput';
 import { SyncCard } from './SyncCard';
+import { SYNC_ENABLED } from '../../sync/feature';
 import { BackupRecoveryCard } from './BackupRecoveryCard';
 
 interface DataTabProps {
@@ -225,7 +226,7 @@ export function DataTab({ onRequestRestore, onRequestWipe }: DataTabProps) {
   return (
     <div className="flex flex-col gap-6">
       {/* Backup */}
-      <SyncCard />
+      {SYNC_ENABLED && <SyncCard />}
 
       <BackupRecoveryCard />
 

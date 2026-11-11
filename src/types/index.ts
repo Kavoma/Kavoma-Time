@@ -17,6 +17,8 @@ export interface Customer {
   country?: string;     // ISO-3166-1 alpha-2, Default 'DE' — Pflichtangabe für E-Rechnung (BT-55)
   email?: string;
   vatId?: string;       // USt-IdNr. des Kunden (BT-48) — nur für EU-Fälle/Reverse-Charge nötig
+  /** Preise für diesen Kunden inkl. USt? Fehlt das Feld, gilt `Issuer.pricesIncludeVat`. */
+  pricesIncludeVat?: boolean;
 
   // V1.5 — Kundenverwaltung-Erweiterungen
   status?: CustomerStatus;        // Default 'active'; 'archived' filtert aus Standard-Listen
@@ -101,6 +103,11 @@ export interface Issuer {
   vatId?: string;         // USt-IdNr. (BT-31, schemeID 'VA') — z. B. DE123456789
   smallBusiness: boolean; // §19 UStG Kleinunternehmer
   vatRate: number;        // % — 0 falls Kleinunternehmer
+  /**
+   * Grundeinstellung: Stundensätze und Pauschalen sind Bruttopreise (USt steckt
+   * drin). Pro Kunde überschreibbar. Fehlt das Feld, gilt netto — wie bisher.
+   */
+  pricesIncludeVat?: boolean;
 }
 
 export type InvoiceItemKind = 'time' | 'flat' | 'discount';
@@ -203,6 +210,13 @@ export interface Invoice {
 
   /** Angebot, aus dem diese Rechnung entstanden ist. Audit-Spur wie `recurringId`. */
   quoteId?: string;
+
+  /**
+   * Die Preise wurden brutto eingegeben. Gespeichert sind die Positionen
+   * trotzdem netto — das Feld sagt nur, wie sie beim Bearbeiten wieder
+   * angezeigt werden (siehe `src/utils/pricing.ts`).
+   */
+  grossPricing?: boolean;
 }
 
 // === Angebote ===
@@ -248,6 +262,8 @@ export interface Quote {
   invoiceId?: string;
   /** Vorlage, aus der die Positionen kamen. */
   templateId?: string;
+  /** Wie bei `Invoice.grossPricing`. */
+  grossPricing?: boolean;
 }
 
 // === Phase 1.5: Rechnungs-Vorlagen ===

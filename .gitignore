@@ -37,3 +37,6 @@ documentation
 
 # Supabase-Migrationen — bleiben lokal, nicht auf GitHub
 supabase
+
+# graphify Wissensgraph (lokal erzeugt)
+graphify-out/

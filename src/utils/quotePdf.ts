@@ -12,7 +12,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Customer, Issuer, Quote } from '../types';
-import { RAND, SEITENBREITE, briefFuss, briefkopf, fmtDate, fmtEuro } from './pdfLetterhead';
+import { RAND, SEITENBREITE, briefFuss, briefkopf, fmtDate, fmtEuro, fmtPrice } from './pdfLetterhead';
 import { PDF_FONT, registriereSchrift } from './pdfFonts';
 
 export function generateQuotePdf(quote: Quote, issuer: Issuer, customer: Customer): Blob {
@@ -55,7 +55,7 @@ function renderQuoteOnDoc(doc: jsPDF, quote: Quote, issuer: Issuer, customer: Cu
     body: quote.items.map((item) => [
       item.description,
       `${item.quantity.toLocaleString('de-DE', { maximumFractionDigits: 2 })} ${item.unit}`,
-      fmtEuro(item.unitPrice),
+      fmtPrice(item.unitPrice),
       fmtEuro(item.total),
     ]),
     theme: 'plain',

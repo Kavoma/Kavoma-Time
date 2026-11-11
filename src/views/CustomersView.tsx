@@ -16,6 +16,7 @@ import { collectTags, tagColors } from '../utils/tagColor';
 import type { NavIntent, ViewKey } from '../App';
 import { newNumericId } from '../sync/ids';
 import { advanceCounter, allocateNumber, debtorFloor } from '../sync/numbers';
+import { computeOutstanding } from '../utils/outstanding';
 
 type SortBy = 'name' | 'recent' | 'revenue' | 'hours';
 type ViewMode = 'list' | 'cards';
@@ -98,10 +99,10 @@ export function CustomersView({ navigateTo, intentCustomerId, onIntentConsumed }
 
   // Aggregat-Stats pro Kunde
   const customerStats = useMemo(() => {
-    const map = new Map<number, { hours: number; revenue: number; lastActivity: number; projectCount: number }>();
+    const map = new Map<number, { hours: number; revenue: number; lastActivity: number; projectCount: number; outstanding: number }>();
     if (!state) return map;
     for (const c of state.customers) {
-      map.set(c.id, { hours: 0, revenue: 0, lastActivity: 0, projectCount: 0 });
+      map.set(c.id, { hours: 0, revenue: 0, lastActivity: 0, projectCount: 0, outstanding: computeOutstanding(state, { customerId: c.id }).totalGross });
     }
     for (const e of state.entries) {
       const s = map.get(e.customerId);
@@ -556,7 +557,7 @@ function CustomerRow({
   customer, stats, contractCount, selected, onToggleSelect, onOpen, onJumpContracts,
 }: {
   customer: Customer;
-  stats?: { hours: number; revenue: number; lastActivity: number; projectCount: number };
+  stats?: { hours: number; revenue: number; lastActivity: number; projectCount: number; outstanding: number };
   contractCount: number;
   selected: boolean;
   onToggleSelect: () => void;
@@ -627,6 +628,13 @@ function CustomerRow({
           {customer.hourlyRate.toLocaleString('de-DE')} €/h
         </span>
       ) : null}
+      <Tooltip content="Noch offen: nicht abgerechnete Stunden + unbezahlte Rechnungen (brutto)">
+        <span className={`w-24 shrink-0 text-right text-[11px] font-bold tabular-nums ${stats && stats.outstanding > 0 ? 'text-warning' : 'text-muted/60'}`}>
+          {stats && stats.outstanding > 0
+            ? stats.outstanding.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
+            : '—'}
+        </span>
+      </Tooltip>
       <span className="w-20 shrink-0 text-right text-[11px] tabular-nums text-muted">
         {stats ? `${stats.hours.toFixed(1)} h` : '0 h'}
       </span>
@@ -641,7 +649,7 @@ function CustomerCard({
   customer, stats, projectCount, selected, onToggleSelect, onOpen,
 }: {
   customer: Customer;
-  stats?: { hours: number; revenue: number; lastActivity: number; projectCount: number };
+  stats?: { hours: number; revenue: number; lastActivity: number; projectCount: number; outstanding: number };
   projectCount: number;
   selected: boolean;
   onToggleSelect: () => void;
@@ -685,8 +693,9 @@ function CustomerCard({
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-1.5 border-t border-divider pt-2">
+      <div className="grid grid-cols-4 gap-1.5 border-t border-divider pt-2">
         <Stat label="Stunden" value={stats ? `${stats.hours.toFixed(0)} h` : '0 h'} />
+        <Stat label="Offen" value={stats ? stats.outstanding.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }) : '0 €'} />
         <Stat label="Umsatz" value={stats ? stats.revenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }) : '0 €'} />
         <Stat label="Projekte" value={String(projectCount)} />
       </div>
