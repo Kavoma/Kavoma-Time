@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import type { Quote } from '../../types';
 import { useAppState } from '../../state/AppStateContext';
 import { InvoiceItemsTable } from '../InvoiceItemsTable';
+import { DatePicker } from '../DatePicker';
 import { summiere } from '../../utils/quotes';
 import { itemsToGross, itemsToNet, pricesIncludeVat } from '../../utils/pricing';
 
@@ -140,13 +141,10 @@ export function QuoteEditModal({ open, quote, onClose, onSave }: Props) {
                   {projekte.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </label>
-              <label className="block">
+              <div className="block">
                 <span className="kv-label">Gültig bis</span>
-                <input
-                  type="date" className="kv-input mt-1 w-full"
-                  value={gueltig} onChange={(e) => setGueltig(e.target.value)}
-                />
-              </label>
+                <DatePicker size="sm" className="mt-1" value={gueltig} onChange={setGueltig} />
+              </div>
             </div>
 
             {entwurf.vatRate > 0 && (

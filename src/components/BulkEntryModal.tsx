@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ListPlus, Plus, Trash2, Copy } from 'lucide-react';
 import type { Customer, Project, TimeEntry } from '../types';
 import { CustomSelect } from './CustomSelect';
+import { DatePicker } from './DatePicker';
+import { TimeInput } from './TimeInput';
 import { Checkbox } from './Checkbox';
 import { newNumericId } from '../sync/ids';
 import { NO_PROJECT_ID, NO_PROJECT_OPTION } from '../utils/projects';
@@ -113,10 +115,10 @@ export function BulkEntryModal({ open, customers, projects, defaultCustomerId, o
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Neue Zeile direkt fokussieren, damit man ohne Maus weitertippen kann.
+  // Neue Zeile direkt fokussieren (Feld „Von"), damit man ohne Maus weitertippen kann.
   useEffect(() => {
     if (fokusNeu.current === null) return;
-    const el = document.querySelector<HTMLInputElement>(`[data-bulk-datum="${fokusNeu.current}"]`);
+    const el = document.querySelector<HTMLInputElement>(`[data-bulk-von="${fokusNeu.current}"] input`);
     el?.focus();
     fokusNeu.current = null;
   }, [zeilen]);
@@ -270,16 +272,13 @@ export function BulkEntryModal({ open, customers, projects, defaultCustomerId, o
                       <tr key={z.key} className="align-top">
                         <td className="pt-2 text-[11px] tabular-nums text-muted">{i + 1}</td>
                         <td className="pr-1.5">
-                          <input
-                            type="date" data-bulk-datum={z.key} className={feld}
-                            value={z.datum} onChange={(e) => aendern(z.key, { datum: e.target.value })}
-                          />
+                          <DatePicker size="sm" value={z.datum} onChange={(v) => aendern(z.key, { datum: v })} />
+                        </td>
+                        <td className="pr-1.5" data-bulk-von={z.key}>
+                          <TimeInput size="sm" value={z.von} onChange={(v) => aendern(z.key, { von: v })} />
                         </td>
                         <td className="pr-1.5">
-                          <input type="time" className={feld} value={z.von} onChange={(e) => aendern(z.key, { von: e.target.value })} />
-                        </td>
-                        <td className="pr-1.5">
-                          <input type="time" className={feld} value={z.bis} onChange={(e) => aendern(z.key, { bis: e.target.value })} />
+                          <TimeInput size="sm" value={z.bis} onChange={(v) => aendern(z.key, { bis: v })} />
                         </td>
                         <td className="pr-1.5">
                           {hatZeiten ? (

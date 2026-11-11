@@ -1,0 +1,47 @@
+# macOS-Build für GitHub Releases.
+#
+# Ein Mac-Build braucht einen Mac (codesign, hdiutil) — von Windows aus geht
+# es nicht. Dieser Workflow übernimmt das auf einem GitHub-Runner.
+#
+# Läuft automatisch, sobald `pnpm release-tag` den Tag vX.Y.Z pusht. Der Tag
+# existiert dann bereits, und der Windows-Build (`pnpm dist:publish`) hängt
+# seine Dateien an dasselbe Release an — siehe scripts/release-tag.mjs.
+# Von Hand: Actions → macOS-Release → Run workflow.
+#
+# Signiert wird nur ad-hoc (build/afterPack.cjs). Die Installation per DMG
+# funktioniert, das Auto-Update unter macOS braucht eine Developer-ID.
+
+name: macOS-Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.10.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: DMG und ZIP bauen und veröffentlichen
+        run: pnpm exec electron-builder --mac --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
